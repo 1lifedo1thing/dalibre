@@ -1,0 +1,160 @@
+package app
+
+import (
+	"bytes"
+	"hash/fnv"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
+	"os"
+	"strings"
+
+	"github.com/egoist/mygo/ui"
+
+	"dalibre/internal/app/theme"
+	"dalibre/internal/calibre"
+	"dalibre/internal/thumbs"
+)
+
+type coverKey struct {
+	id     int64
+	mod    int64
+	height int
+}
+
+// coverCache holds decoded covers, made from small thumbnails on disk.
+type coverCache struct {
+	thumbs  *thumbs.Cache
+	bitmaps map[coverKey]*ui.Bitmap
+	failed  map[coverKey]bool
+	loading map[coverKey]bool
+}
+
+func newCoverCache() *coverCache {
+	tc, _ := thumbs.New()
+	return &coverCache{thumbs: tc, bitmaps: map[coverKey]*ui.Bitmap{}, failed: map[coverKey]bool{}, loading: map[coverKey]bool{}}
+}
+
+func (cc *coverCache) forget(id int64) {
+	for k := range cc.bitmaps {
+		if k.id == id {
+			delete(cc.bitmaps, k)
+		}
+	}
+	for k := range cc.failed {
+		if k.id == id {
+			delete(cc.failed, k)
+		}
+	}
+}
+
+// cover returns the book's cover at about height pixels, or nil while it
+// loads or when the book has none.
+func (a *App) cover(b *calibre.Book, height int) *ui.Bitmap {
+	if !b.HasCover || a.lib == nil {
+		return nil
+	}
+	cc := a.covers
+	k := coverKey{b.ID, b.LastModified.UnixNano(), height}
+	if bmp := cc.bitmaps[k]; bmp != nil {
+		return bmp
+	}
+	if cc.failed[k] || cc.loading[k] {
+		return nil
+	}
+	cc.loading[k] = true
+	src := a.lib.CoverPath(b)
+	a.run(func() {
+		var bmp *ui.Bitmap
+		path := src
+		if cc.thumbs != nil {
+			if p, err := cc.thumbs.Get(src, height); err == nil {
+				path = p
+			}
+		}
+		if data, err := os.ReadFile(path); err == nil {
+			if img, _, err := image.Decode(bytes.NewReader(data)); err == nil {
+				bmp = ui.NewBitmap(img)
+			}
+		}
+		a.post(func() {
+			delete(cc.loading, k)
+			if bmp == nil {
+				cc.failed[k] = true
+				return
+			}
+			cc.bitmaps[k] = bmp
+		})
+	})
+	return nil
+}
+
+// tone is a generated cover's colors: background and ink.
+type tone struct{ bg, fg ui.Color }
+
+var tones = []tone{
+	{ui.Hex("#1F2A44"), ui.Hex("#EFE6D2")}, // ink
+	{ui.Hex("#B4553A"), ui.Hex("#FBEDE3")}, // clay
+	{ui.Hex("#46583A"), ui.Hex("#ECEEDD")}, // moss
+	{ui.Hex("#2B6474"), ui.Hex("#E3F0F1")}, // sea
+	{ui.Hex("#572C4C"), ui.Hex("#F4E4EE")}, // plum
+	{ui.Hex("#E6D9BF"), ui.Hex("#2A2420")}, // sand
+}
+
+func toneOf(title string) tone {
+	h := fnv.New32a()
+	h.Write([]byte(title))
+	return tones[h.Sum32()%uint32(len(tones))]
+}
+
+// coverView draws the book's cover in a w×h box: the image when there is
+// one, else a typographic cover in a tone derived from the title.
+func (a *App) coverView(c *ui.Context, b *calibre.Book, w, h float32, small bool) ui.Element {
+	return coverOf(c, b, a.cover(b, int(h*2)), w, h, small)
+}
+
+// coverOf draws the cover in a w×h box from bmp, or a typographic one
+// when bmp is nil.
+func coverOf(c *ui.Context, b *calibre.Book, bmp *ui.Bitmap, w, h float32, small bool) ui.Element {
+	box := ui.Box(c).Size(w, h).Radius(2, 4, 4, 2).Clip().Shadow(0, 1, 1, 0, ui.RGBA(26, 23, 18, 0.12)).Shadow(0, 6, 14, -4, ui.RGBA(26, 23, 18, 0.16))
+	if bmp != nil {
+		box.Children(func() {
+			ui.Image(c, bmp).Fill().Fit(ui.Cover)
+			spine(c, small)
+		})
+		return box
+	}
+	tn := toneOf(b.Title)
+	box.Background(tn.bg)
+	if small {
+		box.Children(func() {
+			ui.Box(c).Absolute().Left(w*0.2).Top(h*0.7).Size(w*0.4, 1).Background(tn.fg.Alpha(0.7))
+			ui.Box(c).Absolute().Left(w*0.2).Top(h*0.78).Size(w*0.55, 1).Background(tn.fg.Alpha(0.5))
+			spine(c, true)
+		})
+		return box
+	}
+	scale := w / theme.CoverW
+	box.Padding(theme.Space12*scale, theme.Space12*scale, theme.Space12*scale, theme.Space16*scale).Justify(ui.SpaceBetween).Children(func() {
+		author := strings.ToUpper(strings.Join(b.Authors, ", "))
+		ui.Text(c, author).Font(theme.FontMono).FontSize(8 * scale).LetterSpacing(1 * scale).TextColor(tn.fg.Alpha(0.75)).MaxLines(2)
+		ui.Column(c).Gap(theme.Space8 * scale).Children(func() {
+			ui.Box(c).Size(16*scale, 1.5).Background(tn.fg.Alpha(0.6))
+			ui.Text(c, b.Title).FontWeight(600).FontSize(15 * scale).FixedLineHeight(19 * scale).LetterSpacing(-0.1 * scale).TextColor(tn.fg).MaxLines(5)
+		})
+		spine(c, false)
+	})
+	return box
+}
+
+// spine shades the left edge, as a book's binding.
+func spine(c *ui.Context, small bool) {
+	w := float32(6)
+	if small {
+		w = 2
+	}
+	ui.Box(c).Absolute().Left(0).Top(0).Bottom(0).Width(w).PassThrough().LinearGradient(ui.LinearGradient{
+		Angle: 90,
+		Stops: []ui.GradientStop{{Color: ui.RGBA(0, 0, 0, 0.22), At: 0}, {Color: ui.RGBA(255, 255, 255, 0.10), At: 0.6}, {Color: ui.Transparent, At: 1}},
+	})
+}
