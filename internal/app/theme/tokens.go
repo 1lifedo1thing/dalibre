@@ -48,7 +48,7 @@ type Palette struct {
 	DangerSolid, WarningSolid                                                                  ui.Color
 	// The grid's shelf boards (shelf/*): lit top, front face, bottom lip.
 	PlankTop, PlankFace, PlankEdge ui.Color
-	Formats                                                                                   map[string]Pair
+	Formats                        map[string]Pair
 }
 
 // NewPalette returns the light or the dark palette.
