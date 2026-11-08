@@ -3,6 +3,8 @@ package app
 import (
 	"fmt"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -37,17 +39,17 @@ func (a *App) view(c *ui.Context) {
 	dragOver := root.FileDragOver() && a.lib != nil
 	root.Children(func() {
 		a.sidebar(c)
+		// The toolbar heads the middle column only; the detail panel runs
+		// the window's full height beside it, as in Figma.
 		ui.Column(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch).Children(func() {
 			a.toolbar(c)
-			ui.Row(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
-				ui.Column(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch).Children(func() {
-					a.mainContent(c)
-				})
-				if a.lib != nil && !a.settings.HideDetail {
-					a.detailPanel(c)
-				}
+			ui.Column(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
+				a.mainContent(c)
 			})
 		})
+		if a.lib != nil && !a.settings.HideDetail {
+			a.detailPanel(c)
+		}
 		if dragOver {
 			a.dropOverlay(c)
 		}
@@ -90,6 +92,11 @@ func (a *App) sidebar(c *ui.Context) {
 		top := float32(theme.Space12)
 		if bar.Left > 0 {
 			top = bar.Height
+			if runtime.GOOS == "darwin" {
+				// The inset title bar is taller than the traffic lights need;
+				// the switcher can sit just under them.
+				top = max(bar.Height-theme.Space12, theme.Space12)
+			}
 		}
 		ui.Box(c).Height(top).DragWindow()
 		ui.Box(c).Padding(0, theme.Space8, theme.Space8, theme.Space8).Children(func() { a.librarySwitcher(c) })
@@ -106,11 +113,6 @@ func (a *App) sidebar(c *ui.Context) {
 				})
 			})
 			a.navSection(c, "formats", "Formats", catalog.ByFormat, a.counts.Formats, icons.File, 0)
-			a.navSection(c, "authors", "Authors", catalog.ByAuthor, a.counts.Authors, icons.User, 40)
-			a.navSection(c, "series", "Series", catalog.BySeries, a.counts.Series, icons.Layers, 40)
-			a.navSection(c, "tags", "Tags", catalog.ByTag, a.counts.Tags, icons.Tag, 60)
-			a.navSection(c, "publishers", "Publishers", catalog.ByPublisher, a.counts.Publishers, icons.Building, 40)
-			a.navSection(c, "languages", "Languages", catalog.ByLanguage, a.counts.Languages, icons.Globe, 0)
 		})
 		a.sidebarFooter(c)
 	})
@@ -212,22 +214,26 @@ func (a *App) librarySwitcher(c *ui.Context) {
 		b.Border(1, pal().Border)
 	}
 	b.PopoverMenuButton(func(m *ui.Menu) {
-		if m.Item("Open library…").Chosen() {
-			a.chooseLibrary()
+		m.MaxWidth(340)
+		// Every recently opened library, the open one checked.
+		recent := a.settings.Recent
+		if a.lib != nil && !slices.Contains(recent, a.lib.Root) {
+			recent = append([]string{a.lib.Root}, recent...)
 		}
-		for _, r := range a.settings.Recent {
-			if a.lib != nil && r == a.lib.Root {
-				continue
-			}
-			if m.Item(filepath.Base(r)).Subtitle(r).Chosen() {
+		for _, r := range recent {
+			open := a.lib != nil && r == a.lib.Root
+			item := m.Item(filepath.Base(r)).ID(r).Subtitle(r).Checked(open).Content(func(x ui.MenuItemContent) {
+				a.recentLibraryRow(x, r)
+			})
+			if item.Chosen() && !open {
 				a.openLibrary(r)
 			}
 		}
-		if a.lib != nil {
+		if len(recent) > 0 {
 			m.Separator()
-			if m.Item("Show in folder").Chosen() {
-				revealPath(a.lib.Root)
-			}
+		}
+		if m.Item("Open library…").Chosen() {
+			a.chooseLibrary()
 		}
 	})
 	b.Children(func() {
@@ -239,6 +245,30 @@ func (a *App) librarySwitcher(c *ui.Context) {
 			ui.Text(c, sub).FontSize(12).TextColor(pal().TextTertiary).SingleLine()
 		})
 		ui.Icon(c, icons.ChevronDown).FontSize(14).TextColor(pal().IconMuted)
+	})
+}
+
+// revealLabel names showing a file in the system's file manager.
+var revealLabel = map[bool]string{true: "Show in Finder", false: "Show in folder"}[runtime.GOOS == "darwin"]
+
+// recentLibraryRow shows a library in the switcher's menu: its name and
+// path, and, while the item is highlighted, a button revealing its folder.
+func (a *App) recentLibraryRow(x ui.MenuItemContent, root string) {
+	c := x.Context
+	ui.Row(c).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+			ui.Text(c, filepath.Base(root)).SingleLine().TextColor(x.Text)
+			ui.Text(c, root).FontSize(12).SingleLine().TextColor(x.Muted)
+		})
+		reveal := ui.ButtonBase(c).Size(24, 24).Radius(theme.RadiusXS).Center().Label(revealLabel + ": " + filepath.Base(root)).Tooltip(revealLabel)
+		if !x.Highlighted {
+			reveal.Opacity(0)
+		} else if reveal.Hovered() {
+			reveal.Background(x.Text.Alpha(0.12))
+		}
+		reveal.OnClick(func() { revealPath(root) }).Children(func() {
+			ui.Icon(c, icons.Folder).FontSize(14).TextColor(x.Text)
+		})
 	})
 }
 
@@ -274,8 +304,13 @@ func (a *App) sidebarFooter(c *ui.Context) {
 // ---- Toolbar
 
 func (a *App) toolbar(c *ui.Context) {
-	bar := c.TitleBar()
-	ui.Row(c).Height(theme.ToolbarHeight).Padding(0, theme.Space24+bar.Right, 0, theme.Space32).Gap(theme.Space8).AlignItems(ui.Center).DragWindow().Children(func() {
+	// The window's caption buttons, where there are some on the right,
+	// sit over the detail panel when it shows, else over the toolbar.
+	right := float32(theme.Space24)
+	if a.lib == nil || a.settings.HideDetail {
+		right += c.TitleBar().Right
+	}
+	ui.Row(c).Height(theme.ToolbarHeight).Padding(0, right, 0, theme.Space32).Gap(theme.Space8).AlignItems(ui.Center).DragWindow().Children(func() {
 		title, count := "Dalibre", ""
 		if a.lib != nil {
 			title, count = a.viewTitle(), groupDigits(len(a.visible()))
@@ -389,36 +424,6 @@ func (a *App) mainContent(c *ui.Context) {
 		a.gridView(c, shown)
 	}
 	a.adoptCur()
-}
-
-func (a *App) filterBar(c *ui.Context) {
-	q := a.query
-	if q.Filter.Kind == catalog.NoFilter && q.Search == "" {
-		return
-	}
-	ui.Row(c).Padding(0, theme.Space32, theme.Space16, theme.Space32).Gap(theme.Space8).AlignItems(ui.Center).Wrap().Children(func() {
-		ui.Text(c, "Filtered by").FontSize(12).FontWeight(500).TextColor(pal().TextTertiary)
-		if q.Filter.Kind != catalog.NoFilter {
-			label := filterKindName(q.Filter.Kind) + ": " + q.Filter.Value
-			if q.Filter.Kind == catalog.ByLanguage {
-				label = "Language: " + languageName(q.Filter.Value)
-			}
-			widgets.Tag(c.Key("filter"), label, true, func() { a.setQuery(a.query.Shelf, catalog.Filter{}) })
-		}
-		if q.Search != "" {
-			widgets.Tag(c.Key("search"), "“"+q.Search+"”", true, func() { a.query.Search = "" })
-		}
-		clear := ui.ButtonBase(c).Padding(theme.Space2, theme.Space4).Radius(theme.RadiusXS).Label("Clear all")
-		clear.OnClick(func() {
-			a.query.Search = ""
-			a.setQuery(catalog.AllBooks, catalog.Filter{})
-		}).Children(func() {
-			t := ui.Text(c, "Clear all").FontSize(12).FontWeight(500).TextColor(pal().TextAccent)
-			if clear.Hovered() {
-				t.Underline()
-			}
-		})
-	})
 }
 
 func filterKindName(k catalog.FilterKind) string {

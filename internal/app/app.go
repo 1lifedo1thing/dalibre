@@ -13,6 +13,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"dalibre/internal/app/icons"
 	"dalibre/internal/calibre"
 	"dalibre/internal/catalog"
 	"dalibre/internal/convert"
@@ -56,6 +57,7 @@ type App struct {
 	curList    []*calibre.Book
 	chosen     ui.Selection[int64]
 	grid       ui.GridState
+	gridBounds ui.Rect // where the grid stood in the last frame
 	table      ui.ListState
 	tableSort  ui.SortOrder
 	sectionsOn map[string]bool
@@ -74,7 +76,11 @@ type App struct {
 	createAsk     bool
 	createAskPath string
 	jobsOpen      bool
-	jobs          []*convert.Job
+	// pickerOpen is which filter's picker is open, by kind; pickerQuery
+	// narrows its list.
+	pickerOpen  [catalog.ByLanguage + 1]bool
+	pickerQuery string
+	jobs        []*convert.Job
 
 	// plugins
 	pluginDir  string // "" loads none, as tests do
@@ -550,6 +556,49 @@ func (a *App) openBook(b *calibre.Book, format string) {
 		}
 		if err != nil {
 			a.post(func() { a.toastError(err) })
+		}
+	})
+}
+
+// shareMenu adds sharing a book's file to m: an item when the book has one
+// format, a submenu of its formats when it has more.
+func (a *App) shareMenu(m *ui.Menu, b *calibre.Book) {
+	if !shareSupported || len(b.Formats) == 0 {
+		return
+	}
+	icon := icons.Menu(icons.Share)
+	if len(b.Formats) == 1 {
+		if m.Item("Share…").Icon(icon).Chosen() {
+			a.shareBook(b, b.Formats[0])
+		}
+		return
+	}
+	m.Submenu("Share", func(m *ui.Menu) {
+		for _, f := range b.Formats {
+			if m.Item(f).Chosen() {
+				a.shareBook(b, f)
+			}
+		}
+	}).Icon(icon)
+}
+
+// shareBook shows the system's share sheet for b's file of format.
+func (a *App) shareBook(b *calibre.Book, format string) {
+	if b == nil || a.lib == nil {
+		return
+	}
+	lib, win := a.lib, a.win
+	a.run(func() {
+		d, err := lib.Details(b)
+		if err != nil {
+			a.post(func() { a.toastError(err) })
+			return
+		}
+		for _, f := range d.Files {
+			if f.Format == format {
+				shareFiles(win, []string{f.Path})
+				return
+			}
 		}
 	})
 }

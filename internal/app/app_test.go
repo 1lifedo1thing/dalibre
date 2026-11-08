@@ -4,13 +4,16 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"dalibre/internal/app/theme"
 	"dalibre/internal/calibre"
+	"dalibre/internal/catalog"
 )
 
 func TestMain(m *testing.M) {
@@ -133,8 +136,8 @@ func TestSearchAndFilter(t *testing.T) {
 	if len(a.visible()) != 2 || tt.HasText("Piranesi") {
 		t.Errorf("search shows %d books", len(a.visible()))
 	}
-	if !tt.HasText("Filtered by") {
-		t.Error("filter bar missing")
+	if !tt.HasText("“liu”") || !tt.HasText("Clear all") {
+		t.Error("search chip missing")
 	}
 	a.query.Search = ""
 	tt.Frame()
@@ -146,6 +149,23 @@ func TestSearchAndFilter(t *testing.T) {
 	if a.query.Filter.Value != "EPUB" || len(a.visible()) != len(samples) {
 		t.Errorf("format filter %+v shows %d", a.query.Filter, len(a.visible()))
 	}
+	// The author chip's picker.
+	if err := tt.Click("Author"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	shot(t, tt, "picker")
+	if err := tt.Click("Liu Cixin, 2 books"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.query.Filter != (catalog.Filter{Kind: catalog.ByAuthor, Value: "Liu Cixin"}) || len(a.visible()) != 2 {
+		t.Errorf("author filter %+v shows %d", a.query.Filter, len(a.visible()))
+	}
+	if !tt.HasText("Author: Liu Cixin") {
+		t.Errorf("active chip missing: %q", tt.Texts())
+	}
+	shot(t, tt, "filters")
 }
 
 func TestListView(t *testing.T) {
@@ -269,5 +289,80 @@ func TestSelectionFollowsBook(t *testing.T) {
 	}
 	if shown := a.visible(); a.cur < 0 || shown[a.cur].Title != "Dune" {
 		t.Errorf("row %d is not Dune", a.cur)
+	}
+}
+
+func TestLibrarySwitcherMenu(t *testing.T) {
+	a := newTestApp(t)
+	other := t.TempDir()
+	a.settings.Recent = []string{a.lib.Root, other}
+	tt := ui.NewTester(a.View, 1440, 900)
+	tt.Frame()
+	if err := tt.Click("Library"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, r := range a.settings.Recent {
+		if !tt.HasText(r) {
+			t.Errorf("menu lacks %s: %q", r, tt.Texts())
+		}
+	}
+	// Hovering the other library shows its reveal button.
+	r, ok := tt.Find(other)
+	if !ok {
+		t.Fatal("no row for", other)
+	}
+	tt.Move(r.X+10, r.Y+r.H/2)
+	tt.Frame()
+	tt.Frame()
+	shot(t, tt, "switcher")
+	if _, ok := tt.Find(revealLabel + ": " + filepath.Base(other)); !ok {
+		t.Error("no reveal button")
+	}
+}
+
+func TestShareMenu(t *testing.T) {
+	if !shareSupported {
+		t.Skip("no share sheet on this platform")
+	}
+	a := newTestApp(t)
+	var shared []string
+	saved := shareFiles
+	t.Cleanup(func() { shareFiles = saved })
+	shareFiles = func(_ *mygo.Window, paths []string) { shared = paths }
+	tt := ui.NewTester(a.View, 1440, 900)
+	tt.Frame()
+	// One format: a plain item.
+	if err := tt.RightClick("Dune"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("Share…"); err != nil {
+		t.Fatal(err)
+	}
+	if len(shared) != 1 || !strings.HasSuffix(shared[0], ".epub") {
+		t.Fatalf("shared = %q", shared)
+	}
+	// More formats: a submenu of them.
+	var dune *calibre.Book
+	for _, b := range a.books {
+		if b.Title == "Dune" {
+			dune = b
+		}
+	}
+	f := filepath.Join(t.TempDir(), "dune.pdf")
+	os.WriteFile(f, []byte("x"), 0o644)
+	if err := a.lib.AddFormat(dune.ID, f); err != nil {
+		t.Fatal(err)
+	}
+	dune.Formats = append(dune.Formats, "PDF")
+	tt.Frame()
+	if err := tt.RightClick("Dune"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("Share", "PDF"); err != nil {
+		t.Fatal(err)
+	}
+	if len(shared) != 1 || !strings.HasSuffix(shared[0], ".pdf") {
+		t.Fatalf("shared = %q", shared)
 	}
 }

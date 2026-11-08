@@ -17,8 +17,13 @@ import (
 )
 
 func (a *App) detailPanel(c *ui.Context) {
-	ui.Column(c).Width(theme.DetailWidth).Background(pal().Surface).BorderWidth(1, 0, 0, 1).BorderColor(pal().BorderSubtle).
-		Radius(theme.RadiusLG, 0, 0, 0).AlignItems(ui.Stretch).Children(func() {
+	bar := c.TitleBar()
+	ui.Column(c).Width(theme.DetailWidth).Background(pal().Surface).BorderWidth(0, 0, 0, 1).BorderColor(pal().BorderSubtle).
+		AlignItems(ui.Stretch).Children(func() {
+		if bar.Right > 0 {
+			// Room for the caption buttons over the panel, to drag by.
+			ui.Box(c).Height(bar.Height).DragWindow()
+		}
 		ids := a.selectedIDs()
 		b := a.current()
 		switch {
@@ -100,6 +105,7 @@ func (a *App) bookDetail(c *ui.Context, b *calibre.Book) {
 				if m.Item("Add a format…").Icon(icons.Menu(icons.Plus)).Chosen() {
 					a.addFormat(b.ID)
 				}
+				a.shareMenu(m, b)
 				if m.Item("Show in folder").Icon(icons.Menu(icons.Folder)).Chosen() {
 					a.revealBook(b)
 				}
@@ -196,6 +202,9 @@ func (a *App) bookDetail(c *ui.Context, b *calibre.Book) {
 			r.ContextMenu(func(m *ui.Menu) {
 				if m.Item("Open").Chosen() {
 					a.openBook(b, f.Format)
+				}
+				if shareSupported && m.Item("Share…").Chosen() {
+					shareFiles(a.win, []string{f.Path})
 				}
 				if m.Item("Show in folder").Chosen() {
 					revealPath(f.Path)

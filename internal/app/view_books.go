@@ -46,6 +46,7 @@ func (a *App) gridView(c *ui.Context, shown []*calibre.Book) {
 			a.shelfSlot(c, base, shown[i], i == len(shown)-1)
 		}).Grow(1).Margin(theme.Space8, theme.Space32, 0, theme.Space32).Label("Books")
 	})
+	a.gridBounds = g.Bounds()
 	if g.Submitted() {
 		a.openBook(a.current(), "")
 	}
@@ -59,12 +60,45 @@ func (a *App) shelfSlot(c *ui.Context, base *ui.Theme, b *calibre.Book, last boo
 	if p.Dark {
 		ink = ui.RGBA(0, 0, 0, 1)
 	}
-	right := float32(-shelfReach)
-	if last {
-		right = -4096 // clipped by the grid
-	}
 	chosen := a.chosen.Has(b.ID)
-	slot := ui.Themed(c, base).Fill().Background(ui.Transparent).ContextMenu(a.bookMenu(b))
+	// The menu takes the theme current where ContextMenu is called, so it
+	// goes on an element built inside the base theme, not the grid's
+	// (whose clear Accent would wash out the highlighted item).
+	slot := ui.Themed(c, base).Fill().Background(ui.Transparent).AlignItems(ui.Stretch)
+	// Where the slot stands in its row, from where it and the grid stood
+	// in the last frame: the shelf's ends fade its shadow out.
+	var ends shelfEnds
+	ends.right = -shelfReach
+	if r, g := slot.Bounds(), a.gridBounds; g.W > 0 && r.W > 0 {
+		ends.first = r.X-g.X < theme.CardW/2
+		ends.last = last || g.X+g.W-r.X-r.W < theme.CardW/2
+		if last {
+			// The board runs on to the end of the shelf: the grid's
+			// right edge.
+			ends.right = min(ends.right, -(g.X + g.W - r.X - r.W))
+		}
+		ends.width = r.W + shelfReach - ends.right
+	}
+	slot.Children(func() {
+		a.shelfSlotBody(c, b, chosen, ends, ink)
+	})
+}
+
+// shelfEnds is where a slot stands on its shelf: whether it begins or
+// ends the row, how far its board reaches past it on the right, and the
+// board's width (0 while unknown).
+type shelfEnds struct {
+	first, last  bool
+	right, width float32
+}
+
+// shelfShadowFade is how far in from a shelf's ends its shadow fades in.
+const shelfShadowFade = 28
+
+func (a *App) shelfSlotBody(c *ui.Context, b *calibre.Book, chosen bool, ends shelfEnds, ink ui.Color) {
+	right := ends.right
+	p := pal()
+	slot := ui.Column(c).Grow(1).ContextMenu(a.bookMenu(b))
 	var lift float32
 	switch {
 	case chosen:
@@ -93,10 +127,23 @@ func (a *App) shelfSlot(c *ui.Context, base *ui.Theme, b *calibre.Book, last boo
 			}
 		})
 		ui.Column(c).Grow(1).Padding(theme.Space16, 0, 0, 0).AlignItems(ui.Center).Children(func() {
-			// The soft shadow the board casts on the wall below it.
-			ui.Box(c).Absolute().Top(0).Height(18).Left(-shelfReach).Right(right).PassThrough().LinearGradient(ui.LinearGradient{
+			// The soft shadow the board casts on the wall below it, faded
+			// out at the shelf's ends rather than cut off in a line.
+			shadow := ui.Box(c).Absolute().Top(0).Height(18).Left(-shelfReach).Right(right).PassThrough().LinearGradient(ui.LinearGradient{
 				Angle: 180, Stops: []ui.GradientStop{{Color: ink.Alpha(0.10), At: 0}, {Color: ink.Alpha(0.03), At: 0.4}, {Color: ink.Alpha(0), At: 1}},
 			})
+			if ends.width > 0 && (ends.first || ends.last) {
+				f := min(shelfShadowFade/ends.width, 0.5)
+				black := ui.RGB(0, 0, 0)
+				stops := []ui.GradientStop{{Color: black, At: 0}, {Color: black, At: 1}}
+				if ends.first {
+					stops = append([]ui.GradientStop{{Color: ui.Transparent, At: 0}, {Color: black, At: f}}, stops[1:]...)
+				}
+				if ends.last {
+					stops = append(stops[:len(stops)-1], ui.GradientStop{Color: black, At: 1 - f}, ui.GradientStop{Color: ui.Transparent, At: 1})
+				}
+				shadow.MaskLinearGradient(ui.LinearGradient{Angle: 90, Stops: stops})
+			}
 			// As wide as the cover, under it.
 			ui.Column(c).Width(theme.CoverW).Gap(theme.Space2).AlignItems(ui.Stretch).Children(func() {
 				title := ui.Text(c, b.Title).FontWeight(500).FontSize(13).FixedLineHeight(18).SingleLine()
@@ -239,6 +286,7 @@ func (a *App) bookMenu(b *calibre.Book) func(m *ui.Menu) {
 			a.openConvert(ids)
 		}
 		if !many {
+			a.shareMenu(m, b)
 			if m.Item("Show in folder").Icon(icons.Menu(icons.Folder)).Chosen() {
 				a.revealBook(b)
 			}
