@@ -35,3 +35,10 @@ const image = new URL("/og.png", Astro.site).href;
 <meta name="twitter:image" content={image} />
 
 {schema.map((s) => <script type="application/ld+json" set:html={JSON.stringify(s)} />)}
+
+<!-- Privacy-friendly analytics by Plausible -->
+<script is:inline async src="https://psb.djyde.com/js/pa-eYdjADdQ-rvSs3aC3_Eij.js"></script>
+<script is:inline>
+  window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+  plausible.init()
+</script>
