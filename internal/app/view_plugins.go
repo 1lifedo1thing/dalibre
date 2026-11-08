@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/app/icons"
 	"dalibre/internal/app/theme"
 	"dalibre/internal/app/widgets"
@@ -39,26 +40,29 @@ func (a *App) pluginStatus(k knownPlugin) (text string, tone ui.Color, loaded bo
 	id := k.manifest.ID
 	if p := a.pluginByID(id); p != nil {
 		if p.MissingSettings() != nil {
-			return "Needs " + strings.Join(p.MissingSettings(), ", "), pal().Warning.FG, true
+			return locales.PluginsStatusNeeds(strings.Join(p.MissingSettings(), ", ")), pal().Warning.FG, true
 		}
-		by := k.manifest.Author
-		if k.builtin {
-			by = "built in"
-		} else if k.linked != "" {
-			by = "from a folder"
+		v := k.manifest.Version
+		switch {
+		case k.builtin:
+			v = locales.PluginsStatusBuiltIn(v)
+		case k.linked != "":
+			v = locales.PluginsStatusFromFolder(v)
+		case k.manifest.Author != "":
+			v = locales.PluginsStatusVersionBy(v, k.manifest.Author)
 		}
-		return strings.TrimSuffix(k.manifest.Version+" · "+by, " · "), pal().TextTertiary, true
+		return v, pal().TextTertiary, true
 	}
 	if slices.ContainsFunc(a.pluginsPending, func(m *plugin.Manifest) bool { return m.ID == id }) {
-		return "Needs your review", pal().Warning.FG, false
+		return locales.PluginsStatusNeedsReview(), pal().Warning.FG, false
 	}
 	if u := a.updates[id]; u != nil && loadedOK(a, id) {
-		return k.manifest.Version + " → " + u.label, pal().TextAccent, true
+		return locales.PluginsStatusUpdate(k.manifest.Version, u.label), pal().TextAccent, true
 	}
 	if st := a.settings.Plugins[id]; st != nil && st.Disabled {
-		return "Off · " + k.manifest.Version, pal().TextTertiary, false
+		return locales.PluginsStatusOff(k.manifest.Version), pal().TextTertiary, false
 	}
-	return "Failed to load", pal().Danger.FG, false
+	return locales.PluginsStatusFailed(), pal().Danger.FG, false
 }
 
 func loadedOK(a *App, id string) bool { return a.pluginByID(id) != nil }
@@ -94,16 +98,16 @@ func (a *App) pluginsPane(c *ui.Context) {
 			}
 		}
 		if len(known) == 0 {
-			ui.Text(c, "No plugins yet. Install one from GitHub or from a file.").TextColor(pal().TextSecondary)
+			ui.Text(c, locales.PluginsEmpty()).TextColor(pal().TextSecondary)
 		}
 	})
 	if a.pl.uninstall {
 		name := a.pluginName(a.pl.sel)
-		title, msg, ok := "Uninstall "+name+"?", "Its files and settings are removed. Books you added with it stay in your library.", "Uninstall"
+		title, msg, ok := locales.PluginsUninstallTitle(name), locales.PluginsUninstallMessage(), locales.PluginsUninstallConfirm()
 		if st := a.settings.Plugins[a.pl.sel]; st != nil && st.Path != "" {
-			title, msg, ok = "Remove "+name+"?", "Dalibre stops loading it and forgets its settings. Its folder stays as it is.", "Remove"
+			title, msg, ok = locales.PluginsRemoveTitle(name), locales.PluginsRemoveMessage(), locales.CommonRemove()
 		}
-		if ui.AlertDialog(c, &a.pl.uninstall, title, msg, "Cancel", ok) == 1 {
+		if ui.AlertDialog(c, &a.pl.uninstall, title, msg, locales.CommonCancel(), ok) == 1 {
 			a.uninstallPlugin(a.pl.sel)
 		}
 	}
@@ -114,7 +118,7 @@ func (a *App) pluginRow(c *ui.Context, k knownPlugin) {
 	m := k.manifest
 	sel := a.pl.sel == m.ID
 	status, tone, loaded := a.pluginStatus(k)
-	pending := status == "Needs your review"
+	pending := status == locales.PluginsStatusNeedsReview()
 	row := ui.ButtonBase(c).Padding(theme.Space8, theme.Space10).Gap(theme.Space10).Radius(theme.RadiusMD).AlignItems(ui.Center).Label(m.Name)
 	switch {
 	case sel:
@@ -130,20 +134,20 @@ func (a *App) pluginRow(c *ui.Context, k knownPlugin) {
 		})
 		switch {
 		case pending:
-			if widgets.ButtonSized(c, widgets.Secondary, nil, "Review", theme.ControlS).Clicked() {
+			if widgets.ButtonSized(c, widgets.Secondary, nil, locales.PluginsReview(), theme.ControlS).Clicked() {
 				a.askConsent(m.ID)
 			}
 		case a.updates[m.ID] != nil && loaded:
 			if a.updates[m.ID].busy {
-				ui.Spinner(c).Size(16, 16).Label("Updating " + m.Name)
-			} else if widgets.ButtonSized(c, widgets.Secondary, nil, "Update", theme.ControlS).Clicked() {
+				ui.Spinner(c).Size(16, 16).Label(locales.PluginsUpdatingLabel(m.Name))
+			} else if widgets.ButtonSized(c, widgets.Secondary, nil, locales.CommonUpdate(), theme.ControlS).Clicked() {
 				a.updatePlugin(m.ID, false)
 			}
-		case status == "Failed to load":
+		case status == locales.PluginsStatusFailed():
 			ui.Icon(c, icons.Alert).FontSize(16).TextColor(pal().Danger.FG)
 		default:
 			on := loaded
-			ui.Switch(c, &on).Label("Turn " + m.Name + " on")
+			ui.Switch(c, &on).Label(locales.PluginsTurnOnLabel(m.Name))
 			if on != loaded {
 				a.setPluginEnabled(m.ID, on)
 			}
@@ -163,38 +167,38 @@ func pluginTile(c *ui.Context, m *plugin.Manifest, size float32) {
 func (a *App) pluginsFolderActions(c *ui.Context) {
 	ui.Row(c).Padding(theme.Space8, 0, 0, 0).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
 		add := ui.ButtonBase(c).Grow(1).Height(theme.ControlM).Padding(0, theme.Space12).Gap(theme.Space6).Radius(theme.RadiusSM).
-			AlignItems(ui.Center).Justify(ui.Center).Background(pal().Surface).Border(1, pal().Border).Label("Add plugin")
+			AlignItems(ui.Center).Justify(ui.Center).Background(pal().Surface).Border(1, pal().Border).Label(locales.PluginsAdd())
 		if add.Hovered() {
 			add.Border(1, pal().BorderStrong)
 		}
 		add.PopoverMenuButton(func(m *ui.Menu) {
-			if a.pluginDir != "" && m.Item("From GitHub…").Icon(icons.Menu(icons.GitBranch)).Chosen() {
+			if a.pluginDir != "" && m.Item(locales.PluginsAddFromGithub()).Icon(icons.Menu(icons.GitBranch)).Chosen() {
 				a.openGitHubInstall()
 			}
-			if m.Item("From a file…").Icon(icons.Menu(icons.File)).Chosen() {
+			if m.Item(locales.PluginsAddFromFile()).Icon(icons.Menu(icons.File)).Chosen() {
 				a.choosePluginPackage()
 			}
-			if m.Item("From a folder…").Icon(icons.Menu(icons.Folder)).Chosen() {
+			if m.Item(locales.PluginsAddFromFolder()).Icon(icons.Menu(icons.Folder)).Chosen() {
 				a.choosePluginFolder()
 			}
 		})
 		add.Children(func() {
 			ui.Icon(c, icons.Plus).FontSize(14).TextColor(pal().Icon)
-			ui.Text(c, "Add plugin").FontSize(13).FontWeight(500)
+			ui.Text(c, locales.PluginsAdd()).FontSize(13).FontWeight(500)
 		})
 		if a.pluginDir == "" {
 			return
 		}
-		more := ui.ButtonBase(c).Size(theme.ControlM, theme.ControlM).Radius(theme.RadiusSM).Center().Label("More plugin actions").Tooltip("More")
+		more := ui.ButtonBase(c).Size(theme.ControlM, theme.ControlM).Radius(theme.RadiusSM).Center().Label(locales.PluginsMoreActions()).Tooltip(locales.PluginsMore())
 		if more.Hovered() {
 			more.Background(pal().Hover)
 		}
 		more.PopoverMenuButton(func(m *ui.Menu) {
-			if m.Item("Open plugins folder").Icon(icons.Menu(icons.Folder)).Chosen() {
+			if m.Item(locales.PluginsOpenFolder()).Icon(icons.Menu(icons.Folder)).Chosen() {
 				os.MkdirAll(a.pluginDir, 0o755)
 				go mygo.Shell.OpenPath(a.pluginDir)
 			}
-			if m.Item("Reload plugins").Icon(icons.Menu(icons.Refresh)).Chosen() {
+			if m.Item(locales.PluginsReload()).Icon(icons.Menu(icons.Refresh)).Chosen() {
 				a.loadPlugins()
 			}
 		})
@@ -205,8 +209,8 @@ func (a *App) pluginsFolderActions(c *ui.Context) {
 // choosePluginPackage asks for a .dalibre-plugin file and installs it.
 func (a *App) choosePluginPackage() {
 	a.run(func() {
-		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: "Install a plugin",
-			Filters: []mygo.FileFilter{{Name: "Dalibre plugins", Extensions: []string{strings.TrimPrefix(plugin.PackageExt, ".")}}}})
+		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: locales.PluginsInstallDialogTitle(),
+			Filters: []mygo.FileFilter{{Name: locales.PluginsPackageFilter(), Extensions: []string{strings.TrimPrefix(plugin.PackageExt, ".")}}}})
 		if err != nil || len(paths) == 0 {
 			return
 		}
@@ -218,7 +222,7 @@ func (a *App) choosePluginPackage() {
 // and links it: the plugin loads from there, and reloads as it changes.
 func (a *App) choosePluginFolder() {
 	a.run(func() {
-		dirs, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: "Install a plugin from a folder", Directory: true})
+		dirs, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: locales.PluginsInstallFromFolderTitle(), Directory: true})
 		if err != nil || len(dirs) == 0 {
 			return
 		}
@@ -235,9 +239,9 @@ func (a *App) pluginPane(c *ui.Context, k knownPlugin) {
 		pluginTile(c, m, 40)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(theme.Space2).Children(func() {
 			ui.Text(c, m.Name).FontSize(16).FontWeight(600)
-			parts := []string{"Version " + m.Version}
+			parts := []string{locales.PluginsVersion(m.Version)}
 			if m.Author != "" {
-				parts = append(parts, "by "+m.Author)
+				parts = append(parts, locales.PluginsByAuthor(m.Author))
 			}
 			if m.License != "" {
 				parts = append(parts, m.License)
@@ -255,54 +259,63 @@ func (a *App) pluginPane(c *ui.Context, k knownPlugin) {
 		a.pluginSource(c, m, st.Source)
 	}
 	ui.Column(c).Gap(theme.Space8).AlignItems(ui.Stretch).Children(func() {
-		widgets.Overline(c, "ADDS TO DALIBRE")
+		widgets.Overline(c, locales.PluginsAddsToTitle())
 		ui.Row(c).Gap(theme.Space6).Children(func() {
 			if m.IsBookSource() {
-				widgets.Tag(c, "Get books", false, nil)
+				widgets.Tag(c, locales.CommonGetBooks(), false, nil)
+			}
+			if m.IsMetadataSource() {
+				widgets.Tag(c, locales.CommonFetchMetadata(), false, nil)
 			}
 		})
 		if m.IsBookSource() {
-			ui.Textf(c, "Get books: search, browse and download from %s.", m.Name).FontSize(12).TextColor(pal().TextTertiary)
+			ui.Text(c, locales.PluginsGetBooksNote(m.Name)).FontSize(12).TextColor(pal().TextTertiary)
+		}
+		if m.IsMetadataSource() {
+			ui.Text(c, locales.PluginsFetchMetadataNote(m.Name)).FontSize(12).TextColor(pal().TextTertiary)
 		}
 	})
 	if len(m.Settings) > 0 {
 		a.pluginSettingsForm(c, m, loaded)
 	}
 	ui.Column(c).Gap(theme.Space8).AlignItems(ui.Stretch).Children(func() {
-		widgets.Overline(c, "CAN ACCESS")
+		widgets.Overline(c, locales.PluginsCanAccess())
 		for _, h := range m.Permissions.Hosts {
 			permissionItem(c.Key(h), icons.Globe, h, "", false)
 		}
 		if m.Permissions.LocalNetwork {
-			permissionItem(c, icons.Network, "This computer and your local network", "As a book server at home", true)
+			permissionItem(c, icons.Network, locales.PluginsLocalNetwork(), locales.PluginsLocalNetworkDetail(), true)
 		}
-		note := "You allowed this when you installed it. An update that asks for more stays off until you review it."
+		if m.Permissions.Library == plugin.LibraryRead {
+			permissionItem(c, icons.Library, locales.PluginsLibraryRead(), locales.PluginsLibraryReadDetail(), false)
+		}
+		note := locales.PluginsNoteAllowed()
 		if k.builtin {
-			note = "Ships with Dalibre."
+			note = locales.PluginsNoteBuiltIn()
 		} else if k.linked != "" {
-			note = "Loaded from " + k.linked + ", and reloaded when its files change. If it asks for more, it stays off until you review it."
+			note = locales.PluginsNoteLinked(k.linked)
 		}
 		ui.Text(c, note).FontSize(12).TextColor(pal().TextTertiary)
 	})
 	ui.Row(c).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
 		if k.linked != "" {
-			if widgets.Button(c, widgets.Ghost, icons.Folder, "Show folder").Tooltip(k.linked).Clicked() {
+			if widgets.Button(c, widgets.Ghost, icons.Folder, locales.PluginsShowFolder()).Tooltip(k.linked).Clicked() {
 				go mygo.Shell.OpenPath(k.linked)
 			}
 		} else if st := a.settings.Plugins[m.ID]; st != nil && st.Source != nil && !k.builtin {
-			if widgets.Button(c, widgets.Ghost, icons.External, "View on GitHub").Clicked() {
+			if widgets.Button(c, widgets.Ghost, icons.External, locales.PluginsViewOnGithub()).Clicked() {
 				openURL("https://github.com/" + st.Source.Repo)
 			}
 		} else if m.Homepage != "" {
-			if widgets.Button(c, widgets.Ghost, icons.External, "Homepage").Tooltip(m.Homepage).Clicked() {
+			if widgets.Button(c, widgets.Ghost, icons.External, locales.PluginsHomepage()).Tooltip(m.Homepage).Clicked() {
 				openURL(m.Homepage)
 			}
 		}
 		ui.Spacer(c)
 		if !k.builtin {
-			label := "Uninstall…"
+			label := locales.PluginsUninstallButton()
 			if k.linked != "" {
-				label = "Remove…"
+				label = locales.PluginsRemoveButton()
 			}
 			if widgets.Button(c, widgets.Secondary, nil, label).Clicked() {
 				a.pl.uninstall = true
@@ -342,12 +355,12 @@ func (a *App) pluginSettingsForm(c *ui.Context, m *plugin.Manifest, loaded bool)
 		}
 	}
 	ui.Column(c).Gap(theme.Space12).AlignItems(ui.Stretch).Children(func() {
-		widgets.Overline(c, "SETTINGS")
+		widgets.Overline(c, locales.PluginsSettingsTitle())
 		for _, s := range m.Settings {
 			v := a.pl.values[s.Key]
 			hint := ""
 			if s.Required {
-				hint = "Required"
+				hint = locales.PluginsRequired()
 			}
 			ui.Column(c.Key(s.Key)).Gap(theme.Space6).AlignItems(ui.Stretch).Children(func() {
 				ui.Row(c).Children(func() {
@@ -369,9 +382,9 @@ func (a *App) pluginSettingsForm(c *ui.Context, m *plugin.Manifest, loaded bool)
 		changed := !maps.Equal(trimmed(a.pl.values), trimmed(saved))
 		ui.Row(c).Gap(theme.Space8).Children(func() {
 			ui.Spacer(c)
-			if widgets.Button(c, widgets.Primary, nil, "Save settings").Disabled(!changed).Clicked() {
+			if widgets.Button(c, widgets.Primary, nil, locales.PluginsSaveSettings()).Disabled(!changed).Clicked() {
 				a.setPluginValues(m.ID, trimmed(a.pl.values))
-				a.toast("Saved %s’s settings", m.Name)
+				a.toast("%s", locales.PluginsSavedSettings(m.Name))
 			}
 		})
 	})
@@ -398,11 +411,11 @@ func (a *App) consentDialog(c *ui.Context) {
 	// For an update, only what is new is asked.
 	var had *plugin.Permissions
 	if st := a.settings.Plugins[m.ID]; st != nil && st.Granted != nil {
-		had = &plugin.Permissions{Hosts: st.Granted.Hosts, LocalNetwork: st.Granted.LocalNetwork}
+		had = &plugin.Permissions{Hosts: st.Granted.Hosts, LocalNetwork: st.Granted.LocalNetwork, Library: st.Granted.Library}
 	}
-	title := "Install " + m.Name + "?"
+	title := locales.PluginsConsentInstallTitle(m.Name)
 	if had != nil {
-		title = "Allow what " + m.Name + " " + m.Version + " asks for?"
+		title = locales.PluginsConsentAllowTitle(m.Name, m.Version)
 	}
 	widgets.DialogFrame(c, &open, 500, func() {
 		ui.Text(c, title).FontSize(16).FontWeight(600).Grow(1)
@@ -412,9 +425,9 @@ func (a *App) consentDialog(c *ui.Context) {
 				pluginTile(c, m, 40)
 				ui.Column(c).Grow(1).Children(func() {
 					ui.Text(c, m.Name).FontSize(14).FontWeight(600)
-					by := "Version " + m.Version
+					by := locales.PluginsVersion(m.Version)
 					if m.Author != "" {
-						by += " · by " + m.Author
+						by = locales.PluginsConsentVersionBy(m.Version, m.Author)
 					}
 					ui.Text(c, by).FontSize(12).TextColor(pal().TextTertiary)
 				})
@@ -422,34 +435,44 @@ func (a *App) consentDialog(c *ui.Context) {
 			if m.Description != "" {
 				ui.Text(c, m.Description).FontSize(13).TextColor(pal().TextSecondary)
 			}
-			widgets.Overline(c, map[bool]string{true: "IT ASKS FOR MORE", false: "IT WILL BE ABLE TO"}[had != nil])
+			overline := locales.PluginsConsentWillBeAble()
+			if had != nil {
+				overline = locales.PluginsConsentAsksMore()
+			}
+			widgets.Overline(c, overline)
 			for _, h := range m.Permissions.Hosts {
 				if had != nil && slices.Contains(had.Hosts, h) {
 					continue
 				}
-				permissionItem(c.Key(h), icons.Globe, "Connect to "+h, "", false)
+				permissionItem(c.Key(h), icons.Globe, locales.PluginsConsentConnect(h), "", false)
 			}
 			if m.Permissions.LocalNetwork && (had == nil || !had.LocalNetwork) {
-				permissionItem(c, icons.Network, "Connect to this computer and your local network",
-					"Only allow this for a plugin meant for a server you run, as a book server at home.", true)
+				permissionItem(c, icons.Network, locales.PluginsConsentLocal(),
+					locales.PluginsConsentLocalDetail(), true)
+			}
+			if m.Permissions.Library == plugin.LibraryRead && (had == nil || had.Library != plugin.LibraryRead) {
+				permissionItem(c, icons.Library, locales.PluginsConsentSeeBooks(), locales.PluginsLibraryReadDetail(), false)
 			}
 			if had != nil && len(had.Hosts) > 0 {
-				ui.Text(c, "Already allowed: "+strings.Join(had.Hosts, ", ")).FontSize(12).TextColor(pal().TextTertiary)
+				ui.Text(c, locales.PluginsConsentAlreadyAllowed(strings.Join(had.Hosts, ", "))).FontSize(12).TextColor(pal().TextTertiary)
 			}
-			ui.Text(c, "Plugins run sandboxed: they can’t read your files or your library, and reach only what you allow here.").
-				FontSize(12).TextColor(pal().TextTertiary)
+			sandbox := locales.PluginsConsentSandbox()
+			if m.Permissions.Library != "" {
+				sandbox = locales.PluginsConsentSandboxLibrary()
+			}
+			ui.Text(c, sandbox).FontSize(12).TextColor(pal().TextTertiary)
 			if m.Homepage != "" {
 				ui.Text(c, m.Homepage).FontSize(12).TextColor(pal().TextTertiary).Selectable()
 			}
 		})
 	}, func() {
 		ui.Spacer(c)
-		if widgets.Button(c, widgets.Secondary, nil, "Cancel").Clicked() {
+		if widgets.Button(c, widgets.Secondary, nil, locales.CommonCancel()).Clicked() {
 			open = false
 		}
-		label := "Install"
+		label := locales.PluginsConsentInstall()
 		if had != nil || ask.archive == "" {
-			label = "Allow"
+			label = locales.PluginsConsentAllow()
 		}
 		if widgets.Button(c, widgets.Primary, nil, label).Clicked() {
 			a.grantConsent()
@@ -459,3 +482,5 @@ func (a *App) consentDialog(c *ui.Context) {
 		a.consent = nil
 	}
 }
+
+// libraryReadDetail: see locales.PluginsLibraryReadDetail.

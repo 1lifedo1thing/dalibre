@@ -1,0 +1,729 @@
+{
+  "@@locale": "en",
+  "commonCancel": "Cancel",
+  "commonOpen": "Open",
+  "commonSave": "Save",
+  "commonDone": "Done",
+  "commonRemove": "Remove",
+  "commonRetry": "Retry",
+  "commonTryAgain": "Try again",
+  "commonUpdate": "Update",
+  "commonSettings": "Settings",
+  "commonLibrary": "Library",
+  "commonLoading": "Loading",
+  "commonSearching": "Searching",
+  "commonSeeAll": "See all",
+  "commonShowAll": "Show all",
+  "commonShowInFolder": "Show in folder",
+  "commonUsername": "Username",
+  "commonPassword": "Password",
+  "commonName": "Name",
+  "commonTitle": "Title",
+  "commonTitleSort": "Title sort",
+  "commonAuthor": "Author",
+  "commonAuthors": "Authors",
+  "commonSeries": "Series",
+  "commonPublisher": "Publisher",
+  "commonPublished": "Published",
+  "commonLanguage": "Language",
+  "commonTags": "Tags",
+  "commonTag": "Tag",
+  "commonRating": "Rating",
+  "commonIdentifiers": "Identifiers",
+  "commonDescription": "Description",
+  "commonAllSources": "All sources",
+  "commonGetBooks": "Get books",
+  "commonAddBooks": "Add books",
+  "commonFetchMetadata": "Fetch metadata",
+  "commonRemoveFromLibrary": "Remove from library",
+  "commonBookCount": "{count, plural, one {# book} other {# books}}",
+  "@commonBookCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dialogsEditMetadataTitle": "Edit metadata",
+  "dialogsPosition": "{position} of {total}",
+  "@dialogsPosition": {
+    "placeholders": {
+      "position": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "dialogsFetchTooltip": "Look this book up with your metadata plugins",
+  "dialogsSaveEditPrevious": "Save and edit previous",
+  "dialogsSaveEditNext": "Save and edit next",
+  "dialogsChangeCover": "Change cover",
+  "dialogsNewCoverNote": "New cover, saved with the book",
+  "dialogsAddAuthor": "Add an author",
+  "dialogsAutoHint": "auto",
+  "dialogsAuthorSort": "Author sort",
+  "dialogsSeriesNumber": "Series number",
+  "dialogsAddTag": "Add a tag",
+  "dialogsLanguages": "Languages",
+  "dialogsWritesNote": "Writes to metadata.db and the book’s metadata.opf",
+  "dialogsChooseCover": "Choose a cover",
+  "dialogsImages": "Images",
+  "dialogsCoverReadFailed": "couldn’t read the image: {error}",
+  "dialogsRemoveBooksTitle": "Remove {count, plural, one {# book} other {# books}}?",
+  "@dialogsRemoveBooksTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dialogsRemoveBookTitle": "Remove “{title}”?",
+  "dialogsRemoveBody": "The book’s files move to the Recycle Bin and it leaves the calibre library.",
+  "detailSelectBook": "Select a book to see its details",
+  "detailBooksSelected": "{count, plural, one {# book selected} other {# books selected}}",
+  "@detailBooksSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "detailMore": "More",
+  "detailMenuEditMetadata": "Edit metadata…",
+  "detailMenuAddFormat": "Add a format…",
+  "detailBooksBy": "Books by {author}",
+  "detailOverlineDetails": "DETAILS",
+  "detailLookUpMetadataOnline": "Look up metadata online",
+  "detailLookUpOnline": "Look up online",
+  "detailEditMetadataLabel": "Edit metadata",
+  "detailEdit": "Edit",
+  "detailAdded": "Added",
+  "detailOverlineFormats": "FORMATS",
+  "detailNoFiles": "No files",
+  "detailOpenFormat": "Open {format}",
+  "detailShare": "Share…",
+  "detailRemoveFormat": "Remove {format}",
+  "detailAddFormat": "Add a format",
+  "detailOverlineDescription": "DESCRIPTION",
+  "fetchMetaCover": "Cover",
+  "fetchMetaFilledIn": "Filled in from {source}; save to keep it",
+  "fetchMetaLookUp": "Look up",
+  "fetchMetaLookUpPlaceholder": "Title and author, or an ISBN",
+  "fetchMetaSource": "Source",
+  "fetchMetaSearch": "Search",
+  "fetchMetaFromSource": "From {source} ·",
+  "fetchMetaBack": "Back",
+  "fetchMetaUseSelected": "Use selected fields",
+  "fetchMetaYourSources": "your sources",
+  "fetchMetaNoPluginTitle": "No plugin fetches metadata",
+  "fetchMetaNoPluginBody": "Plugins in Settings › Plugins can add sources like NeoDB.",
+  "fetchMetaOpenSettings": "Open Settings",
+  "fetchMetaSearching": "Searching {source}…",
+  "fetchMetaCheckConnection": "Check your connection and try again.",
+  "fetchMetaNotAnswering": "{source} isn’t answering",
+  "fetchMetaNothingFound": "Nothing found on {source}",
+  "fetchMetaTryFewer": "Try fewer words or an ISBN.",
+  "fetchMetaCandidates": "CANDIDATES",
+  "fetchMetaFieldHeader": "FIELD",
+  "fetchMetaCurrentHeader": "CURRENT",
+  "fetchMetaFromHeader": "FROM {source}",
+  "fetchMetaSame": "Same",
+  "fetchMetaLoadingCover": "Loading the cover",
+  "fetchMetaCoverFailed": "Couldn’t load it",
+  "getBooksPurposeEpub": "Most e-readers",
+  "getBooksPurposeKepub": "Kobo",
+  "getBooksPurposeAzw3": "Kindle",
+  "getBooksPurposeMobi": "Older Kindles",
+  "getBooksPurposePdf": "Fixed layout",
+  "getBooksPurposeTxt": "Plain text",
+  "getBooksPurposeFb2": "FictionBook",
+  "getBooksPurposeCbz": "Comics",
+  "getBooksPurposeDjvu": "Scans",
+  "getBooksAnyLanguage": "Any language",
+  "getBooksSourceSettings": "{name} settings",
+  "getBooksDetailsTooltip": "Details (Ctrl+Alt+I)",
+  "getBooksOpenSite": "Open site",
+  "getBooksSearchAll": "Search every source",
+  "getBooksSearchSource": "Search {name}",
+  "getBooksSearchLabel": "Search books to get",
+  "getBooksLoadingPlugins": "Loading plugins",
+  "getBooksSourceLabel": "Source: {source}",
+  "getBooksSearchAllAtOnce": "Search every source at once",
+  "getBooksSetUp": "Set up",
+  "getBooksWaitingPermission": "Waiting for your permission",
+  "getBooksReview": "Review",
+  "getBooksGetMoreSources": "Get more sources…",
+  "getBooksSourcesAnswered": "{answered} of {total, plural, one {# source} other {# sources}} answered",
+  "@getBooksSourcesAnswered": {
+    "placeholders": {
+      "answered": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "getBooksResultCount": "{count, plural, one {# result} other {# results}}",
+  "@getBooksResultCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "getBooksResultCountMore": "{count, plural, one {#+ result} other {#+ results}}",
+  "@getBooksResultCountMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "getBooksLabelValue": "{label}: {value}",
+  "getBooksBackTo": "Back to {name}",
+  "getBooksSearchingSource": "Searching {source}…",
+  "getBooksLoadingMore": "Loading more",
+  "getBooksShowMore": "Show more results",
+  "getBooksInLibraryShow": "In library: show {title}",
+  "getBooksInLibrary": "In library",
+  "getBooksGetFormat": "Get {format}",
+  "getBooksDownloadTooltip": "Download {format} and add it to the library",
+  "getBooksOpenLibraryFirst": "Open a library first",
+  "getBooksSeeAllTitle": "See all: {title}",
+  "getBooksAllSourcesHint": "Results come in from each source as it answers.",
+  "getBooksShelfTitle": "{collection} · {source}",
+  "getBooksSearching": "Searching…",
+  "getBooksNeeds": "Needs {settings}",
+  "getBooksNeedsSignIn": "Needs you to sign in",
+  "getBooksIsBusy": "Is busy; try again in a minute",
+  "getBooksIsntAnswering": "Isn’t answering",
+  "getBooksDoesntHaveThat": "Doesn’t have that",
+  "getBooksPluginFailedShort": "The plugin failed",
+  "getBooksInlineNeeds": "{name} needs {settings}.",
+  "getBooksInlineNeedsSignIn": "{name} needs you to sign in.",
+  "getBooksInlineBusy": "{name} is busy; try again in a minute.",
+  "getBooksInlineNotAnswering": "{name} isn’t answering.",
+  "getBooksInlineDoesntHaveThat": "{name} doesn’t have that.",
+  "getBooksInlinePluginFailed": "{name} the plugin failed.",
+  "getBooksSourceNotAnswering": "{name} isn’t answering",
+  "getBooksCheckConnection": "Check your connection, or try again in a while.",
+  "getBooksSourceNeedsSetup": "{name} needs setting up",
+  "getBooksFillInSettings": "Fill in {settings} in the plugin’s settings, then search again.",
+  "getBooksAuthRefused": "It refused the account or key in its settings: {reason}",
+  "getBooksSourceBusy": "{name} is busy",
+  "getBooksSlowDown": "It asked to slow down. Try again in a minute.",
+  "getBooksPluginFailed": "The {name} plugin failed",
+  "getBooksOpenPluginSettings": "Open plugin settings",
+  "getBooksNoMatch": "No books match “{query}”",
+  "getBooksNoMatchHint": "Check the spelling or use fewer words. Other sources may have it.",
+  "getBooksSearchAllSources": "Search all sources",
+  "getBooksNoSourcesTitle": "No book sources are on",
+  "getBooksNoSourcesBody": "Book sources are plugins. Turn one on, or install one from a file.",
+  "getBooksManagePlugins": "Manage plugins",
+  "getBooksSelectBook": "Select a book to see its details",
+  "getBooksAbout": "ABOUT",
+  "getBooksFromPlugin": "From the {name} plugin. Dalibre downloads the file and adds it to your library.",
+  "getBooksFromCatalog": "From {name}, an OPDS catalog. Dalibre downloads the file and adds it to your library.",
+  "getBooksDownloadAs": "DOWNLOAD AS",
+  "getBooksInLibraryShowButton": "In library · Show",
+  "getBooksDownloading": "Downloading {progress}",
+  "getBooksAddToLibrary": "Add to library",
+  "getBooksDetails": "DETAILS",
+  "getBooksLoadingDetails": "Loading details",
+  "getBooksDetailsError": "Couldn’t load more details: {reason}",
+  "getBooksSearchTag": "Search “{tag}”",
+  "getBooksOpenBookPageOn": "Open the book’s page on {name}",
+  "getBooksOpenBookPage": "Open the book’s page",
+  "catalogSectionLabel": "OPDS catalogs",
+  "catalogSectionTitle": "OPDS CATALOGS",
+  "catalogAdd": "Add catalog…",
+  "catalogSharing": "Sharing over OPDS",
+  "catalogShareFailed": "Couldn’t share over OPDS",
+  "catalogShareStarting": "Starting to share…",
+  "catalogTitleDefault": "Catalog",
+  "catalogSettingsTooltip": "Catalog settings",
+  "catalogRefresh": "Refresh",
+  "catalogRemoved": "This catalog was removed",
+  "catalogReading": "Reading {name}…",
+  "catalogEmptyTitle": "Nothing here",
+  "catalogEmptyBody": "This part of the catalog is empty.",
+  "catalogNextPage": "Next page",
+  "catalogFacetView": "View",
+  "catalogSignInTitle": "{name} asks you to sign in",
+  "catalogSignInBody": "Add your username and password to the catalog in Settings › OPDS.",
+  "catalogCantRead": "Dalibre can’t read this part of {name}",
+  "catalogSignIn": "Sign in…",
+  "opdsChecking": "Checking…",
+  "opdsConnected": "Connected",
+  "opdsNeedsSignIn": "Needs sign-in",
+  "opdsCantReach": "Can’t reach",
+  "opdsCatalogDescription": "OPDS catalog at {host}",
+  "opdsKeychainError": "Couldn’t keep the password in the keychain: {reason}",
+  "opdsAddressError": "give the catalog’s address, starting with http:// or https://",
+  "opdsCantSearch": "{name} can’t search",
+  "opdsSearchCrumb": "Search: {text}",
+  "opdsSharePortError": "couldn’t share on port {port}: {reason}",
+  "languageSystem": "System ({language})",
+  "pluginsDownloadProgress": "{done} of {total}",
+  "mainNavAllBooks": "All books",
+  "mainNavRecentlyAdded": "Recently added",
+  "mainNavFormats": "Formats",
+  "mainShowAllCount": "Show all {count}",
+  "@mainShowAllCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mainNoLibrary": "No library",
+  "mainOpenOrCreateLibrary": "Open or create one",
+  "mainOpenLibraryMenu": "Open library…",
+  "mainNewLibraryMenu": "New library…",
+  "mainShowInFinder": "Show in Finder",
+  "mainRevealRow": "{action}: {name}",
+  "mainBusyEllipsis": "{task}…",
+  "mainBusyProgress": "{task} {done} of {total}",
+  "@mainBusyProgress": {
+    "placeholders": {
+      "task": {
+        "type": "String"
+      },
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "mainSearchPlaceholder": "Search title, author, tag…",
+  "mainSearchLabel": "Search library",
+  "mainSortButton": "Sort: {order}",
+  "mainSortDateAdded": "Date added",
+  "mainSortSize": "Size",
+  "mainSortModified": "Modified",
+  "mainSortAscending": "Ascending",
+  "mainSortDescending": "Descending",
+  "mainDetailsTooltip": "Details (Ctrl+Alt+I)",
+  "mainAddBooksTooltip": "Add books (Ctrl+O)",
+  "mainViewToggleLabel": "View",
+  "mainViewGrid": "Grid",
+  "mainViewList": "List",
+  "mainOpeningLibrary": "Opening library…",
+  "mainFilterFormat": "Format",
+  "mainEmptyTitle": "Your library is empty",
+  "mainEmptyHint": "Drop EPUB, PDF or MOBI files here, or add them from disk.",
+  "mainNoMatchTitle": "No books match",
+  "mainNoMatchHint": "Try another search or clear the filters.",
+  "mainClearFilters": "Clear filters",
+  "filtersSearchAuthors": "Search authors…",
+  "filtersSearchAuthorsLabel": "Search authors",
+  "filtersSearchSeries": "Search series…",
+  "filtersSearchSeriesLabel": "Search series",
+  "filtersSearchTags": "Search tags…",
+  "filtersSearchTagsLabel": "Search tags",
+  "filtersSearchPublishers": "Search publishers…",
+  "filtersSearchPublishersLabel": "Search publishers",
+  "filtersSearchLanguages": "Search languages…",
+  "filtersSearchLanguagesLabel": "Search languages",
+  "filtersChipValue": "{name}: {value}",
+  "filtersSearchTag": "“{query}”",
+  "filtersClearAll": "Clear all",
+  "filtersClearChip": "Clear {name}",
+  "filtersTypeToFindMore": "Type to find more…",
+  "filtersNoMatches": "No matches",
+  "filtersPickerRowLabel": "{label}, {count, plural, one {# book} other {# books}}",
+  "@filtersPickerRowLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "booksLabel": "Books",
+  "booksColFormats": "Formats",
+  "booksColSize": "Size",
+  "booksColAdded": "Added",
+  "booksSeriesIndex": "{series} #{index}",
+  "booksMenuEditMetadata": "Edit metadata…",
+  "booksMenuRemoveMany": "Remove {count, plural, one {# book} other {# books}}",
+  "@booksMenuRemoveMany": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appCouldntOpenLibrary": "Couldn’t open “{name}”",
+  "appLibraryGone": "{path} isn’t there anymore. It may have moved, or its drive isn’t connected. Pick it again or open another library.",
+  "appWindowTitle": "Dalibre — {name}",
+  "appFilterEbooks": "E-books",
+  "appFilterAllFiles": "All files",
+  "appAddFormatTitle": "Add a format",
+  "appOpenCalibreLibraryTitle": "Open a calibre library",
+  "appToastSaved": "Saved “{title}”",
+  "appToastMovedToTrash": "Moved {count, plural, one {# book} other {# books}} to the Recycle Bin",
+  "@appToastMovedToTrash": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appToastAddedFormat": "Added {format}",
+  "appToastRemovedFormat": "Removed {format}",
+  "appToastNoFiles": "“{title}” has no files",
+  "appShareItem": "Share…",
+  "appShareMenu": "Share",
+  "widgetsRemoveTag": "Remove {label}",
+  "widgetsNotRated": "Not rated",
+  "widgetsStars": "{count} Stars",
+  "@widgetsStars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetsClose": "Close",
+  "pluginsStatusNeeds": "Needs {settings}",
+  "pluginsStatusBuiltIn": "{version} · built in",
+  "pluginsStatusFromFolder": "{version} · from a folder",
+  "pluginsStatusVersionBy": "{version} · {author}",
+  "pluginsStatusNeedsReview": "Needs your review",
+  "pluginsStatusUpdate": "{version} → {label}",
+  "pluginsStatusOff": "Off · {version}",
+  "pluginsStatusFailed": "Failed to load",
+  "pluginsEmpty": "No plugins yet. Install one from GitHub or from a file.",
+  "pluginsUninstallTitle": "Uninstall {name}?",
+  "pluginsUninstallMessage": "Its files and settings are removed. Books you added with it stay in your library.",
+  "pluginsUninstallConfirm": "Uninstall",
+  "pluginsRemoveTitle": "Remove {name}?",
+  "pluginsRemoveMessage": "Dalibre stops loading it and forgets its settings. Its folder stays as it is.",
+  "pluginsReview": "Review",
+  "pluginsUpdatingLabel": "Updating {name}",
+  "pluginsTurnOnLabel": "Turn {name} on",
+  "pluginsAdd": "Add plugin",
+  "pluginsAddFromGithub": "From GitHub…",
+  "pluginsAddFromFile": "From a file…",
+  "pluginsAddFromFolder": "From a folder…",
+  "pluginsMoreActions": "More plugin actions",
+  "pluginsMore": "More",
+  "pluginsOpenFolder": "Open plugins folder",
+  "pluginsReload": "Reload plugins",
+  "pluginsInstallDialogTitle": "Install a plugin",
+  "pluginsPackageFilter": "Dalibre plugins",
+  "pluginsInstallFromFolderTitle": "Install a plugin from a folder",
+  "pluginsVersion": "Version {version}",
+  "pluginsByAuthor": "by {author}",
+  "pluginsAddsToTitle": "ADDS TO DALIBRE",
+  "pluginsGetBooksNote": "Get books: search, browse and download from {name}.",
+  "pluginsFetchMetadataNote": "Fetch metadata: look up a book’s details on {name}, in Edit metadata.",
+  "pluginsCanAccess": "CAN ACCESS",
+  "pluginsLocalNetwork": "This computer and your local network",
+  "pluginsLocalNetworkDetail": "As a book server at home",
+  "pluginsLibraryRead": "Books you look up with it",
+  "pluginsLibraryReadDetail": "Title, authors, identifiers and language, only when you ask it to look a book up",
+  "pluginsNoteAllowed": "You allowed this when you installed it. An update that asks for more stays off until you review it.",
+  "pluginsNoteBuiltIn": "Ships with Dalibre.",
+  "pluginsNoteLinked": "Loaded from {folder}, and reloaded when its files change. If it asks for more, it stays off until you review it.",
+  "pluginsShowFolder": "Show folder",
+  "pluginsViewOnGithub": "View on GitHub",
+  "pluginsHomepage": "Homepage",
+  "pluginsUninstallButton": "Uninstall…",
+  "pluginsRemoveButton": "Remove…",
+  "pluginsSettingsTitle": "SETTINGS",
+  "pluginsRequired": "Required",
+  "pluginsSaveSettings": "Save settings",
+  "pluginsSavedSettings": "Saved {name}’s settings",
+  "pluginsConsentInstallTitle": "Install {name}?",
+  "pluginsConsentAllowTitle": "Allow what {name} {version} asks for?",
+  "pluginsConsentVersionBy": "Version {version} · by {author}",
+  "pluginsConsentAsksMore": "IT ASKS FOR MORE",
+  "pluginsConsentWillBeAble": "IT WILL BE ABLE TO",
+  "pluginsConsentConnect": "Connect to {host}",
+  "pluginsConsentLocal": "Connect to this computer and your local network",
+  "pluginsConsentLocalDetail": "Only allow this for a plugin meant for a server you run, as a book server at home.",
+  "pluginsConsentSeeBooks": "See the books you look up with it",
+  "pluginsConsentAlreadyAllowed": "Already allowed: {hosts}",
+  "pluginsConsentSandbox": "Plugins run sandboxed: they can’t read your files or your library, and reach only what you allow here.",
+  "pluginsConsentSandboxLibrary": "Plugins run sandboxed: they can’t read your files, see only the books you give them, and reach only what you allow here.",
+  "pluginsConsentInstall": "Install",
+  "pluginsConsentAllow": "Allow",
+  "pluginsErrIDMismatch": "{path}: its plugin.json says id \"{id}\", linked as \"{linked}\"; add the folder again",
+  "pluginsErrIDReserved": "{path}: id \"{id}\" is kept for plugins that ship with Dalibre",
+  "pluginsErrToast": "Plugin {error}",
+  "pluginsInstallFailed": "Couldn’t install the plugin: {error}",
+  "pluginsAddFailed": "Couldn’t add the plugin: {error}",
+  "pluginsInstalled": "Installed {name} {version}",
+  "pluginsAddedFrom": "Added {name} from {folder}",
+  "pluginsAddedBook": "Added {title}",
+  "pluginsDownloadFailedGeneric": "Couldn’t add {title}: {error}",
+  "pluginsDownloadAuth": "{plugin} needs you to sign in or check its settings: {message}",
+  "pluginsDownloadBusy": "{plugin} is busy; try again in a while",
+  "pluginsDownloadUnavailable": "{plugin} isn’t answering; try again later ({message})",
+  "pluginsDownloadNotFound": "{title} is no longer available from {plugin}",
+  "pluginsDownloadTimeout": "Downloading {title} {message}",
+  "pluginsDownloadFailed": "Couldn’t download {title}: the {plugin} plugin failed ({message})",
+  "pluginsRepoEmpty": "The repository has no releases or branches.",
+  "pluginsDetailBranch": "branch {branch} at {commit} · {when}",
+  "pluginsDetailRelease": "release {tag} · {when}",
+  "pluginsDetailReleaseAsset": "release {tag} · {when} · {asset}, {size}",
+  "pluginsNotAPlugin": "This isn’t a Dalibre plugin: {error}",
+  "pluginsAgoUnknown": "date unknown",
+  "pluginsAgoNow": "just now",
+  "pluginsAgoHours": "{count, plural, one {# hour ago} other {# hours ago}}",
+  "@pluginsAgoHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pluginsAgoDays": "{count, plural, one {# day ago} other {# days ago}}",
+  "@pluginsAgoDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pluginsCheckFailed": "Checking {id} for updates: {error}",
+  "pluginsUpToDate": "Plugins are up to date",
+  "pluginsUpdateBranchLabel": "{branch} at {commit}",
+  "pluginsUpdateWrongPlugin": "the update is a different plugin, \"{id}\"",
+  "pluginsUpdateFailed": "Couldn’t update {name}: {error}",
+  "pluginsKeychainFailed": "Couldn’t save {name}’s password in the system’s keychain: {error}",
+  "settingsSectionGeneral": "General",
+  "settingsSectionOPDS": "OPDS",
+  "settingsSectionPlugins": "Plugins",
+  "settingsChangesApplyNote": "Changes apply right away.",
+  "settingsPluginsSandboxNote": "Plugins are sandboxed: only the sites they list · {memory} MB · {seconds} s per call",
+  "@settingsPluginsSandboxNote": {
+    "placeholders": {
+      "memory": {
+        "type": "int"
+      },
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsShowListTitle": "Show books as a list",
+  "settingsShowListBody": "A table of titles, authors and sizes, in place of covers.",
+  "settingsShowDetailsTitle": "Show the details panel",
+  "settingsShowDetailsBody": "The book or result chosen, at the window’s right. ⌘⌥I turns it on and off.",
+  "settingsLibraryBody": "Dalibre reads and writes calibre libraries: calibre can open the same folder.",
+  "settingsNoLibraryOpen": "No library is open",
+  "settingsOpenAnotherLibrary": "Open another library…",
+  "settingsCatalogsTitle": "Catalogs",
+  "settingsCatalogsBody": "Browse and download from OPDS catalogs: a calibre, Calibre-Web or Kavita server at home, or public ones like Standard Ebooks. Each shows up in the sidebar.",
+  "settingsAddCatalogButton": "Add catalog…",
+  "settingsNoCatalogs": "No catalogs yet.",
+  "settingsSearchCatalogsCheckbox": "Search catalogs from Get books, as sources",
+  "settingsMoreLabel": "More: {name}",
+  "settingsEditItem": "Edit…",
+  "settingsCheckAgain": "Check again",
+  "settingsAddCatalogTitle": "Add OPDS catalog",
+  "settingsEditCatalogTitle": "Edit catalog",
+  "settingsCatalogSheetBody": "Paste the address of a catalog. Most servers show it on their OPDS or “e-reader” page.",
+  "settingsAddressLabel": "Address",
+  "settingsNamePlaceholder": "Home server",
+  "settingsNameHint": "Shown in the sidebar. Taken from the catalog; change it if you like.",
+  "settingsUsernameHint": "If it asks",
+  "settingsLocalNetworkTitle": "On your local network",
+  "settingsLocalNetworkBody": "This address is on your network, so Dalibre will reach it only for this catalog. Passwords are kept in the system’s keychain.",
+  "settingsCheck": "Check",
+  "settingsAddCatalogSubmit": "Add catalog",
+  "settingsCheckingLabel": "Checking",
+  "settingsCheckingCatalog": "Checking the catalog…",
+  "settingsFoundTitle": "Found “{title}”",
+  "settingsEntriesSearch": "{count, plural, one {# entry} other {# entries}} · search supported",
+  "@settingsEntriesSearch": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsEntriesNoSearch": "{count, plural, one {# entry} other {# entries}} · no search",
+  "@settingsEntriesNoSearch": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSignInTitle": "It asks you to sign in",
+  "settingsSignInBody": "Fill in the username and password, then check again.",
+  "settingsNotCatalogTitle": "That isn’t a catalog Dalibre can read",
+  "settingsShareTitle": "Share this library over OPDS",
+  "settingsShareBody": "Reading apps on your network (KOReader, Moon+ Reader, Thorium, KyBook) can browse this library and download books from it while Dalibre is open.",
+  "settingsStartingLabel": "Starting",
+  "settingsStarting": "Starting…",
+  "settingsSharing": "Sharing",
+  "settingsSharingNoLibrary": "Sharing · open a library to share it",
+  "settingsSharingReaders": "Sharing · {count, plural, one {# reader} other {# readers}} connected today",
+  "@settingsSharingReaders": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsCopyAddress": "Copy address",
+  "settingsCopied": "Copied {address}",
+  "settingsRequireLogin": "Require a username and password",
+  "settingsPortLabel": "Port",
+  "settingsShareNote": "Only devices on this network can connect. Books are read from your library as they are; nothing is uploaded anywhere.",
+  "settingsApply": "Apply",
+  "settingsUpdateAvailable": "{label} is available",
+  "settingsPublishedOnGitHub": "Published {ago} on GitHub.",
+  "settingsUpdatingLabel": "Updating",
+  "settingsUpdating": "Updating…",
+  "settingsReleaseNotes": "Release notes",
+  "settingsSourceOverline": "SOURCE",
+  "settingsTrackingReleases": "Tracking releases · on {ref}",
+  "settingsTrackingReleasesChecked": "Tracking releases · on {ref} · checked {ago}",
+  "settingsTrackingBranch": "Tracking {branch} · on {sha}",
+  "settingsTrackingBranchChecked": "Tracking {branch} · on {sha} · checked {ago}",
+  "settingsCheckingUpdatesLabel": "Checking for updates",
+  "settingsCheckNow": "Check now",
+  "settingsAutoUpdate": "Update automatically when an update asks for nothing new",
+  "settingsInstallGitHubTitle": "Install from GitHub",
+  "settingsInstallGitHubBody": "Install from a release or a branch. Dalibre can keep it up to date from the same place.",
+  "settingsRepositoryLabel": "Repository",
+  "settingsFind": "Find",
+  "settingsRepoHint": "owner/repo or a github.com link.",
+  "settingsFindingLabel": "Finding",
+  "settingsLookingAt": "Looking at {repo}…",
+  "settingsInstall": "Install",
+  "settingsDownloadingLabel": "Downloading",
+  "settingsDownloading": "Downloading…",
+  "settingsByAuthor": "by {author} · {detail}",
+  "settingsLatestRelease": "Latest release",
+  "settingsBranchLabel": "Branch: {branch}",
+  "settingsVersionLabel": "Version: {label}",
+  "settingsReleaseSub": "{tag} · {ago}",
+  "settingsReleaseSubPre": "{tag} · {ago} · pre-release",
+  "settingsBranchWarning": "A branch can change at any time and isn’t a published release. Use it to try a fix early or to run a plugin you’re writing.",
+  "settingsAbleTo": "IT WILL BE ABLE TO",
+  "settingsConnectTo": "Connect to {host}",
+  "settingsConnectLocal": "Connect to this computer and your local network",
+  "settingsConnectLocalNote": "Only allow this for a plugin meant for a server you run.",
+  "settingsNothing": "Nothing: it can’t reach the network.",
+  "settingsKeepUpToDate": "Keep it up to date from this repository",
+  "settingsFollowCommits": "Follow new commits on {branch}",
+  "settingsGitHubSandboxNote": "Plugins from GitHub run in the same sandbox, with only the access above. An update that asks for more waits for you.",
+  "jobsTitle": "Jobs",
+  "jobsCount": "{count, plural, one {# job} other {# jobs}}",
+  "@jobsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "jobsDownloadingOf": "Downloading {current} of {total}",
+  "@jobsDownloadingOf": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "jobsFailedCount": "{count} failed",
+  "@jobsFailedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "jobsClearFinished": "Clear finished",
+  "jobsDownloadingProgress": "Downloading · {progress}",
+  "jobsAddedToLibrary": "Added to library",
+  "jobsCanceled": "Canceled",
+  "jobsShowInLibrary": "Show in library",
+  "welcomeShortcutHint": "⌘O  Open   ·   ⇧⌘N  New library",
+  "welcomeHeadline": "A calm library\nfor your books.",
+  "welcomeSubtitleFirstRun": "Dalibre reads and writes calibre libraries. Open the one you have, or start a new one in a folder you choose.",
+  "welcomeSubtitleReturning": "Pick up where you left off, or open another calibre library.",
+  "welcomeOpenLibrary": "Open a library…",
+  "welcomeCreateLibrary": "Create a new library",
+  "welcomeRecent": "Recent",
+  "welcomeFoundOnThisMac": "Found on this Mac",
+  "welcomeCouldntOpen": "Couldn’t open “{name}”",
+  "welcomeLibraryMissingDetail": "{path} isn’t there anymore. It may have moved, or its drive isn’t connected. Pick it again or open another library.",
+  "welcomeRemoveFromRecentLabel": "Remove “{name}” from Recent",
+  "welcomeRemoveFromRecent": "Remove from Recent",
+  "welcomeNotFound": "Not found",
+  "welcomeOpeningLabel": "Opening",
+  "welcomeOpening": "Opening\n{name}",
+  "welcomeCreateIntro": "Dalibre makes a calibre library: a folder with a metadata.db and a folder per author. calibre can open it too.",
+  "welcomeDefaultName": "My Books",
+  "welcomeNameHelp": "The folder’s name, also shown at the top of the sidebar.",
+  "welcomeLocation": "Location",
+  "welcomeChoose": "Choose…",
+  "welcomeWillBeCreatedAt": "Will be created at",
+  "welcomeLibraryExists": "There’s a library here already",
+  "welcomeGiveName": "Give the library a name.",
+  "welcomeOpenIt": "Open it",
+  "welcomeCreateLibraryButton": "Create library",
+  "welcomeNotLibraryTitle": "“{name}” isn’t a calibre library",
+  "welcomeNotLibraryBody": "There’s no metadata.db in this folder. Dalibre can make it a new library, or you can pick another folder.",
+  "welcomeFolder": "Folder",
+  "welcomeFolderNotEmpty": "This folder isn’t empty",
+  "welcomeFolderNotEmptyBody": "It has {count, plural, one {# item} other {# items}}. They stay where they are and aren’t added to the library. To add books, use Add books once it’s created.",
+  "@welcomeFolderNotEmptyBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "welcomeChooseAnotherFolder": "Choose another folder…",
+  "welcomeCreateLibraryHere": "Create library here",
+  "welcomeChooseWhereTitle": "Choose where the library goes",
+  "appUpdatesMenu": "Check for Updates…",
+  "appUpdatesVersion": "Dalibre {version}",
+  "appUpdatesNotChecked": "Not checked yet",
+  "appUpdatesUpToDate": "Up to date · checked {ago}",
+  "appUpdatesChecked": "Checked {ago}",
+  "appUpdatesChecking": "Checking for updates…",
+  "appUpdatesCheck": "Check for updates",
+  "appUpdatesTryAgain": "Try again",
+  "appUpdatesCheckFailed": "Couldn’t check for updates",
+  "appUpdatesDisabled": "This copy of Dalibre can’t update itself",
+  "appUpdatesAuto": "Check for updates automatically",
+  "appUpdatesBeta": "Include beta versions",
+  "appUpdatesAvailable": "Dalibre {version} is available",
+  "appUpdatesReleased": "Released {ago}.",
+  "appUpdatesInstall": "Install and restart",
+  "appUpdatesWhatsNew": "What’s new",
+  "appUpdatesWhatsNewOverline": "WHAT’S NEW",
+  "appUpdatesFullNotes": "Full release notes",
+  "appUpdatesDownloading": "Downloading Dalibre {version}",
+  "appUpdatesProgress": "{done} of {total} MB",
+  "appUpdatesDownloadingProgress": "Downloading · {progress}",
+  "appUpdatesReady": "Dalibre {version} is ready",
+  "appUpdatesReadyBody": "It installs when Dalibre restarts.",
+  "appUpdatesRestart": "Restart now",
+  "appUpdatesLater": "Later",
+  "appUpdatesInstallFailed": "Couldn’t install Dalibre {version}",
+  "appUpdatesNothingChanged": "Nothing was changed.",
+  "appUpdatesDownloadFromGitHub": "Download from GitHub",
+  "appUpdatesSkip": "Skip this version",
+  "appUpdatesYouHave": "You have {version}",
+  "appUpdatesYouHaveReleased": "You have {version} · released {date}"
+}

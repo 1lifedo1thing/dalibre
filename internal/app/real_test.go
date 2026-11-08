@@ -42,7 +42,7 @@ func TestRealLibrary(t *testing.T) {
 	a.open = calibre.OpenReadOnly
 	a.openLibrary(root)
 	if a.lib == nil {
-		t.Fatalf("library not open: %s", a.loadErr)
+		t.Fatalf("library not open: %s", msgText(a.loadErr))
 	}
 	t.Cleanup(func() { a.lib.Close() })
 

@@ -1,8 +1,9 @@
 // Type declarations for Dalibre plugins, plugin API 1.
 //
-// A book source plugin is an ES module (ES2023) that exports search and,
-// optionally, collections and list (with "collections": true in
-// plugin.json), get and resolve; CommonJS (module.exports) works too. In plain JavaScript, put
+// A plugin is an ES module (ES2023); CommonJS (module.exports) works too.
+// A book source exports search and, optionally, collections and list
+// (with "collections": true in plugin.json), get and resolve. A metadata
+// source exports identify. In plain JavaScript, put
 // this file next to main.js with the template's jsconfig.json and add
 // `// @ts-check` to main.js: editors then check your code and complete
 // the API. In TypeScript, compile to one module, for example with
@@ -140,6 +141,35 @@ declare namespace Dalibre {
 
   /** Back-compatible names. */
   type BookSource = Source;
+
+  /**
+   * What a metadata source is asked to look up: what the user has for the
+   * book, or what they typed in Fetch metadata (then only title, and
+   * identifiers.isbn when they typed one). Nothing else of the library is
+   * sent.
+   */
+  interface Book {
+    /** May be empty when identifiers are given. */
+    title: string;
+    authors: string[];
+    /** As calibre keeps them, lowercase keys: { isbn: "9780765382030", goodreads: "20518872" }. */
+    identifiers: Record<string, string>;
+    /** ISO 639, when the book has a language. */
+    language?: string;
+  }
+
+  /**
+   * A metadata candidate: a Result without formats. id and title are
+   * required; give every field you know. cover is fetched when the user
+   * picks the candidate; fields show next to it.
+   */
+  type Candidate = Omit<Result, "formats" | "extra">;
+
+  /** What a metadata source exports. */
+  interface MetadataSource {
+    /** Candidates for book, best first; at most 20. Return [] when nothing matches. */
+    identify(book: Book): Candidate[] | Promise<Candidate[]>;
+  }
 }
 
 declare const dalibre: {
@@ -168,5 +198,5 @@ declare const console: {
 };
 
 /** For CommonJS plugins; ES modules export their functions instead. */
-declare const module: { exports: Partial<Dalibre.Source> };
-declare const exports: Partial<Dalibre.Source>;
+declare const module: { exports: Partial<Dalibre.Source & Dalibre.MetadataSource> };
+declare const exports: Partial<Dalibre.Source & Dalibre.MetadataSource>;

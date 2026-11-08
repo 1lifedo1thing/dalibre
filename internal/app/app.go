@@ -15,10 +15,10 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/app/icons"
 	"dalibre/internal/calibre"
 	"dalibre/internal/catalog"
-	"dalibre/internal/convert"
 	"dalibre/internal/plugin"
 	"dalibre/internal/settings"
 )
@@ -38,14 +38,22 @@ type App struct {
 
 	settings *settings.Settings
 
-	lib       *calibre.Library
-	loading   bool
-	loadErr   string
-	books     []*calibre.Book
-	byID      map[int64]*calibre.Book
-	counts    catalog.Counts
-	version   int // bumps when books change, to recompute shown
-	booksTime time.Time
+	lib     *calibre.Library
+	loading bool
+	// loadingRoot is the library being opened; loadGen tells an open the
+	// user cancelled from the current one.
+	loadingRoot string
+	loadGen     int
+	// loadErr says why the last library didn't open, loadErrDetail what to
+	// do about it; the welcome screen shows them.
+	loadErr, loadErrDetail func() string
+	welcome                welcomeState
+	imp                    importState // adding dropped or chosen files
+	books                  []*calibre.Book
+	byID                   map[int64]*calibre.Book
+	counts                 catalog.Counts
+	version                int // bumps when books change, to recompute shown
+	booksTime              time.Time
 
 	query    catalog.Query
 	shown    []*calibre.Book
@@ -69,20 +77,16 @@ type App struct {
 	covers     *coverCache
 
 	// dialogs
-	editOpen      bool
-	edit          editState
-	convertOpen   bool
-	convert       convertState
-	deleteOpen    bool
-	deleteIDs     []int64
-	createAsk     bool
-	createAskPath string
-	jobsOpen      bool
+	editOpen   bool
+	edit       editState
+	fetch      fetchState // the Edit metadata dialog's Fetch metadata step
+	deleteOpen bool
+	deleteIDs  []int64
+	jobsOpen   bool
 	// pickerOpen is which filter's picker is open, by kind; pickerQuery
 	// narrows its list.
 	pickerOpen  [catalog.ByLanguage + 1]bool
 	pickerQuery string
-	jobs        []*convert.Job
 
 	// plugins
 	pluginDir string // "" loads none, as tests do
@@ -109,6 +113,8 @@ type App struct {
 	updatesChecking bool
 	github          *plugin.GitHub // nil is github.com
 	ghi             ghInstall      // the Install from GitHub sheet
+	// au is updating Dalibre itself.
+	au appUpdateState
 
 	// settingsOpen shows the Settings window, on section.
 	settingsOpen bool
@@ -143,6 +149,7 @@ type App struct {
 	busyTotal   int
 	toasts      []toastMsg
 	searchFocus ui.Handle
+	mainBox     ui.Handle // the middle column, measured to fit the toolbar
 }
 
 type toastMsg struct {
@@ -172,6 +179,8 @@ func New(settingsPath string) *App {
 	a.post = func(fn func()) { fn() }
 	a.run = func(fn func()) { go fn() }
 	a.trash = mygo.Shell.TrashItem
+	a.au.version = mygo.App.Version()
+	a.au.relaunch = func() {}
 	a.open = calibre.Open
 	a.query.Sort = catalog.SortKey(a.settings.Sort)
 	a.query.Descending = a.settings.Descending
@@ -189,9 +198,14 @@ func (a *App) Attach(win *mygo.Window) {
 	a.secrets = systemSecrets{}
 	a.loadPlugins()
 	a.loadCatalogs()
+	a.welcome.coversNet = true
+	a.findCalibreLibrary()
 	a.openLibrary(a.startupLibrary())
 	a.applyShare()
 	a.checkUpdates(false)
+	a.au.updater = mygoUpdater{}
+	a.au.relaunch = mygo.App.Relaunch
+	a.watchAppUpdates()
 }
 
 // View builds the window from the state, every frame.
@@ -210,16 +224,13 @@ func (a *App) toastError(err error) {
 	a.toasts = append(a.toasts, toastMsg{text: err.Error(), error: true})
 }
 
-// startupLibrary picks the library to open: the one used last, then
-// DALIBRE_LIBRARY, then calibre's own choice.
+// startupLibrary picks the library to open: DALIBRE_LIBRARY, then the
+// one used last. With neither, the welcome screen offers calibre's own.
 func (a *App) startupLibrary() string {
 	if p := os.Getenv("DALIBRE_LIBRARY"); p != "" {
 		return p
 	}
-	if a.settings.Library != "" {
-		return a.settings.Library
-	}
-	return calibreLibraryPath()
+	return a.settings.Library
 }
 
 // calibreLibraryPath reads the library calibre last used from its
@@ -247,13 +258,28 @@ func calibreLibraryPath() string {
 	return ""
 }
 
-// openLibrary opens root in the background and shows it.
+// openLibrary opens root in the background and shows it. A folder that
+// is gone is said on the welcome screen; one without a library asks
+// whether to make one there.
 func (a *App) openLibrary(root string) {
 	if root == "" {
 		return
 	}
-	a.loading, a.loadErr = true, ""
+	a.loadGen++
+	gen := a.loadGen
+	a.loading, a.loadingRoot, a.loadErr, a.loadErrDetail = true, root, nil, nil
 	a.run(func() {
+		if _, err := os.Stat(root); err != nil {
+			a.post(func() {
+				if gen != a.loadGen {
+					return
+				}
+				a.loading = false
+				a.loadErr = func() string { return locales.AppCouldntOpenLibrary(filepath.Base(root)) }
+				a.loadErrDetail = func() string { return locales.AppLibraryGone(abbreviateHome(root)) }
+			})
+			return
+		}
 		lib, err := a.open(root)
 		var books []*calibre.Book
 		var ids map[string]int64
@@ -264,16 +290,24 @@ func (a *App) openLibrary(root string) {
 			ids, _ = lib.Identifiers()
 		}
 		a.post(func() {
+			if gen != a.loadGen { // cancelled, or another library asked for since
+				if lib != nil {
+					lib.Close()
+				}
+				return
+			}
 			a.loading = false
 			if err != nil {
 				if lib != nil {
 					lib.Close()
 				}
 				if errors.Is(err, calibre.ErrNotLibrary) {
-					a.createAsk, a.createAskPath = true, root
+					a.askNotLibrary(root)
 					return
 				}
-				a.loadErr = fmt.Sprintf("Couldn’t open %s: %v", root, err)
+				a.loadErr = func() string { return locales.AppCouldntOpenLibrary(filepath.Base(root)) }
+				detail := err.Error()
+				a.loadErrDetail = func() string { return detail }
 				return
 			}
 			if a.lib != nil {
@@ -290,10 +324,16 @@ func (a *App) openLibrary(root string) {
 			a.settings.Opened(root)
 			a.saveSettings()
 			if a.win != nil {
-				a.win.SetTitle("Dalibre — " + filepath.Base(root))
+				a.win.SetTitle(locales.AppWindowTitle(filepath.Base(root)))
 			}
 		})
 	})
+}
+
+// cancelOpen stops waiting for the library being opened.
+func (a *App) cancelOpen() {
+	a.loadGen++
+	a.loading = false
 }
 
 func (a *App) createLibrary(root string) {
@@ -423,82 +463,22 @@ func (a *App) detailsOf(b *calibre.Book) *calibre.Details {
 	return nil
 }
 
-var ebookFilter = []mygo.FileFilter{
-	{Name: "E-books", Extensions: []string{"epub", "pdf", "mobi", "azw3", "azw", "fb2", "txt", "cbz", "djvu", "docx", "rtf"}},
-	{Name: "All files", Extensions: []string{"*"}},
+func ebookFilter() []mygo.FileFilter {
+	return []mygo.FileFilter{
+		{Name: locales.AppFilterEbooks(), Extensions: []string{"epub", "pdf", "mobi", "azw3", "azw", "fb2", "txt", "cbz", "djvu", "docx", "rtf"}},
+		{Name: locales.AppFilterAllFiles(), Extensions: []string{"*"}},
+	}
 }
 
 // chooseBooks asks for files and adds them.
 func (a *App) chooseBooks() {
 	a.run(func() {
-		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: "Add books", Multiple: true, Filters: ebookFilter})
+		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: locales.CommonAddBooks(), Multiple: true, Filters: ebookFilter()})
 		if err != nil || len(paths) == 0 {
 			return
 		}
 		a.post(func() { a.importFiles(paths) })
 	})
-}
-
-// importFiles adds files, and the e-books inside folders, as new books.
-func (a *App) importFiles(paths []string) {
-	lib := a.lib
-	if lib == nil || a.busy != "" {
-		return
-	}
-	a.busy, a.busyDone, a.busyTotal = "Adding books", 0, 0
-	a.run(func() {
-		// Folders are walked here, off the main thread: they may be large.
-		var files []string
-		for _, p := range paths {
-			filepath.WalkDir(p, func(path string, d os.DirEntry, err error) error {
-				if err == nil && !d.IsDir() && isEbook(path) {
-					files = append(files, path)
-				}
-				return nil
-			})
-		}
-		if len(files) == 0 {
-			a.post(func() {
-				a.busy = ""
-				a.toast("No e-books found to add")
-			})
-			return
-		}
-		a.post(func() { a.busyTotal = len(files) })
-		var added []int64
-		var errs []string
-		for i, f := range files {
-			id, err := lib.Import(f)
-			if err != nil {
-				errs = append(errs, fmt.Sprintf("%s: %v", filepath.Base(f), err))
-			} else {
-				added = append(added, id)
-			}
-			a.post(func() { a.busyDone = i + 1 })
-		}
-		a.post(func() {
-			a.busy = ""
-			a.reload(func() {
-				if len(added) > 0 {
-					a.query = catalog.Query{Sort: catalog.SortDateAdded, Descending: true}
-					a.chosen.Clear()
-					a.curID = added[len(added)-1]
-					a.toast("Added %d %s", len(added), plural(len(added), "book", "books"))
-				}
-				for _, e := range errs {
-					a.toastError(errors.New(e))
-				}
-			})
-		})
-	})
-}
-
-func isEbook(path string) bool {
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".epub", ".pdf", ".mobi", ".azw3", ".azw", ".fb2", ".txt", ".cbz", ".djvu", ".docx", ".rtf", ".prc":
-		return true
-	}
-	return false
 }
 
 func plural(n int, one, many string) string {
@@ -525,7 +505,7 @@ func (a *App) saveMetadata(id int64, m calibre.Metadata, cover []byte) {
 				return
 			}
 			a.covers.forget(id)
-			a.reload(func() { a.toast("Saved “%s”", m.Title) })
+			a.reload(func() { a.toast("%s", locales.AppToastSaved(m.Title)) })
 		})
 	})
 }
@@ -545,7 +525,7 @@ func (a *App) removeBooks(ids []int64) {
 				if err != nil {
 					a.toastError(err)
 				}
-				a.toast("Moved %d %s to the Recycle Bin", len(ids), plural(len(ids), "book", "books"))
+				a.toast("%s", locales.AppToastMovedToTrash(len(ids)))
 			})
 		})
 	})
@@ -555,7 +535,7 @@ func (a *App) removeBooks(ids []int64) {
 func (a *App) addFormat(id int64) {
 	lib := a.lib
 	a.run(func() {
-		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: "Add a format", Filters: ebookFilter})
+		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: locales.AppAddFormatTitle(), Filters: ebookFilter()})
 		if err != nil || len(paths) == 0 || lib == nil {
 			return
 		}
@@ -565,7 +545,9 @@ func (a *App) addFormat(id int64) {
 				a.toastError(err)
 				return
 			}
-			a.reload(func() { a.toast("Added %s", strings.ToUpper(strings.TrimPrefix(filepath.Ext(paths[0]), "."))) })
+			a.reload(func() {
+				a.toast("%s", locales.AppToastAddedFormat(strings.ToUpper(strings.TrimPrefix(filepath.Ext(paths[0]), "."))))
+			})
 		})
 	})
 }
@@ -579,7 +561,7 @@ func (a *App) removeFormat(id int64, format string) {
 				a.toastError(err)
 				return
 			}
-			a.reload(func() { a.toast("Removed %s", format) })
+			a.reload(func() { a.toast("%s", locales.AppToastRemovedFormat(format)) })
 		})
 	})
 }
@@ -601,7 +583,7 @@ func (a *App) openBook(b *calibre.Book, format string) {
 		}
 	}
 	if format == "" {
-		a.toast("“%s” has no files", b.Title)
+		a.toast("%s", locales.AppToastNoFiles(b.Title))
 		return
 	}
 	lib := a.lib
@@ -629,12 +611,12 @@ func (a *App) shareMenu(m *ui.Menu, b *calibre.Book) {
 	}
 	icon := icons.Menu(icons.Share)
 	if len(b.Formats) == 1 {
-		if m.Item("Share…").Icon(icon).Chosen() {
+		if m.Item(locales.AppShareItem()).Icon(icon).Chosen() {
 			a.shareBook(b, b.Formats[0])
 		}
 		return
 	}
-	m.Submenu("Share", func(m *ui.Menu) {
+	m.Submenu(locales.AppShareMenu(), func(m *ui.Menu) {
 		for _, f := range b.Formats {
 			if m.Item(f).Chosen() {
 				a.shareBook(b, f)
@@ -672,7 +654,7 @@ func (a *App) revealBook(b *calibre.Book) {
 
 func (a *App) chooseLibrary() {
 	a.run(func() {
-		dirs, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: "Open a calibre library", Directory: true, CreateDirectories: true})
+		dirs, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: locales.AppOpenCalibreLibraryTitle(), Directory: true, CreateDirectories: true})
 		if err != nil || len(dirs) == 0 {
 			return
 		}

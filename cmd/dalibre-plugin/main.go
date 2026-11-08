@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -33,12 +34,14 @@ const usage = `dalibre-plugin is for writing Dalibre plugins.
   dalibre-plugin list <dir> <collection> [--filter key=value] [--page N] [--json]
   dalibre-plugin get <dir> <text> [--item N] [--json]  the detail panel's view of a result
   dalibre-plugin download <dir> <text> [--item N] [--format EPUB] [-o DIR]
+  dalibre-plugin identify <dir> [title] [--author A] [--isbn N] [--id type:value] [--language L] [--json]
+                                                      what Fetch metadata shows for a book
   dalibre-plugin pack <dir> [-o DIR]                  make <id>-<version>.dalibre-plugin
   dalibre-plugin install <package> [--yes]            install into Dalibre's plugins folder
   dalibre-plugin uninstall <id>
   dalibre-plugin installed                            list installed plugins
 
-search, list, get and download take --set key=value for the plugin's
+search, list, get, download and identify take --set key=value for the plugin's
 settings, and --filter key=value for its filters; the
 values saved in Dalibre are used otherwise. The plugins folder is
 $DALIBRE_PLUGINS, or Dalibre's in your configuration folder.
@@ -53,7 +56,7 @@ func main() {
 	defer stop()
 	cmds := map[string]func(context.Context, []string) error{
 		"init": cmdInit, "check": cmdCheck, "search": cmdSearch, "download": cmdDownload,
-		"collections": cmdCollections, "list": cmdListCollection, "get": cmdGet,
+		"collections": cmdCollections, "list": cmdListCollection, "get": cmdGet, "identify": cmdIdentify,
 		"pack": cmdPack, "install": cmdInstall, "uninstall": cmdUninstall, "installed": cmdList,
 	}
 	cmd, ok := cmds[os.Args[1]]
@@ -219,7 +222,7 @@ func cmdCheck(_ context.Context, args []string) error {
 	if plugin.Reserved(m.ID) {
 		fmt.Println("note: a reserved id; only a plugin shipped inside Dalibre may use it")
 	}
-	for _, fn := range []string{"search", "collections", "list", "get", "resolve"} {
+	for _, fn := range []string{"search", "collections", "list", "get", "resolve", "identify"} {
 		if p.Defines(fn) {
 			fmt.Printf("exports %s\n", fn)
 		}
@@ -375,6 +378,101 @@ func cmdGet(ctx context.Context, args []string) error {
 	return nil
 }
 
+func cmdIdentify(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("identify", flag.ExitOnError)
+	var authors, ids multiFlag
+	fs.Var(&authors, "author", "an author (repeatable)")
+	fs.Var(&ids, "id", "an identifier, as type:value (repeatable)")
+	isbn := fs.String("isbn", "", "the book's ISBN")
+	lang := fs.String("language", "", "the book's language, ISO 639")
+	asJSON := fs.Bool("json", false, "print the candidates as JSON")
+	set := setFlags{}
+	fs.Var(set, "set", "a setting, as key=value (repeatable)")
+	var pos []string
+	for rest := args; ; {
+		if err := fs.Parse(rest); err != nil {
+			os.Exit(2)
+		}
+		if fs.NArg() == 0 {
+			break
+		}
+		pos = append(pos, fs.Arg(0))
+		rest = fs.Args()[1:]
+	}
+	if len(pos) < 1 || len(pos) > 2 {
+		fmt.Fprintln(os.Stderr, "usage: dalibre-plugin identify <dir> [title] [--author A] [--isbn N] [--id type:value]")
+		os.Exit(2)
+	}
+	p, err := load(pos[0], set)
+	if err != nil {
+		return err
+	}
+	book := plugin.Book{Authors: authors, Identifiers: map[string]string{}, Language: *lang}
+	if len(pos) == 2 {
+		book.Title = pos[1]
+	}
+	for _, id := range ids {
+		k, v, ok := strings.Cut(id, ":")
+		if !ok {
+			return fmt.Errorf("--id %q: want type:value", id)
+		}
+		book.Identifiers[k] = v
+	}
+	if *isbn != "" {
+		book.Identifiers["isbn"] = *isbn
+	}
+	cands, err := p.Identify(ctx, book)
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(cands)
+	}
+	if len(cands) == 0 {
+		fmt.Println("no candidates")
+	}
+	for i, r := range cands {
+		fmt.Printf("%2d. %s", i+1, r.Title)
+		if len(r.Authors) > 0 {
+			fmt.Printf(" — %s", strings.Join(r.Authors, ", "))
+		}
+		fmt.Println()
+		var line []string
+		for _, s := range []string{r.Publisher, r.Pubdate, r.Language} {
+			if s != "" {
+				line = append(line, s)
+			}
+		}
+		if r.Series != "" {
+			line = append(line, "series "+r.Series)
+		}
+		if len(line) > 0 {
+			fmt.Println("    " + strings.Join(line, " · "))
+		}
+		var idents []string
+		for _, k := range slices.Sorted(maps.Keys(r.Identifiers)) {
+			idents = append(idents, k+":"+r.Identifiers[k])
+		}
+		if len(idents) > 0 {
+			fmt.Println("    " + strings.Join(idents, ", "))
+		}
+		if r.Cover != "" {
+			fmt.Println("    cover", r.Cover)
+		}
+		if len(r.Tags) > 0 {
+			fmt.Println("    tags:", strings.Join(r.Tags, "; "))
+		}
+	}
+	return nil
+}
+
+type multiFlag []string
+
+func (m *multiFlag) String() string     { return strings.Join(*m, ", ") }
+func (m *multiFlag) Set(v string) error { *m = append(*m, v); return nil }
+
 func printPage(res plugin.Page) {
 	for i, r := range res.Items {
 		fmt.Printf("%2d. %s", i+1, r.Title)
@@ -484,7 +582,7 @@ func cmdInstall(_ context.Context, args []string) error {
 	st := s.Plugin(m.ID)
 	have := plugin.Permissions{}
 	if st.Granted != nil {
-		have = plugin.Permissions{Hosts: st.Granted.Hosts, LocalNetwork: st.Granted.LocalNetwork}
+		have = plugin.Permissions{Hosts: st.Granted.Hosts, LocalNetwork: st.Granted.LocalNetwork, Library: st.Granted.Library}
 	}
 	if !have.Covers(m.Permissions) {
 		fmt.Printf("%s %s", m.Name, m.Version)
@@ -502,7 +600,7 @@ func cmdInstall(_ context.Context, args []string) error {
 				return errors.New("not installed")
 			}
 		}
-		st.Granted = &settings.Grant{Hosts: m.Permissions.Hosts, LocalNetwork: m.Permissions.LocalNetwork}
+		st.Granted = &settings.Grant{Hosts: m.Permissions.Hosts, LocalNetwork: m.Permissions.LocalNetwork, Library: m.Permissions.Library}
 	}
 	if _, err := plugin.Install(archive, plugin.DefaultDir()); err != nil {
 		return err
@@ -555,7 +653,7 @@ func cmdList(_ context.Context, args []string) error {
 		case st != nil && st.Disabled:
 			state = "off"
 		case st == nil || st.Granted == nil ||
-			!(plugin.Permissions{Hosts: st.Granted.Hosts, LocalNetwork: st.Granted.LocalNetwork}).Covers(m.Permissions):
+			!(plugin.Permissions{Hosts: st.Granted.Hosts, LocalNetwork: st.Granted.LocalNetwork, Library: st.Granted.Library}).Covers(m.Permissions):
 			state = "waiting for permission"
 		}
 		fmt.Printf("%-24s %-10s %s (%s)\n", m.ID, m.Version, m.Name, state)

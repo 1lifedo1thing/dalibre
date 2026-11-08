@@ -99,6 +99,10 @@ type fullResult struct {
 type remoteCover struct {
 	loading bool
 	bmp     *ui.Bitmap
+	// data and size are the image file and its pixels, kept by Fetch
+	// metadata, which may save it as the book's cover.
+	data []byte
+	size image.Point
 }
 
 func newGetBooks() getBooksState {

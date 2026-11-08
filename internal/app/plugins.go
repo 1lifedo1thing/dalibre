@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/calibre"
 	"dalibre/internal/catalog"
 	"dalibre/internal/plugin"
@@ -52,7 +53,7 @@ func (d *download) progressText() string {
 	if d.total <= 0 {
 		return humanSize(d.done)
 	}
-	return strings.TrimSuffix(humanSize(d.done), " MB") + " of " + humanSize(d.total)
+	return locales.PluginsDownloadProgress(strings.TrimSuffix(humanSize(d.done), " MB"), humanSize(d.total))
 }
 
 // consentAsk is a plugin waiting for the user to grant its permissions:
@@ -70,7 +71,7 @@ func granted(st *settings.PluginState, m *plugin.Manifest) bool {
 	if st == nil || st.Granted == nil {
 		return false
 	}
-	return plugin.Permissions{Hosts: st.Granted.Hosts, LocalNetwork: st.Granted.LocalNetwork}.Covers(m.Permissions)
+	return plugin.Permissions{Hosts: st.Granted.Hosts, LocalNetwork: st.Granted.LocalNetwork, Library: st.Granted.Library}.Covers(m.Permissions)
 }
 
 // loadPlugins loads the built-in plugins and the enabled ones in the
@@ -162,10 +163,10 @@ func (a *App) loadPlugins() {
 				errs = append(errs, fmt.Errorf("%s: %w", st.Path, err))
 				continue
 			case m.ID != id:
-				errs = append(errs, fmt.Errorf("%s: its plugin.json says id %q, linked as %q; add the folder again", st.Path, m.ID, id))
+				errs = append(errs, errors.New(locales.PluginsErrIDMismatch(st.Path, m.ID, id)))
 				continue
 			case plugin.Reserved(m.ID):
-				errs = append(errs, fmt.Errorf("%s: id %q is kept for plugins that ship with Dalibre", st.Path, m.ID))
+				errs = append(errs, errors.New(locales.PluginsErrIDReserved(st.Path, m.ID)))
 				continue
 			}
 			known = append(known, knownPlugin{manifest: m, linked: st.Path})
@@ -205,7 +206,7 @@ func (a *App) loadPlugins() {
 			a.pluginErrs, a.pluginsPending, a.pluginsKnown = errs, pending, known
 			a.setPlugins(plugins)
 			for _, err := range errs {
-				a.toastError(fmt.Errorf("Plugin %w", err))
+				a.toastError(errors.New(locales.PluginsErrToast(err.Error())))
 			}
 		})
 	})
@@ -249,7 +250,7 @@ func (a *App) installPlugin(archive string) {
 		m, err := plugin.Inspect(archive)
 		a.post(func() {
 			if err != nil {
-				a.toastError(fmt.Errorf("Couldn’t install the plugin: %w", err))
+				a.toastError(errors.New(locales.PluginsInstallFailed(err.Error())))
 				return
 			}
 			if !granted(a.settings.Plugins[m.ID], m) {
@@ -270,7 +271,7 @@ func (a *App) grantConsent() {
 	}
 	a.consent = nil
 	st := a.settings.Plugin(c.manifest.ID)
-	st.Granted = &settings.Grant{Hosts: slices.Clone(c.manifest.Permissions.Hosts), LocalNetwork: c.manifest.Permissions.LocalNetwork}
+	st.Granted = &settings.Grant{Hosts: slices.Clone(c.manifest.Permissions.Hosts), LocalNetwork: c.manifest.Permissions.LocalNetwork, Library: c.manifest.Permissions.Library}
 	a.saveSettings()
 	if c.archive != "" {
 		a.finishInstallFrom(c.archive, c.source)
@@ -304,7 +305,7 @@ func (a *App) finishInstallFrom(archive string, src *settings.PluginSource) {
 		}
 		a.post(func() {
 			if err != nil {
-				a.toastError(fmt.Errorf("Couldn’t install the plugin: %w", err))
+				a.toastError(errors.New(locales.PluginsInstallFailed(err.Error())))
 				return
 			}
 			st := a.settings.Plugin(m.ID)
@@ -316,7 +317,7 @@ func (a *App) finishInstallFrom(archive string, src *settings.PluginSource) {
 			}
 			delete(a.updates, m.ID)
 			a.saveSettings()
-			a.toast("Installed %s %s", m.Name, m.Version)
+			a.toast("%s", locales.PluginsInstalled(m.Name, m.Version))
 			a.loadPlugins()
 		})
 	})
@@ -362,14 +363,14 @@ func (a *App) linkPlugin(folder string) {
 		}
 		a.post(func() {
 			if err != nil {
-				a.toastError(fmt.Errorf("Couldn’t add the plugin: %w", err))
+				a.toastError(errors.New(locales.PluginsAddFailed(err.Error())))
 				return
 			}
 			st := a.settings.Plugin(m.ID)
 			st.Path, st.Source = abs, nil
 			delete(a.updates, m.ID)
 			a.saveSettings()
-			a.toast("Added %s from %s", m.Name, filepath.Base(abs))
+			a.toast("%s", locales.PluginsAddedFrom(m.Name, filepath.Base(abs)))
 			a.loadPlugins()
 		})
 	})
@@ -445,7 +446,7 @@ func (a *App) downloadBook(p *plugin.Plugin, r plugin.Result, format string) {
 				a.query = catalog.Query{Sort: catalog.SortDateAdded, Descending: true}
 				a.chosen.Clear()
 				a.curID = id
-				a.toast("Added %s", r.Title)
+				a.toast("%s", locales.PluginsAddedBook(r.Title))
 			})
 		})
 	})
@@ -474,22 +475,22 @@ func (a *App) pluginName(id string) string {
 func pluginErrorText(a *App, title string, err error) string {
 	var pe *plugin.Error
 	if !errors.As(err, &pe) {
-		return fmt.Sprintf("Couldn’t add %s: %v", title, err)
+		return locales.PluginsDownloadFailedGeneric(title, err.Error())
 	}
 	pe = &plugin.Error{Plugin: a.pluginName(pe.Plugin), Call: pe.Call, Kind: pe.Kind, Msg: pe.Msg, Err: pe.Err}
 	switch pe.Kind {
 	case plugin.KindAuth, plugin.KindSettings:
-		return fmt.Sprintf("%s needs you to sign in or check its settings: %s", pe.Plugin, pe.Msg)
+		return locales.PluginsDownloadAuth(pe.Plugin, pe.Msg)
 	case plugin.KindRateLimited:
-		return fmt.Sprintf("%s is busy; try again in a while", pe.Plugin)
+		return locales.PluginsDownloadBusy(pe.Plugin)
 	case plugin.KindUnavailable:
-		return fmt.Sprintf("%s isn’t answering; try again later (%s)", pe.Plugin, pe.Msg)
+		return locales.PluginsDownloadUnavailable(pe.Plugin, pe.Msg)
 	case plugin.KindNotFound:
-		return fmt.Sprintf("%s is no longer available from %s", title, pe.Plugin)
+		return locales.PluginsDownloadNotFound(title, pe.Plugin)
 	case plugin.KindTimeout:
-		return fmt.Sprintf("Downloading %s %s", title, pe.Msg)
+		return locales.PluginsDownloadTimeout(title, pe.Msg)
 	}
-	return fmt.Sprintf("Couldn’t download %s: the %s plugin failed (%s)", title, pe.Plugin, pe.Msg)
+	return locales.PluginsDownloadFailed(title, pe.Plugin, pe.Msg)
 }
 
 // resultMetadata is the library metadata for a plugin's result.

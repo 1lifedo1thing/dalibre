@@ -6,6 +6,7 @@ package widgets
 import (
 	"github.com/egoist/mygo/ui"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/app/icons"
 	"dalibre/internal/app/theme"
 )
@@ -113,7 +114,8 @@ func FormatBadge(c *ui.Context, format string, small bool) ui.Element {
 // Tag is the Tag component. It reports a click on the chip, and onRemove
 // adds a remove Button.
 func Tag(c *ui.Context, label string, selected bool, onRemove func()) ui.Element {
-	e := ui.ButtonBase(c).Height(24).Radius(theme.RadiusFull).AlignItems(ui.Center).Gap(theme.Space4).Label(label)
+	// A long tag stays inside its row and ends in an ellipsis.
+	e := ui.ButtonBase(c).Height(24).MaxWidthPercent(100).MinWidth(0).Radius(theme.RadiusFull).AlignItems(ui.Center).Gap(theme.Space4).Label(label)
 	e.Padding(0, theme.Space8)
 	if onRemove != nil {
 		e.PaddingEnd(theme.Space4)
@@ -126,9 +128,9 @@ func Tag(c *ui.Context, label string, selected bool, onRemove func()) ui.Element
 		bg = pal().Hover
 	}
 	return e.Background(bg).TextColor(fg).Children(func() {
-		ui.Text(c, label).FontSize(12).FontWeight(500).SingleLine()
+		ui.Text(c, label).FontSize(12).FontWeight(500).SingleLine().Shrink(1).MinWidth(0)
 		if onRemove != nil {
-			x := ui.ButtonBase(c).Size(16, 16).Radius(theme.RadiusFull).Center().Label("Remove " + label)
+			x := ui.ButtonBase(c).Size(16, 16).Radius(theme.RadiusFull).Center().Label(locales.WidgetsRemoveTag(label))
 			if x.Hovered() {
 				x.Background(fg.Alpha(0.15))
 			}
@@ -154,9 +156,9 @@ func Stars(c *ui.Context, rating int, size float32) ui.Element {
 
 func ratingLabel(r int) string {
 	if r == 0 {
-		return "Not rated"
+		return locales.WidgetsNotRated()
 	}
-	return string(rune('0'+r/2)) + " Stars"
+	return locales.WidgetsStars(r / 2)
 }
 
 // Overline is a small uppercase section heading.
@@ -203,7 +205,7 @@ func dialogFrame(c *ui.Context, open *bool, width float32, compact bool, header 
 		panel.Children(func() {
 			ui.Row(c).Padding(headPad[0], headPad[1], headPad[2], headPad[3]).Gap(theme.Space12).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(pal().BorderSubtle).Children(func() {
 				header()
-				if IconButton(c, icons.X, "Close", false).Clicked() {
+				if IconButton(c, icons.X, locales.WidgetsClose(), false).Clicked() {
 					*open = false
 				}
 			})

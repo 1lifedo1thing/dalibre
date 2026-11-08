@@ -4,6 +4,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -69,7 +70,7 @@ func newTestApp(t *testing.T) *App {
 		}
 	})
 	if a.lib == nil {
-		t.Fatalf("library not open: %s", a.loadErr)
+		t.Fatalf("library not open: %s", msgText(a.loadErr))
 	}
 	return a
 }
@@ -210,34 +211,6 @@ func TestEditMetadata(t *testing.T) {
 	}
 }
 
-func TestConvertDialog(t *testing.T) {
-	a := newTestApp(t)
-	tt := ui.NewTester(a.View, 1440, 900)
-	tt.Frame()
-	tt.Click("Dune")
-	tt.Frame()
-	a.openConvert(a.selectedIDs())
-	tt.Frame()
-	if !tt.HasText("Convert 1 book") || !tt.HasText("Kindle (legacy)") {
-		t.Fatalf("convert dialog: %q", tt.Texts())
-	}
-	if err := tt.Click("PDF, Fixed layout"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if a.convert.opts.Output != "PDF" {
-		t.Errorf("output = %s", a.convert.opts.Output)
-	}
-	shot(t, tt, "convert")
-	// The button's label is the dialog's title too; start as it does.
-	a.startConversions(a.convert.ids, a.convert.opts)
-	tt.Frame()
-	if len(a.jobs) != 1 || a.jobs[0].Message == "" {
-		t.Fatalf("jobs = %+v", a.jobs)
-	}
-	shot(t, tt, "jobs")
-}
-
 func TestRemoveAsksFirst(t *testing.T) {
 	a := newTestApp(t)
 	tt := ui.NewTester(a.View, 1440, 900)
@@ -264,12 +237,97 @@ func TestRemoveAsksFirst(t *testing.T) {
 
 func TestWelcomeWithoutLibrary(t *testing.T) {
 	a := New("")
-	tt := ui.NewTester(a.View, 1200, 800)
+	a.run = func(fn func()) { fn() }
+	tt := ui.NewTester(a.View, 1440, 900)
 	tt.Frame()
-	if !tt.HasText("Open library…") {
-		t.Errorf("welcome: %q", tt.Texts())
+	for _, s := range []string{"Open a library…", "Create a new library", "A calm library\nfor your books."} {
+		if !tt.HasText(s) {
+			t.Errorf("welcome lacks %q: %q", s, tt.Texts())
+		}
 	}
 	shot(t, tt, "welcome")
+}
+
+func TestWelcomeCreateLibrary(t *testing.T) {
+	a := New("")
+	a.run = func(fn func()) { fn() }
+	t.Cleanup(func() {
+		if a.lib != nil {
+			a.lib.Close()
+		}
+	})
+	tt := ui.NewTester(a.View, 1440, 900)
+	tt.Frame()
+	if err := tt.Click("Create a new library"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	parent := t.TempDir()
+	a.welcome.create.parent = parent
+	a.welcome.create.name = "Shelf"
+	tt.Frame()
+	if !tt.HasText(abbreviateHome(filepath.Join(parent, "Shelf"))) {
+		t.Errorf("no path preview: %q", tt.Texts())
+	}
+	shot(t, tt, "welcome-create")
+	if err := tt.Click("Create library"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.lib == nil || a.lib.Root != filepath.Join(parent, "Shelf") {
+		t.Fatalf("library not created and opened: %v %s", a.lib, msgText(a.loadErr))
+	}
+}
+
+func TestWelcomeFolderNotLibrary(t *testing.T) {
+	a := New("")
+	a.run = func(fn func()) { fn() }
+	t.Cleanup(func() {
+		if a.lib != nil {
+			a.lib.Close()
+		}
+	})
+	dir := filepath.Join(t.TempDir(), "Downloads")
+	os.MkdirAll(dir, 0o755)
+	os.WriteFile(filepath.Join(dir, "a.epub"), []byte("x"), 0o644)
+	a.openLibrary(dir)
+	tt := ui.NewTester(a.View, 1440, 900)
+	tt.Frame()
+	if !tt.HasText("“Downloads” isn’t a calibre library") || !tt.HasText("This folder isn’t empty") {
+		t.Fatalf("no sheet: %q", tt.Texts())
+	}
+	shot(t, tt, "welcome-notlibrary")
+	if err := tt.Click("Create library here"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.lib == nil || a.lib.Root != dir {
+		t.Fatalf("library not created: %s", msgText(a.loadErr))
+	}
+}
+
+func TestWelcomeMissingLibrary(t *testing.T) {
+	a := New("")
+	a.run = func(fn func()) { fn() }
+	gone := filepath.Join(t.TempDir(), "Books")
+	a.settings.Recent = []string{gone}
+	a.settings.Library = gone
+	a.openLibrary(a.startupLibrary())
+	tt := ui.NewTester(a.View, 1440, 900)
+	tt.Frame()
+	tt.Frame()
+	if a.welcome.notLib.open {
+		t.Fatal("a folder that is gone asked to make a library")
+	}
+	if !tt.HasText("Couldn’t open “Books”") || !tt.HasText("Not found") {
+		t.Fatalf("missing library not said: %q", tt.Texts())
+	}
+	shot(t, tt, "welcome-missing")
+	a.forgetRecent(gone)
+	tt.Frame()
+	if len(a.settings.Recent) != 0 || a.loadErr != nil {
+		t.Errorf("recent = %v, err = %q", a.settings.Recent, msgText(a.loadErr))
+	}
 }
 
 func TestSelectionFollowsBook(t *testing.T) {
@@ -316,7 +374,7 @@ func TestLibrarySwitcherMenu(t *testing.T) {
 	tt.Frame()
 	tt.Frame()
 	shot(t, tt, "switcher")
-	if _, ok := tt.Find(revealLabel + ": " + filepath.Base(other)); !ok {
+	if _, ok := tt.Find(revealLabel() + ": " + filepath.Base(other)); !ok {
 		t.Error("no reveal button")
 	}
 }
@@ -383,7 +441,7 @@ func TestDetailPanelComesWithSelection(t *testing.T) {
 	}
 	// The toolbar ends where the panel begins.
 	bar, _ := tt.Find("Add books")
-	panel, _ := tt.Find("Read")
+	panel, _ := tt.Find("More")
 	if bar.X+bar.W > panel.X {
 		t.Fatalf("the panel covers the toolbar: %v, %v", bar, panel)
 	}
@@ -391,11 +449,34 @@ func TestDetailPanelComesWithSelection(t *testing.T) {
 	a.chosen.Clear()
 	a.curID, a.cur = 0, -1
 	tt.Frame()
-	if a.detailShown() || tt.HasText("Read") {
+	if a.detailShown() || tt.HasText("DETAILS") {
 		t.Fatal("the panel stayed")
 	}
 	a.settings.HideDetail = true
 	if a.detailShown() {
 		t.Fatal("shown while turned off")
+	}
+}
+
+// A small window, with a book's details open, keeps the whole toolbar
+// left of the detail panel.
+func TestNarrowWindowToolbarFits(t *testing.T) {
+	for _, w := range []int{1040, 1170, 1440} {
+		a := newTestApp(t)
+		tt := ui.NewTester(a.View, w, 800)
+		tt.Frame()
+		if err := tt.Click("Dune"); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		tt.Frame()
+		r, ok := tt.Find("Add books")
+		if !ok {
+			t.Fatalf("width %d: no Add books button", w)
+		}
+		if edge := float32(w - theme.DetailWidth); r.X+r.W > edge {
+			t.Errorf("width %d: Add books ends at %.0f, under the detail panel at %.0f", w, r.X+r.W, edge)
+		}
+		shot(t, tt, "narrow-"+strconv.Itoa(w))
 	}
 }

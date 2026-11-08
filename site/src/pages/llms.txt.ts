@@ -1,0 +1,16 @@
+import type { APIRoute } from "astro";
+
+const site = "https://dalibre.randynamic.org";
+
+export const GET: APIRoute = () =>
+  new Response(
+    `# Dalibre
+
+> Dalibre is a lightweight desktop e-book manager that reads and writes calibre libraries. It is extended with sandboxed JavaScript plugins (book sources and metadata sources).
+
+## Docs
+
+- [Writing Dalibre plugins](${site}/docs/plugins.md): the complete plugin guide and API reference (plugin API 1) as one Markdown file.
+`,
+    { headers: { "Content-Type": "text/plain; charset=utf-8" } },
+  );

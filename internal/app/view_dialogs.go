@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/app/icons"
 	"dalibre/internal/app/theme"
 	"dalibre/internal/app/widgets"
@@ -21,17 +23,13 @@ import (
 
 func (a *App) dialogs(c *ui.Context) {
 	a.editDialog(c)
-	a.convertDialog(c)
 	a.deleteDialog(c)
 	a.settingsDialog(c)
 	a.consentDialog(c)
-	if a.createAsk {
-		switch ui.AlertDialog(c, &a.createAsk, "Create a new library here?",
-			a.createAskPath+" has no calibre library. Dalibre can create an empty one, which calibre opens too.", "Cancel", "Create library") {
-		case 1:
-			a.createLibrary(a.createAskPath)
-		}
-	}
+	a.notLibrarySheet(c)
+	a.createLibrarySheet(c)
+	a.importReviewSheet(c)
+	a.appUpdateDialog(c)
 }
 
 // ---- Edit metadata
@@ -88,6 +86,7 @@ func (a *App) openEditor(b *calibre.Book) {
 		comments: text, commentsText: text, origComments: d.Comments,
 	}
 	a.editOpen = true
+	a.fetch.open = false
 }
 
 // metadata returns what the editor holds as calibre metadata.
@@ -132,6 +131,10 @@ func (a *App) editDialog(c *ui.Context) {
 		a.editOpen = false
 		return
 	}
+	if a.fetch.open {
+		a.fetchDialog(c, b)
+		return
+	}
 	pos := slices.Index(e.order, e.id)
 	step := func(delta int) {
 		a.saveMetadata(e.id, e.metadata(), e.cover)
@@ -144,16 +147,20 @@ func (a *App) editDialog(c *ui.Context) {
 		}
 	}
 	widgets.DialogFrame(c, &a.editOpen, 880, func() {
-		ui.Text(c, "Edit metadata").FontSize(16).FontWeight(600)
+		ui.Text(c, locales.DialogsEditMetadataTitle()).FontSize(16).FontWeight(600)
 		if len(e.order) > 1 && pos >= 0 {
-			ui.Textf(c, "%d of %d", pos+1, len(e.order)).Font(theme.FontMono).FontSize(12).TextColor(pal().TextTertiary)
+			ui.Text(c, locales.DialogsPosition(pos+1, len(e.order))).Font(theme.FontMono).FontSize(12).TextColor(pal().TextTertiary)
 		}
 		ui.Spacer(c)
+		if widgets.ButtonSized(c, widgets.Secondary, icons.Search, locales.CommonFetchMetadata(), theme.ControlS).
+			Tooltip(locales.DialogsFetchTooltip()).Clicked() {
+			a.openFetch()
+		}
 		if len(e.order) > 1 {
-			if widgets.IconButton(c, icons.ChevronLeft, "Save and edit previous", false).Disabled(pos <= 0).Clicked() {
+			if widgets.IconButton(c, icons.ChevronLeft, locales.DialogsSaveEditPrevious(), false).Disabled(pos <= 0).Clicked() {
 				step(-1)
 			}
-			if widgets.IconButton(c, icons.ChevronRight, "Save and edit next", false).Disabled(pos >= len(e.order)-1).Clicked() {
+			if widgets.IconButton(c, icons.ChevronRight, locales.DialogsSaveEditNext(), false).Disabled(pos >= len(e.order)-1).Clicked() {
 				step(1)
 			}
 		}
@@ -169,83 +176,92 @@ func (a *App) editDialog(c *ui.Context) {
 					}
 				})
 				ui.Row(c).Gap(theme.Space8).Children(func() {
-					if widgets.ButtonSized(c, widgets.Secondary, icons.Image, "Change cover", theme.ControlS).Grow(1).Clicked() {
+					if widgets.ButtonSized(c, widgets.Secondary, icons.Image, locales.DialogsChangeCover(), theme.ControlS).Grow(1).Clicked() {
 						a.chooseCover()
 					}
 				})
 				if e.cover != nil {
-					ui.Text(c, "New cover, saved with the book").FontSize(11).TextColor(pal().TextTertiary).TextAlign(ui.Center)
+					ui.Text(c, locales.DialogsNewCoverNote()).FontSize(11).TextColor(pal().TextTertiary).TextAlign(ui.Center)
 				}
 			})
 			// Form.
 			ui.Column(c).Grow(1).MinWidth(0).Gap(theme.Space16).AlignItems(ui.Stretch).Children(func() {
 				row := func(fn func()) { ui.Row(c).Gap(theme.Space16).AlignItems(ui.Start).Children(fn) }
+				// Title and Authors take the full width, as names run long
+				// (CJK titles, several authors with translators); the sort
+				// fields, rarely edited, share the row below.
 				row(func() {
-					widgets.Field(c, "Title", "", func() { ui.TextInput(c, &e.title).Label("Title").AutoFocus() })
-					widgets.Field(c, "Title sort", "auto", func() {
-						v := calibre.TitleSort(e.title)
-						ui.TextInput(c, &v).Label("Title sort").ReadOnly(true).TextColor(pal().TextSecondary)
-					})
+					widgets.Field(c, locales.CommonTitle(), "", func() { ui.TextInput(c, &e.title).Label(locales.CommonTitle()).AutoFocus() })
 				})
 				row(func() {
-					widgets.Field(c, "Authors", "", func() {
-						if ui.TokenField(c, &e.authors, values(a.counts.Authors)).Placeholder("Add an author").Label("Authors").Changed() {
-							e.authorSort = ""
-						}
-					})
-					widgets.Field(c, "Author sort", "auto", func() {
-						if e.authorSort == "" {
-							e.authorSort = calibre.AuthorsSort(e.authors)
-						}
-						ui.TextInput(c, &e.authorSort).Label("Author sort")
-					})
-				})
-				row(func() {
-					widgets.Field(c, "Series", "", func() {
-						ui.Combobox(c, &e.series, values(a.counts.Series)).Label("Series")
-					})
-					ui.Column(c).Width(72).Gap(theme.Space6).AlignItems(ui.Stretch).Children(func() {
-						ui.Text(c, "#").FontSize(12).FontWeight(500).TextColor(pal().TextSecondary)
-						ui.TextInput(c, &e.seriesIndex).Label("Series number")
-					})
-					ui.Column(c).Width(132).Gap(theme.Space6).AlignItems(ui.Stretch).Children(func() {
-						ui.Text(c, "Rating").FontSize(12).FontWeight(500).TextColor(pal().TextSecondary)
-						ui.Row(c).Height(theme.ControlM).AlignItems(ui.Center).Children(func() {
-							ui.Rating(c, &e.rating, 5).Label("Rating").TextColor(pal().WarningSolid)
+					widgets.Field(c, locales.CommonAuthors(), "", func() {
+						// A chip doesn't shrink below its name: keep a very
+						// long one inside the field.
+						ui.Box(c).Clip().AlignItems(ui.Stretch).Children(func() {
+							if ui.TokenField(c, &e.authors, values(a.counts.Authors)).Placeholder(locales.DialogsAddAuthor()).Label(locales.CommonAuthors()).Changed() {
+								e.authorSort = ""
+							}
 						})
 					})
 				})
 				row(func() {
-					widgets.Field(c, "Tags", fmt.Sprint(len(e.tags)), func() {
-						ui.TokenField(c, &e.tags, values(a.counts.Tags)).Placeholder("Add a tag").Label("Tags")
+					widgets.Field(c, locales.CommonTitleSort(), locales.DialogsAutoHint(), func() {
+						v := calibre.TitleSort(e.title)
+						ui.TextInput(c, &v).Label(locales.CommonTitleSort()).ReadOnly(true).TextColor(pal().TextSecondary)
+					})
+					widgets.Field(c, locales.DialogsAuthorSort(), locales.DialogsAutoHint(), func() {
+						if e.authorSort == "" {
+							e.authorSort = calibre.AuthorsSort(e.authors)
+						}
+						ui.TextInput(c, &e.authorSort).Label(locales.DialogsAuthorSort())
 					})
 				})
 				row(func() {
-					widgets.Field(c, "Publisher", "", func() { ui.Combobox(c, &e.publisher, values(a.counts.Publishers)).Label("Publisher") })
-					widgets.Field(c, "Published", "", func() { ui.DateInput(c, &e.pubdate).Label("Published") })
-					widgets.Field(c, "Languages", "", func() {
-						ui.TokenField(c, &e.languages, values(a.counts.Languages)).Placeholder("eng").Label("Languages")
+					widgets.Field(c, locales.CommonSeries(), "", func() {
+						ui.Combobox(c, &e.series, values(a.counts.Series)).Label(locales.CommonSeries())
+					})
+					ui.Column(c).Width(72).Gap(theme.Space6).AlignItems(ui.Stretch).Children(func() {
+						ui.Text(c, "#").FontSize(12).FontWeight(500).TextColor(pal().TextSecondary)
+						ui.TextInput(c, &e.seriesIndex).Label(locales.DialogsSeriesNumber())
+					})
+					ui.Column(c).Width(132).Gap(theme.Space6).AlignItems(ui.Stretch).Children(func() {
+						ui.Text(c, locales.CommonRating()).FontSize(12).FontWeight(500).TextColor(pal().TextSecondary)
+						ui.Row(c).Height(theme.ControlM).AlignItems(ui.Center).Children(func() {
+							ui.Rating(c, &e.rating, 5).Label(locales.CommonRating()).TextColor(pal().WarningSolid)
+						})
 					})
 				})
 				row(func() {
-					widgets.Field(c, "Identifiers", "type:value, …", func() {
-						ui.TextInput(c, &e.identifiers).Placeholder("isbn:9780765382030, goodreads:20518872").Label("Identifiers").Font(theme.FontMono)
+					widgets.Field(c, locales.CommonTags(), fmt.Sprint(len(e.tags)), func() {
+						ui.TokenField(c, &e.tags, values(a.counts.Tags)).Placeholder(locales.DialogsAddTag()).Label(locales.CommonTags())
 					})
 				})
 				row(func() {
-					widgets.Field(c, "Description", "", func() { ui.TextArea(c, &e.comments).Lines(4, 10).Label("Description") })
+					widgets.Field(c, locales.CommonPublisher(), "", func() { ui.Combobox(c, &e.publisher, values(a.counts.Publishers)).Label(locales.CommonPublisher()) })
+					widgets.Field(c, locales.CommonPublished(), "", func() { ui.DateInput(c, &e.pubdate).Label(locales.CommonPublished()) })
+					widgets.Field(c, locales.DialogsLanguages(), "", func() {
+						ui.TokenField(c, &e.languages, values(a.counts.Languages)).Placeholder("eng").Label(locales.DialogsLanguages())
+					})
+				})
+				row(func() {
+					widgets.Field(c, locales.CommonIdentifiers(), "type:value, …", func() {
+						ui.TextInput(c, &e.identifiers).Placeholder("isbn:9780765382030, goodreads:20518872").Label(locales.CommonIdentifiers()).Font(theme.FontMono)
+					})
+				})
+				row(func() {
+					widgets.Field(c, locales.CommonDescription(), "", func() { ui.TextArea(c, &e.comments).Lines(4, 10).Label(locales.CommonDescription()) })
 				})
 			})
 		})
 	}, func() {
 		ui.Row(c).Grow(1).Gap(theme.Space6).AlignItems(ui.Center).Children(func() {
 			ui.Icon(c, icons.Database).FontSize(12).TextColor(pal().IconMuted)
-			ui.Text(c, "Writes to metadata.db and the book’s metadata.opf").FontSize(12).TextColor(pal().TextTertiary)
+			ui.Text(c, locales.DialogsWritesNote()).FontSize(12).TextColor(pal().TextTertiary)
 		})
-		if widgets.Button(c, widgets.Secondary, nil, "Cancel").Clicked() {
+		if widgets.Button(c, widgets.Secondary, nil, locales.CommonCancel()).Clicked() {
 			a.editOpen = false
 		}
-		if widgets.Button(c, widgets.Primary, nil, "Save").Clicked() {
+		if widgets.Button(c, widgets.Primary, nil, locales.CommonSave()).Clicked() {
 			a.saveMetadata(e.id, e.metadata(), e.cover)
 			a.editOpen = false
 		}
@@ -258,8 +274,8 @@ func (a *App) editDialog(c *ui.Context) {
 
 func (a *App) chooseCover() {
 	a.run(func() {
-		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: "Choose a cover",
-			Filters: []mygo.FileFilter{{Name: "Images", Extensions: []string{"jpg", "jpeg", "png", "gif", "webp"}}}})
+		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: locales.DialogsChooseCover(),
+			Filters: []mygo.FileFilter{{Name: locales.DialogsImages(), Extensions: []string{"jpg", "jpeg", "png", "gif", "webp"}}}})
 		if err != nil || len(paths) == 0 {
 			return
 		}
@@ -270,7 +286,7 @@ func (a *App) chooseCover() {
 		}
 		a.post(func() {
 			if err != nil {
-				a.toastError(fmt.Errorf("couldn’t read the image: %w", err))
+				a.toastError(errors.New(locales.DialogsCoverReadFailed(err.Error())))
 				return
 			}
 			a.edit.cover, a.edit.coverBmp = data, bmp
@@ -299,14 +315,14 @@ func (a *App) deleteDialog(c *ui.Context) {
 	if !a.deleteOpen {
 		return
 	}
-	title := fmt.Sprintf("Remove %d books?", len(a.deleteIDs))
+	title := locales.DialogsRemoveBooksTitle(len(a.deleteIDs))
 	if len(a.deleteIDs) == 1 {
 		if b := a.byID[a.deleteIDs[0]]; b != nil {
-			title = fmt.Sprintf("Remove “%s”?", b.Title)
+			title = locales.DialogsRemoveBookTitle(b.Title)
 		}
 	}
 	switch ui.AlertDialog(c, &a.deleteOpen, title,
-		"The book’s files move to the Recycle Bin and it leaves the calibre library.", "Cancel", "Remove") {
+		locales.DialogsRemoveBody(), locales.CommonCancel(), locales.CommonRemove()) {
 	case 1:
 		a.removeBooks(a.deleteIDs)
 	}

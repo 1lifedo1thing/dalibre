@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/egoist/mygo/transfer"
 	"github.com/egoist/mygo/ui"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/app/icons"
 	"dalibre/internal/app/theme"
 	"dalibre/internal/app/widgets"
@@ -30,15 +30,18 @@ const (
 	sectionPlugins
 )
 
+// sections lists the Settings sections. id is the stable key; the title
+// shown comes from title(), so it follows the language.
 var sections = []struct {
 	section settingsSection
-	title   string
+	id      string
+	title   func() string
 	icon    *ui.SVG
 }{
-	{sectionGeneral, "General", icons.Sliders},
-	{sectionLibrary, "Library", icons.Library},
-	{sectionOPDS, "OPDS", icons.Rss},
-	{sectionPlugins, "Plugins", icons.Puzzle},
+	{sectionGeneral, "General", locales.SettingsSectionGeneral, icons.Sliders},
+	{sectionLibrary, "Library", locales.CommonLibrary, icons.Library},
+	{sectionOPDS, "OPDS", locales.SettingsSectionOPDS, icons.Rss},
+	{sectionPlugins, "Plugins", locales.SettingsSectionPlugins, icons.Puzzle},
 }
 
 // settingsWidth is the Settings window's width: Plugins' list and plugin
@@ -60,12 +63,12 @@ func (a *App) settingsDialog(c *ui.Context) {
 	// One width for every section, the widest's: the window doesn't jump
 	// as the user moves between them.
 	widgets.CompactDialogFrame(c, &a.settingsOpen, settingsWidth, func() {
-		ui.Text(c, "Settings").FontSize(14).FontWeight(600).Grow(1)
+		ui.Text(c, locales.CommonSettings()).FontSize(14).FontWeight(600).Grow(1)
 	}, func() {
 		ui.Row(c).Height(540).AlignItems(ui.Stretch).Children(func() {
 			ui.Column(c).Width(168).Padding(theme.Space8).Gap(theme.Space2).Background(pal().BgApp).BorderWidth(0, 1, 0, 0).BorderColor(pal().BorderSubtle).AlignItems(ui.Stretch).Children(func() {
 				for _, s := range sections {
-					a.navItem(c, "settings:"+s.title, s.icon, s.title, 0, a.section == s.section, nil, func() { a.openSettings(s.section) })
+					a.navItem(c, "settings:"+s.id, s.icon, s.title(), 0, a.section == s.section, nil, func() { a.openSettings(s.section) })
 				}
 			})
 			switch a.section {
@@ -80,12 +83,12 @@ func (a *App) settingsDialog(c *ui.Context) {
 			}
 		})
 	}, func() {
-		note := "Changes apply right away."
+		note := locales.SettingsChangesApplyNote()
 		if a.section == sectionPlugins {
-			note = fmt.Sprintf("Plugins are sandboxed: only the sites they list · %d MB · %d s per call", plugin.MaxMemory>>20, int(plugin.CallTimeout.Seconds()))
+			note = locales.SettingsPluginsSandboxNote(int(plugin.MaxMemory>>20), int(plugin.CallTimeout.Seconds()))
 		}
 		ui.Text(c, note).FontSize(12).TextColor(pal().TextTertiary).Grow(1)
-		if widgets.ButtonSized(c, widgets.Primary, nil, "Done", theme.ControlS).Clicked() {
+		if widgets.ButtonSized(c, widgets.Primary, nil, locales.CommonDone(), theme.ControlS).Clicked() {
 			a.settingsOpen = false
 		}
 	})
@@ -122,9 +125,14 @@ func heading(c *ui.Context, title, body string) {
 func (a *App) generalPane(c *ui.Context) {
 	pane(c, func() {
 		ui.Row(c).Gap(theme.Space16).AlignItems(ui.Center).Children(func() {
-			heading(c, "Show books as a list", "A table of titles, authors and sizes, in place of covers.")
+			heading(c, locales.CommonLanguage(), "")
+			a.languageSelect(c)
+		})
+		widgets.Hairline(c)
+		ui.Row(c).Gap(theme.Space16).AlignItems(ui.Center).Children(func() {
+			heading(c, locales.SettingsShowListTitle(), locales.SettingsShowListBody())
 			on := a.settings.ListView
-			ui.Switch(c, &on).Label("Show books as a list")
+			ui.Switch(c, &on).Label(locales.SettingsShowListTitle())
 			if on != a.settings.ListView {
 				a.settings.ListView = on
 				a.saveSettings()
@@ -132,14 +140,15 @@ func (a *App) generalPane(c *ui.Context) {
 		})
 		widgets.Hairline(c)
 		ui.Row(c).Gap(theme.Space16).AlignItems(ui.Center).Children(func() {
-			heading(c, "Show the details panel", "The book or result chosen, at the window’s right. ⌘⌥I turns it on and off.")
+			heading(c, locales.SettingsShowDetailsTitle(), locales.SettingsShowDetailsBody())
 			on := !a.settings.HideDetail
-			ui.Switch(c, &on).Label("Show the details panel")
+			ui.Switch(c, &on).Label(locales.SettingsShowDetailsTitle())
 			if on == a.settings.HideDetail {
 				a.settings.HideDetail = !on
 				a.saveSettings()
 			}
 		})
+		a.updatesGroup(c)
 	})
 }
 
@@ -147,25 +156,25 @@ func (a *App) generalPane(c *ui.Context) {
 
 func (a *App) libraryPane(c *ui.Context) {
 	pane(c, func() {
-		heading(c, "Library", "Dalibre reads and writes calibre libraries: calibre can open the same folder.")
+		heading(c, locales.CommonLibrary(), locales.SettingsLibraryBody())
 		ui.Row(c).Padding(theme.Space6, theme.Space6, theme.Space6, theme.Space12).Gap(theme.Space10).Radius(theme.RadiusMD).Background(pal().Subtle).AlignItems(ui.Center).Children(func() {
 			ui.Icon(c, icons.Library).FontSize(16).TextColor(pal().Icon)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(theme.Space2).Children(func() {
 				if a.lib == nil {
-					ui.Text(c, "No library is open").FontSize(13).FontWeight(500)
+					ui.Text(c, locales.SettingsNoLibraryOpen()).FontSize(13).FontWeight(500)
 					return
 				}
 				ui.Text(c, a.lib.Root).Font(theme.FontMono).FontSize(12).SingleLine().Selectable()
-				ui.Textf(c, "%s %s", groupDigits(a.counts.All), plural(a.counts.All, "book", "books")).FontSize(12).TextColor(pal().TextTertiary)
+				ui.Text(c, locales.CommonBookCount(a.counts.All)).FontSize(12).TextColor(pal().TextTertiary)
 			})
 			if a.lib != nil {
-				if widgets.ButtonSized(c, widgets.Ghost, icons.Folder, revealLabel, theme.ControlS).Clicked() {
+				if widgets.ButtonSized(c, widgets.Ghost, icons.Folder, revealLabel(), theme.ControlS).Clicked() {
 					revealPath(a.lib.Root)
 				}
 			}
 		})
 		ui.Row(c).Gap(theme.Space8).Children(func() {
-			if widgets.Button(c, widgets.Secondary, icons.Folder, "Open another library…").Clicked() {
+			if widgets.Button(c, widgets.Secondary, icons.Folder, locales.SettingsOpenAnotherLibrary()).Clicked() {
 				a.chooseLibrary()
 			}
 		})
@@ -196,8 +205,8 @@ func (a *App) opdsPane(c *ui.Context) {
 	pane(c, func() {
 		ui.Column(c).Gap(theme.Space10).AlignItems(ui.Stretch).Children(func() {
 			ui.Row(c).Gap(theme.Space16).AlignItems(ui.Start).Children(func() {
-				heading(c, "Catalogs", "Browse and download from OPDS catalogs: a calibre, Calibre-Web or Kavita server at home, or public ones like Standard Ebooks. Each shows up in the sidebar.")
-				if widgets.ButtonSized(c, widgets.Secondary, icons.Plus, "Add catalog…", theme.ControlS).Clicked() {
+				heading(c, locales.SettingsCatalogsTitle(), locales.SettingsCatalogsBody())
+				if widgets.ButtonSized(c, widgets.Secondary, icons.Plus, locales.SettingsAddCatalogButton(), theme.ControlS).Clicked() {
 					a.openCatalogSheet("")
 				}
 			})
@@ -205,10 +214,10 @@ func (a *App) opdsPane(c *ui.Context) {
 				a.catalogRow(c.Key(cat.ID), cat)
 			}
 			if len(a.settings.OPDS.Catalogs) == 0 {
-				ui.Text(c, "No catalogs yet.").FontSize(13).TextColor(pal().TextTertiary)
+				ui.Text(c, locales.SettingsNoCatalogs()).FontSize(13).TextColor(pal().TextTertiary)
 			}
 			in := !a.settings.OPDS.NotInGetBooks
-			ui.Checkbox(c, &in, "Search catalogs from Get books, as sources")
+			ui.Checkbox(c, &in, locales.SettingsSearchCatalogsCheckbox())
 			if in == a.settings.OPDS.NotInGetBooks {
 				a.settings.OPDS.NotInGetBooks = !in
 				a.saveSettings()
@@ -250,25 +259,25 @@ func (a *App) catalogRow(c *ui.Context, cat *settings.Catalog) {
 			ui.Box(c).Size(6, 6).Radius(theme.RadiusFull).Background(col)
 			ui.Text(c, label).FontSize(12).TextColor(col)
 		})
-		more := ui.ButtonBase(c).Size(theme.ControlM, theme.ControlM).Radius(theme.RadiusSM).Center().Label("More: " + cat.Name)
+		more := ui.ButtonBase(c).Size(theme.ControlM, theme.ControlM).Radius(theme.RadiusSM).Center().Label(locales.SettingsMoreLabel(cat.Name))
 		if more.Hovered() {
 			more.Background(pal().Hover)
 		}
 		more.PopoverMenuButton(func(m *ui.Menu) {
-			if m.Item("Open").Icon(icons.Menu(icons.BookOpen)).Chosen() {
+			if m.Item(locales.CommonOpen()).Icon(icons.Menu(icons.BookOpen)).Chosen() {
 				a.settingsOpen = false
 				a.openCatalog(cat.ID)
 			}
-			if m.Item("Edit…").Icon(icons.Menu(icons.Pencil)).Chosen() {
+			if m.Item(locales.SettingsEditItem()).Icon(icons.Menu(icons.Pencil)).Chosen() {
 				a.openCatalogSheet(cat.ID)
 			}
-			if m.Item("Check again").Icon(icons.Menu(icons.Refresh)).Chosen() {
+			if m.Item(locales.SettingsCheckAgain()).Icon(icons.Menu(icons.Refresh)).Chosen() {
 				if p := a.catalogByID(cat.ID); p != nil {
 					a.checkCatalog(p)
 				}
 			}
 			m.Separator()
-			if m.Item("Remove").Icon(icons.Menu(icons.Trash)).Danger().Chosen() {
+			if m.Item(locales.CommonRemove()).Icon(icons.Menu(icons.Trash)).Danger().Chosen() {
 				a.removeCatalog(cat.ID)
 			}
 		})
@@ -321,19 +330,19 @@ func (a *App) catalogSheet(c *ui.Context) {
 	if pr := e.probe; pr != nil && !pr.checking && pr.err == nil && !e.named && pr.title != "" {
 		e.name = pr.title
 	}
-	title := "Add OPDS catalog"
+	title := locales.SettingsAddCatalogTitle()
 	if e.id != "" {
-		title = "Edit catalog"
+		title = locales.SettingsEditCatalogTitle()
 	}
 	widgets.DialogFrame(c, &e.open, 480, func() {
 		ui.Column(c).Grow(1).Gap(theme.Space4).Children(func() {
 			ui.Text(c, title).FontSize(16).FontWeight(600)
-			ui.Text(c, "Paste the address of a catalog. Most servers show it on their OPDS or “e-reader” page.").FontSize(13).TextColor(pal().TextSecondary)
+			ui.Text(c, locales.SettingsCatalogSheetBody()).FontSize(13).TextColor(pal().TextSecondary)
 		})
 	}, func() {
 		ui.Column(c).Padding(theme.Space16, theme.Space24, theme.Space20, theme.Space24).Gap(theme.Space12).AlignItems(ui.Stretch).Children(func() {
-			labeled(c, "Address", func() {
-				in := ui.TextInput(c, &e.url).Label("Address").Placeholder("https://example.com/opds").AutoFocus()
+			labeled(c, locales.SettingsAddressLabel(), func() {
+				in := ui.TextInput(c, &e.url).Label(locales.SettingsAddressLabel()).Placeholder("https://example.com/opds").AutoFocus()
 				if in.Submitted() {
 					a.checkCatalogSheet()
 				}
@@ -342,45 +351,45 @@ func (a *App) catalogSheet(c *ui.Context) {
 				}
 			})
 			a.probeResult(c)
-			labeled(c, "Name", func() {
+			labeled(c, locales.CommonName(), func() {
 				before := e.name
-				ui.TextInput(c, &e.name).Label("Name").Placeholder("Home server")
+				ui.TextInput(c, &e.name).Label(locales.CommonName()).Placeholder(locales.SettingsNamePlaceholder())
 				if e.name != before {
 					e.named = true
 				}
-				ui.Text(c, "Shown in the sidebar. Taken from the catalog; change it if you like.").FontSize(12).TextColor(pal().TextTertiary)
+				ui.Text(c, locales.SettingsNameHint()).FontSize(12).TextColor(pal().TextTertiary)
 			})
 			ui.Row(c).Gap(theme.Space12).Children(func() {
-				widgets.Field(c, "Username", "If it asks", func() {
-					ui.TextInput(c, &e.user).Label("Username")
+				widgets.Field(c, locales.CommonUsername(), locales.SettingsUsernameHint(), func() {
+					ui.TextInput(c, &e.user).Label(locales.CommonUsername())
 				})
-				widgets.Field(c, "Password", "", func() {
-					ui.TextInput(c, &e.password).Label("Password").Password()
+				widgets.Field(c, locales.CommonPassword(), "", func() {
+					ui.TextInput(c, &e.password).Label(locales.CommonPassword()).Password()
 				})
 			})
 			if pr := e.probe; pr != nil && pr.local {
 				ui.Row(c).Padding(theme.Space10, theme.Space12).Gap(theme.Space10).Radius(theme.RadiusMD).Background(pal().Subtle).AlignItems(ui.Start).Children(func() {
 					ui.Icon(c, icons.Network).FontSize(14).TextColor(pal().Icon)
 					ui.Column(c).Grow(1).Gap(theme.Space2).Children(func() {
-						ui.Text(c, "On your local network").FontSize(13).FontWeight(500)
-						ui.Text(c, "This address is on your network, so Dalibre will reach it only for this catalog. Passwords are kept in the system’s keychain.").FontSize(12).TextColor(pal().TextSecondary)
+						ui.Text(c, locales.SettingsLocalNetworkTitle()).FontSize(13).FontWeight(500)
+						ui.Text(c, locales.SettingsLocalNetworkBody()).FontSize(12).TextColor(pal().TextSecondary)
 					})
 				})
 			}
 		})
 	}, func() {
 		checking := e.probe != nil && e.probe.checking
-		if widgets.Button(c, widgets.Ghost, icons.Refresh, map[bool]string{true: "Check again", false: "Check"}[e.probe != nil]).Disabled(checking || strings.TrimSpace(e.url) == "").Clicked() {
+		if widgets.Button(c, widgets.Ghost, icons.Refresh, map[bool]string{true: locales.SettingsCheckAgain(), false: locales.SettingsCheck()}[e.probe != nil]).Disabled(checking || strings.TrimSpace(e.url) == "").Clicked() {
 			a.checkCatalogSheet()
 		}
 		ui.Spacer(c)
-		if widgets.Button(c, widgets.Secondary, nil, "Cancel").Clicked() {
+		if widgets.Button(c, widgets.Secondary, nil, locales.CommonCancel()).Clicked() {
 			e.open = false
 		}
 		ok := e.probe != nil && !e.probe.checking && e.probe.url == strings.TrimSpace(e.url) && (e.probe.err == nil || errKind(e.probe.err) == plugin.KindAuth && e.user != "")
-		label := "Add catalog"
+		label := locales.SettingsAddCatalogSubmit()
 		if e.id != "" {
-			label = "Save"
+			label = locales.CommonSave()
 			ok = ok || e.probe == nil && strings.TrimSpace(e.url) != ""
 		}
 		if widgets.Button(c, widgets.Primary, nil, label).Disabled(!ok || strings.TrimSpace(e.name) == "").Clicked() {
@@ -408,25 +417,23 @@ func (a *App) probeResult(c *ui.Context) {
 	switch {
 	case pr.checking:
 		ui.Row(c).Padding(theme.Space10, theme.Space12).Gap(theme.Space10).Radius(theme.RadiusMD).Background(pal().Subtle).AlignItems(ui.Center).Children(func() {
-			ui.Spinner(c).Size(14, 14).Label("Checking")
-			ui.Text(c, "Checking the catalog…").FontSize(13).TextColor(pal().TextSecondary)
+			ui.Spinner(c).Size(14, 14).Label(locales.SettingsCheckingLabel())
+			ui.Text(c, locales.SettingsCheckingCatalog()).FontSize(13).TextColor(pal().TextSecondary)
 		})
 		return
 	case pr.err == nil:
-		title = "Found “" + pr.title + "”"
-		parts := []string{fmt.Sprintf("%d %s", pr.entries, plural(pr.entries, "entry", "entries"))}
+		title = locales.SettingsFoundTitle(pr.title)
 		if pr.searchable {
-			parts = append(parts, "search supported")
+			body = locales.SettingsEntriesSearch(pr.entries)
 		} else {
-			parts = append(parts, "no search")
+			body = locales.SettingsEntriesNoSearch(pr.entries)
 		}
-		body = strings.Join(parts, " · ")
 	case errKind(pr.err) == plugin.KindAuth:
 		bg, fg, ic = pal().Warning.BG, pal().Warning.FG, icons.Key
-		title, body = "It asks you to sign in", "Fill in the username and password, then check again."
+		title, body = locales.SettingsSignInTitle(), locales.SettingsSignInBody()
 	default:
 		bg, fg, ic = pal().Danger.BG, pal().Danger.FG, icons.Alert
-		title, body = "That isn’t a catalog Dalibre can read", errText(pr.err)
+		title, body = locales.SettingsNotCatalogTitle(), errText(pr.err)
 	}
 	ui.Row(c).Padding(theme.Space10, theme.Space12).Gap(theme.Space10).Radius(theme.RadiusMD).Background(bg).AlignItems(ui.Start).Children(func() {
 		ui.Icon(c, ic).FontSize(14).TextColor(fg)
@@ -454,9 +461,9 @@ func (a *App) sharePane(c *ui.Context) {
 	}
 	ui.Column(c).Gap(theme.Space10).AlignItems(ui.Stretch).Children(func() {
 		ui.Row(c).Gap(theme.Space16).AlignItems(ui.Start).Children(func() {
-			heading(c, "Share this library over OPDS", "Reading apps on your network (KOReader, Moon+ Reader, Thorium, KyBook) can browse this library and download books from it while Dalibre is open.")
+			heading(c, locales.SettingsShareTitle(), locales.SettingsShareBody())
 			on := sh.On
-			ui.Switch(c, &on).Label("Share this library over OPDS")
+			ui.Switch(c, &on).Label(locales.SettingsShareTitle())
 			if on != sh.On {
 				sh.On = on
 				a.saveSettings()
@@ -473,45 +480,45 @@ func (a *App) sharePane(c *ui.Context) {
 				ui.Icon(c, icons.Alert).FontSize(16).TextColor(pal().Danger.FG)
 				ui.Text(c, st.err.Error()).FontSize(12).TextColor(pal().Danger.FG).Grow(1)
 			case st == nil || st.server == nil:
-				ui.Spinner(c).Size(14, 14).Label("Starting")
-				ui.Text(c, "Starting…").FontSize(12).TextColor(pal().TextSecondary).Grow(1)
+				ui.Spinner(c).Size(14, 14).Label(locales.SettingsStartingLabel())
+				ui.Text(c, locales.SettingsStarting()).FontSize(12).TextColor(pal().TextSecondary).Grow(1)
 			default:
 				addr := a.shareAddress()
 				ui.Icon(c, icons.Wifi).FontSize(16).TextColor(pal().Success.FG)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(theme.Space2).Children(func() {
 					ui.Text(c, addr).Font(theme.FontMono).FontSize(12).Selectable()
-					status := "Sharing"
+					status := locales.SettingsSharing()
 					if a.lib == nil {
-						status = "Sharing · open a library to share it"
+						status = locales.SettingsSharingNoLibrary()
 					} else if n := st.opds.Readers(); n > 0 {
-						status += fmt.Sprintf(" · %d %s connected today", n, plural(n, "reader", "readers"))
+						status = locales.SettingsSharingReaders(n)
 					}
 					ui.Text(c, status).FontSize(12).TextColor(pal().Success.FG)
 				})
-				if widgets.IconButton(c, icons.Copy, "Copy address", false).Clicked() {
+				if widgets.IconButton(c, icons.Copy, locales.SettingsCopyAddress(), false).Clicked() {
 					mygo.Clipboard.Write(transfer.TextData(addr))
-					a.toast("Copied %s", addr)
+					a.toast("%s", locales.SettingsCopied(addr))
 				}
 			}
 		})
 		req := sh.Password
-		ui.Checkbox(c, &req, "Require a username and password")
+		ui.Checkbox(c, &req, locales.SettingsRequireLogin())
 		ui.Row(c).Gap(theme.Space12).AlignItems(ui.End).Children(func() {
 			ui.Column(c).Width(120).AlignItems(ui.Stretch).Children(func() {
-				labeled(c, "Port", func() { ui.TextInput(c, &ed.port).Label("Port") })
+				labeled(c, locales.SettingsPortLabel(), func() { ui.TextInput(c, &ed.port).Label(locales.SettingsPortLabel()) })
 			})
 			if req {
-				widgets.Field(c, "Username", "", func() { ui.TextInput(c, &ed.user).Label("Username") })
-				widgets.Field(c, "Password", "", func() { ui.TextInput(c, &ed.pw).Label("Password").Password() })
+				widgets.Field(c, locales.CommonUsername(), "", func() { ui.TextInput(c, &ed.user).Label(locales.CommonUsername()) })
+				widgets.Field(c, locales.CommonPassword(), "", func() { ui.TextInput(c, &ed.pw).Label(locales.CommonPassword()).Password() })
 			}
 		})
 		port, perr := strconv.Atoi(strings.TrimSpace(ed.port))
 		changed := req != sh.Password || perr == nil && port != sh.SharePort() || req && strings.TrimSpace(ed.user) != sh.Username
 		ui.Row(c).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "Only devices on this network can connect. Books are read from your library as they are; nothing is uploaded anywhere.").
+			ui.Text(c, locales.SettingsShareNote()).
 				FontSize(12).TextColor(pal().TextTertiary).Grow(1)
 			bad := perr != nil || port < 1 || port > 65535 || req && (strings.TrimSpace(ed.user) == "" || ed.pw == "")
-			if widgets.ButtonSized(c, widgets.Primary, nil, "Apply", theme.ControlS).Disabled(bad || !changed && !req).Clicked() {
+			if widgets.ButtonSized(c, widgets.Primary, nil, locales.SettingsApply(), theme.ControlS).Disabled(bad || !changed && !req).Clicked() {
 				sh.Port, sh.Password, sh.Username = port, req, strings.TrimSpace(ed.user)
 				a.saveSettings()
 				pw, secrets := ed.pw, a.secrets
@@ -537,8 +544,8 @@ func (a *App) updateBanner(c *ui.Context, m *plugin.Manifest, u *pluginUpdate) {
 		ui.Icon(c, icons.ArrowUpCircle).FontSize(16).TextColor(pal().TextAccent)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(theme.Space8).Children(func() {
 			ui.Column(c).Gap(theme.Space2).Children(func() {
-				ui.Text(c, u.label+" is available").FontSize(13).FontWeight(500).TextColor(pal().TextAccent)
-				body := "Published " + ago(u.published) + " on GitHub."
+				ui.Text(c, locales.SettingsUpdateAvailable(u.label)).FontSize(13).FontWeight(500).TextColor(pal().TextAccent)
+				body := locales.SettingsPublishedOnGitHub(ago(u.published))
 				if n := strings.TrimSpace(u.notes); n != "" {
 					body += " " + firstLines(n, 2)
 				}
@@ -546,11 +553,11 @@ func (a *App) updateBanner(c *ui.Context, m *plugin.Manifest, u *pluginUpdate) {
 			})
 			ui.Row(c).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
 				if u.busy {
-					ui.Spinner(c).Size(14, 14).Label("Updating")
-					ui.Text(c, "Updating…").FontSize(12).TextColor(pal().TextSecondary)
+					ui.Spinner(c).Size(14, 14).Label(locales.SettingsUpdatingLabel())
+					ui.Text(c, locales.SettingsUpdating()).FontSize(12).TextColor(pal().TextSecondary)
 					return
 				}
-				if widgets.ButtonSized(c, widgets.Primary, nil, "Update", theme.ControlS).Clicked() {
+				if widgets.ButtonSized(c, widgets.Primary, nil, locales.CommonUpdate(), theme.ControlS).Clicked() {
 					a.updatePlugin(m.ID, false)
 				}
 				if st := a.settings.Plugins[m.ID]; st != nil && st.Source != nil {
@@ -559,7 +566,7 @@ func (a *App) updateBanner(c *ui.Context, m *plugin.Manifest, u *pluginUpdate) {
 						if st.Source.Branch != "" {
 							link = repo.URL() + "/commits/" + url.PathEscape(st.Source.Branch)
 						}
-						if widgets.ButtonSized(c, widgets.Ghost, icons.External, "Release notes", theme.ControlS).Clicked() {
+						if widgets.ButtonSized(c, widgets.Ghost, icons.External, locales.SettingsReleaseNotes(), theme.ControlS).Clicked() {
 							openURL(link)
 						}
 					}
@@ -587,28 +594,33 @@ func firstLines(s string, n int) string {
 // it follows, and updating it.
 func (a *App) pluginSource(c *ui.Context, m *plugin.Manifest, src *settings.PluginSource) {
 	ui.Column(c).Gap(theme.Space8).AlignItems(ui.Stretch).Children(func() {
-		widgets.Overline(c, "SOURCE")
+		widgets.Overline(c, locales.SettingsSourceOverline())
 		ui.Row(c).Padding(theme.Space8, theme.Space6, theme.Space8, theme.Space12).Gap(theme.Space10).Radius(theme.RadiusMD).Background(pal().Subtle).AlignItems(ui.Center).Children(func() {
 			ui.Icon(c, icons.GitBranch).FontSize(16).TextColor(pal().Icon)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(theme.Space2).Children(func() {
 				ui.Text(c, "github.com/"+src.Repo).Font(theme.FontMono).FontSize(12).SingleLine().Selectable()
-				what := "Tracking releases · on " + src.Ref
-				if src.Branch != "" {
-					what = "Tracking " + src.Branch + " · on " + plugin.ShortSHA(src.Ref)
-				}
-				if !a.settings.UpdatesChecked.IsZero() {
-					what += " · checked " + ago(a.settings.UpdatesChecked)
+				checked := !a.settings.UpdatesChecked.IsZero()
+				var what string
+				switch {
+				case src.Branch != "" && checked:
+					what = locales.SettingsTrackingBranchChecked(src.Branch, plugin.ShortSHA(src.Ref), ago(a.settings.UpdatesChecked))
+				case src.Branch != "":
+					what = locales.SettingsTrackingBranch(src.Branch, plugin.ShortSHA(src.Ref))
+				case checked:
+					what = locales.SettingsTrackingReleasesChecked(src.Ref, ago(a.settings.UpdatesChecked))
+				default:
+					what = locales.SettingsTrackingReleases(src.Ref)
 				}
 				ui.Text(c, what).FontSize(12).TextColor(pal().TextTertiary).SingleLine()
 			})
 			if a.updatesChecking {
-				ui.Spinner(c).Size(14, 14).Label("Checking for updates")
-			} else if widgets.ButtonSized(c, widgets.Ghost, nil, "Check now", theme.ControlS).Clicked() {
+				ui.Spinner(c).Size(14, 14).Label(locales.SettingsCheckingUpdatesLabel())
+			} else if widgets.ButtonSized(c, widgets.Ghost, nil, locales.SettingsCheckNow(), theme.ControlS).Clicked() {
 				a.checkUpdates(true)
 			}
 		})
 		auto := src.Auto
-		ui.Checkbox(c, &auto, "Update automatically when an update asks for nothing new")
+		ui.Checkbox(c, &auto, locales.SettingsAutoUpdate())
 		if auto != src.Auto {
 			src.Auto = auto
 			a.saveSettings()
@@ -624,28 +636,28 @@ func (a *App) githubSheet(c *ui.Context) {
 	}
 	widgets.DialogFrame(c, &g.open, 520, func() {
 		ui.Column(c).Grow(1).Gap(theme.Space4).Children(func() {
-			ui.Text(c, "Install from GitHub").FontSize(16).FontWeight(600)
-			ui.Text(c, "Install from a release or a branch. Dalibre can keep it up to date from the same place.").FontSize(13).TextColor(pal().TextSecondary)
+			ui.Text(c, locales.SettingsInstallGitHubTitle()).FontSize(16).FontWeight(600)
+			ui.Text(c, locales.SettingsInstallGitHubBody()).FontSize(13).TextColor(pal().TextSecondary)
 		})
 	}, func() {
 		ui.Column(c).Padding(theme.Space16, theme.Space24, theme.Space20, theme.Space24).Gap(theme.Space12).AlignItems(ui.Stretch).Children(func() {
-			labeled(c, "Repository", func() {
+			labeled(c, locales.SettingsRepositoryLabel(), func() {
 				ui.Row(c).Gap(theme.Space8).Children(func() {
-					in := ui.TextInput(c, &g.text).Label("Repository").Placeholder("owner/repo").AutoFocus().Grow(1)
+					in := ui.TextInput(c, &g.text).Label(locales.SettingsRepositoryLabel()).Placeholder("owner/repo").AutoFocus().Grow(1)
 					if in.Submitted() {
 						a.ghFind()
 					}
-					if widgets.Button(c, widgets.Secondary, nil, "Find").Disabled(strings.TrimSpace(g.text) == "" || g.finding).Clicked() {
+					if widgets.Button(c, widgets.Secondary, nil, locales.SettingsFind()).Disabled(strings.TrimSpace(g.text) == "" || g.finding).Clicked() {
 						a.ghFind()
 					}
 				})
-				ui.Text(c, "owner/repo or a github.com link.").FontSize(12).TextColor(pal().TextTertiary)
+				ui.Text(c, locales.SettingsRepoHint()).FontSize(12).TextColor(pal().TextTertiary)
 			})
 			switch {
 			case g.finding:
 				ui.Row(c).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
-					ui.Spinner(c).Size(14, 14).Label("Finding")
-					ui.Text(c, "Looking at "+g.repo.String()+"…").FontSize(13).TextColor(pal().TextSecondary)
+					ui.Spinner(c).Size(14, 14).Label(locales.SettingsFindingLabel())
+					ui.Text(c, locales.SettingsLookingAt(g.repo.String())).FontSize(13).TextColor(pal().TextSecondary)
 				})
 			case g.err != "":
 				ui.Row(c).Padding(theme.Space10, theme.Space12).Gap(theme.Space10).Radius(theme.RadiusMD).Background(pal().Danger.BG).AlignItems(ui.Start).Children(func() {
@@ -659,10 +671,10 @@ func (a *App) githubSheet(c *ui.Context) {
 		})
 	}, func() {
 		ui.Spacer(c)
-		if widgets.Button(c, widgets.Secondary, nil, "Cancel").Clicked() {
+		if widgets.Button(c, widgets.Secondary, nil, locales.CommonCancel()).Clicked() {
 			g.open = false
 		}
-		if widgets.Button(c, widgets.Primary, nil, "Install").Disabled(g.manifest == nil || g.preparing).Clicked() {
+		if widgets.Button(c, widgets.Primary, nil, locales.SettingsInstall()).Disabled(g.manifest == nil || g.preparing).Clicked() {
 			a.ghInstallChosen()
 		}
 	})
@@ -678,30 +690,30 @@ func (a *App) ghFound(c *ui.Context) {
 	ui.Row(c).Padding(theme.Space12).Gap(theme.Space12).Radius(theme.RadiusMD).Background(pal().Subtle).AlignItems(ui.Center).Children(func() {
 		switch {
 		case g.preparing:
-			ui.Spinner(c).Size(16, 16).Label("Downloading")
-			ui.Text(c, "Downloading…").FontSize(13).TextColor(pal().TextSecondary).Grow(1)
+			ui.Spinner(c).Size(16, 16).Label(locales.SettingsDownloadingLabel())
+			ui.Text(c, locales.SettingsDownloading()).FontSize(13).TextColor(pal().TextSecondary).Grow(1)
 		case g.manifest != nil:
 			pluginTile(c, g.manifest, 32)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(theme.Space2).Children(func() {
 				ui.Text(c, g.manifest.Name+" "+g.manifest.Version).FontSize(13).FontWeight(500)
 				by := g.detail
 				if g.manifest.Author != "" {
-					by = "by " + g.manifest.Author + " · " + by
+					by = locales.SettingsByAuthor(g.manifest.Author, by)
 				}
 				ui.Text(c, by).FontSize(12).TextColor(pal().TextSecondary).MaxLines(2)
 			})
 		default:
 			ui.Spacer(c)
 		}
-		label := "Latest release"
+		label := locales.SettingsLatestRelease()
 		if latest, ok := plugin.Latest(g.releases); !ok || g.tag != latest.Tag {
 			label = g.tag
 		}
 		if g.branch != "" {
-			label = "Branch: " + g.branch
+			label = locales.SettingsBranchLabel(g.branch)
 		}
 		b := ui.ButtonBase(c).Width(170).Height(theme.ControlM).Padding(0, theme.Space8, 0, theme.Space10).Gap(theme.Space6).AlignItems(ui.Center).
-			Radius(theme.RadiusSM).Background(pal().Surface).Border(1, pal().Border).Label("Version: " + label)
+			Radius(theme.RadiusSM).Background(pal().Surface).Border(1, pal().Border).Label(locales.SettingsVersionLabel(label))
 		b.PopoverMenuButton(func(m *ui.Menu) {
 			m.MaxWidth(300)
 			latest, _ := plugin.Latest(g.releases)
@@ -712,11 +724,11 @@ func (a *App) ghFound(c *ui.Context) {
 					}
 					title := r.Tag
 					if r.Tag == latest.Tag {
-						title = "Latest release"
+						title = locales.SettingsLatestRelease()
 					}
-					sub := r.Tag + " · " + ago(r.Published)
+					sub := locales.SettingsReleaseSub(r.Tag, ago(r.Published))
 					if r.Prerelease {
-						sub += " · pre-release"
+						sub = locales.SettingsReleaseSubPre(r.Tag, ago(r.Published))
 					}
 					if m.Item(title).ID("tag:" + r.Tag).Subtitle(sub).Icon(icons.Menu(icons.Tag)).Checked(g.branch == "" && g.tag == r.Tag).Chosen() {
 						a.ghChoose(r.Tag, "")
@@ -745,29 +757,29 @@ func (a *App) ghFound(c *ui.Context) {
 	if g.branch != "" {
 		ui.Row(c).Padding(theme.Space10, theme.Space12).Gap(theme.Space10).Radius(theme.RadiusMD).Background(pal().Warning.BG).AlignItems(ui.Start).Children(func() {
 			ui.Icon(c, icons.Alert).FontSize(14).TextColor(pal().Warning.FG)
-			ui.Text(c, "A branch can change at any time and isn’t a published release. Use it to try a fix early or to run a plugin you’re writing.").
+			ui.Text(c, locales.SettingsBranchWarning()).
 				FontSize(12).TextColor(pal().Warning.FG).Grow(1)
 		})
 	}
 	if m := g.manifest; m != nil {
 		ui.Column(c).Gap(theme.Space6).AlignItems(ui.Stretch).Children(func() {
-			widgets.Overline(c, "IT WILL BE ABLE TO")
+			widgets.Overline(c, locales.SettingsAbleTo())
 			for _, h := range m.Permissions.Hosts {
-				permissionItem(c.Key(h), icons.Globe, "Connect to "+h, "", false)
+				permissionItem(c.Key(h), icons.Globe, locales.SettingsConnectTo(h), "", false)
 			}
 			if m.Permissions.LocalNetwork {
-				permissionItem(c, icons.Network, "Connect to this computer and your local network", "Only allow this for a plugin meant for a server you run.", true)
+				permissionItem(c, icons.Network, locales.SettingsConnectLocal(), locales.SettingsConnectLocalNote(), true)
 			}
 			if len(m.Permissions.Hosts) == 0 && !m.Permissions.LocalNetwork {
-				ui.Text(c, "Nothing: it can’t reach the network.").FontSize(12).TextColor(pal().TextTertiary)
+				ui.Text(c, locales.SettingsNothing()).FontSize(12).TextColor(pal().TextTertiary)
 			}
 		})
-		keepLabel := "Keep it up to date from this repository"
+		keepLabel := locales.SettingsKeepUpToDate()
 		if g.branch != "" {
-			keepLabel = "Follow new commits on " + g.branch
+			keepLabel = locales.SettingsFollowCommits(g.branch)
 		}
 		ui.Checkbox(c, &g.keep, keepLabel)
-		ui.Text(c, "Plugins from GitHub run in the same sandbox, with only the access above. An update that asks for more waits for you.").
+		ui.Text(c, locales.SettingsGitHubSandboxNote()).
 			FontSize(12).TextColor(pal().TextTertiary)
 	}
 }

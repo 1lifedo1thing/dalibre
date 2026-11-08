@@ -1,0 +1,110 @@
+# Builds Dalibre for every platform when a version tag such as v0.2.0 is
+# pushed, signs the updates, and uploads everything to a draft release.
+# Publishing the draft makes it the latest release, which installed apps
+# update to. See docs/github-actions.md of github.com/egoist/mygo.
+#
+# Secrets:
+#   MYGO_UPDATER_PRIVATE_KEY     the contents of mygo-update.key, which signs updates
+#   MACOS_CERTIFICATE            the Developer ID Application certificate with its
+#                                private key, a .p12 in base64
+#   MACOS_CERTIFICATE_PASSWORD   the password of the .p12
+#   APPLE_API_KEY                an App Store Connect API key (the .p8 contents) of
+#                                team F97DA7QJUN, which notarytool notarizes with
+#   APPLE_API_KEY_ID             its key ID
+#   APPLE_API_ISSUER             its issuer ID
+# The macOS job signs the app with the Developer ID and notarizes its disk
+# images; the update archives carry the notarized app.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # the draft release, and the uploads to it
+
+jobs:
+  draft-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check that the tag is the version in mygo.json
+        run: |
+          version="$(jq -r .version cmd/dalibre/mygo.json)"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match version $version in cmd/dalibre/mygo.json"
+            exit 1
+          fi
+      - name: Check that CHANGELOG.md has notes for the version
+        run: |
+          grep -Eq "^## \[?${GITHUB_REF_NAME#v}\]?( |$)" CHANGELOG.md || {
+            echo "::error::CHANGELOG.md has no \"## ${GITHUB_REF_NAME#v}\" section"
+            exit 1
+          }
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --draft --verify-tag --title "Dalibre $GITHUB_REF_NAME" --generate-notes
+          fi
+
+  build:
+    needs: draft-release
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    env:
+      MACOS_SIGNING_IDENTITY: "Developer ID Application: TAONAN LU (F97DA7QJUN)"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macOS, os: macos-latest, platform: "darwin/arm64,darwin/amd64" }
+          - { name: Windows, os: ubuntu-latest, platform: "windows/amd64,windows/arm64" }
+          - { name: Linux, os: ubuntu-latest, platform: "linux/amd64,linux/arm64" }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Import the Developer ID certificate and the notary credentials
+        if: runner.os == 'macOS'
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -base64 24)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain
+          # Notarize with an App Store Connect API key, not an Apple ID.
+          printf '%s\n' "$APPLE_API_KEY" > "$RUNNER_TEMP/AuthKey.p8"
+          xcrun notarytool store-credentials notary --keychain "$keychain" \
+            --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER"
+          rm "$RUNNER_TEMP/AuthKey.p8"
+          # Sign with the Developer ID and notarize, for this build only:
+          # mygo.json leaves them out so that builds elsewhere need neither.
+          jq --arg identity "$MACOS_SIGNING_IDENTITY" --arg keychain "$keychain" \
+            '.macos += {signingIdentity: $identity, notarize: {keychainProfile: "notary", keychain: $keychain}}' \
+            cmd/dalibre/mygo.json > "$RUNNER_TEMP/mygo.json"
+          mv "$RUNNER_TEMP/mygo.json" cmd/dalibre/mygo.json
+      - name: Install NSIS, for the Windows installers
+        if: matrix.name == 'Windows'
+        run: sudo apt-get update && sudo apt-get install -y nsis
+      - name: Build and upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+        run: go tool mygo build -platform "${{ matrix.platform }}" -upload ./cmd/dalibre
+

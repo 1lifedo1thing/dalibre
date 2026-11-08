@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/app/icons"
 	"dalibre/internal/app/theme"
 	"dalibre/internal/app/widgets"
@@ -44,7 +45,7 @@ func (a *App) gridView(c *ui.Context, shown []*calibre.Book) {
 	ui.Themed(c, &tt).Grow(1).MinHeight(0).Background(ui.Transparent).AlignItems(ui.Stretch).Children(func() {
 		g = ui.GridView(c, &a.grid, len(shown), theme.CardW, gridCellH, func(i int) {
 			a.shelfSlot(c, base, shown[i], i == len(shown)-1)
-		}).Grow(1).Margin(theme.Space8, theme.Space32, 0, theme.Space32).Label("Books")
+		}).Grow(1).Margin(theme.Space8, theme.Space32, 0, theme.Space32).Label(locales.BooksLabel())
 	})
 	a.gridBounds = g.Bounds()
 	if g.Submitted() {
@@ -169,15 +170,18 @@ func shelfCoverH(bmp *ui.Bitmap) float32 {
 	return min(max(theme.CoverW*float32(h)/float32(w), coverMinH), coverMaxH)
 }
 
-var tableColumns = []ui.TableColumn{
-	{ID: "cover", Width: 44, Fixed: true},
-	{ID: "title", Title: "Title", Sortable: true, MinWidth: 160, RowHeader: true},
-	{ID: "author", Title: "Author", Width: 130, Sortable: true},
-	{ID: "series", Title: "Series", Width: 110, Sortable: true},
-	{ID: "rating", Title: "Rating", Width: 84, Sortable: true},
-	{ID: "formats", Title: "Formats", Width: 92},
-	{ID: "size", Title: "Size", Width: 76, Align: ui.End, Sortable: true},
-	{ID: "added", Title: "Added", Width: 96, Align: ui.End, Sortable: true},
+// tableColumns are the list view's columns, titled in the current language.
+func tableColumns() []ui.TableColumn {
+	return []ui.TableColumn{
+		{ID: "cover", Width: 44, Fixed: true},
+		{ID: "title", Title: locales.CommonTitle(), Sortable: true, MinWidth: 160, RowHeader: true},
+		{ID: "author", Title: locales.CommonAuthor(), Width: 130, Sortable: true},
+		{ID: "series", Title: locales.CommonSeries(), Width: 110, Sortable: true},
+		{ID: "rating", Title: locales.CommonRating(), Width: 84, Sortable: true},
+		{ID: "formats", Title: locales.BooksColFormats(), Width: 92},
+		{ID: "size", Title: locales.BooksColSize(), Width: 76, Align: ui.End, Sortable: true},
+		{ID: "added", Title: locales.BooksColAdded(), Width: 96, Align: ui.End, Sortable: true},
+	}
 }
 
 var columnSort = map[string]catalog.SortKey{
@@ -207,7 +211,7 @@ func (a *App) listView(c *ui.Context, shown []*calibre.Book) {
 	tt.Accent, tt.InactiveAccent, tt.AccentText = pal().Selected, pal().Selected, pal().Text
 	var t ui.Element
 	ui.Themed(c, &tt).Grow(1).MinHeight(0).Background(ui.Transparent).Margin(0, theme.Space24, theme.Space24, theme.Space24).AlignItems(ui.Stretch).Children(func() {
-		t = ui.Table(c, &a.table, tableColumns, len(shown), func(row, col int) {
+		t = ui.Table(c, &a.table, tableColumns(), len(shown), func(row, col int) {
 			b := shown[row]
 			switch col {
 			case 0:
@@ -232,7 +236,7 @@ func (a *App) listView(c *ui.Context, shown []*calibre.Book) {
 				ui.Text(c, strings.Join(b.Authors, ", ")).SingleLine()
 			case 3:
 				if b.Series != "" {
-					ui.Textf(c, "%s #%s", b.Series, seriesIndex(b.SeriesIndex)).TextColor(pal().TextSecondary).SingleLine()
+					ui.Text(c, locales.BooksSeriesIndex(b.Series, seriesIndex(b.SeriesIndex))).TextColor(pal().TextSecondary).SingleLine()
 				} else {
 					ui.Text(c, "—").TextColor(pal().TextTertiary)
 				}
@@ -249,7 +253,7 @@ func (a *App) listView(c *ui.Context, shown []*calibre.Book) {
 			case 7:
 				ui.Text(c, isoDate(b.Timestamp)).Font(theme.FontMono).FontSize(12).TextColor(pal().TextSecondary).NoWrap()
 			}
-		}).Grow(1).Label("Books")
+		}).Grow(1).Label(locales.BooksLabel())
 	})
 	if t.Submitted() {
 		a.openBook(a.current(), "")
@@ -271,30 +275,23 @@ func (a *App) bookMenu(b *calibre.Book) func(m *ui.Menu) {
 		}
 		many := len(ids) > 1
 		if !many {
-			if m.Item("Open").Icon(icons.Menu(icons.BookOpen)).Trailing("Enter").Chosen() {
+			if m.Item(locales.CommonOpen()).Icon(icons.Menu(icons.BookOpen)).Trailing("Enter").Chosen() {
 				a.openBook(b, "")
 			}
-			if m.Item("Edit metadata…").Icon(icons.Menu(icons.Pencil)).Trailing("Ctrl+I").Chosen() {
+			if m.Item(locales.BooksMenuEditMetadata()).Icon(icons.Menu(icons.Pencil)).Trailing("Ctrl+I").Chosen() {
 				a.openEditor(b)
 			}
 		}
-		label := "Convert…"
-		if many {
-			label = fmt.Sprintf("Convert %d books…", len(ids))
-		}
-		if m.Item(label).Icon(icons.Menu(icons.Convert)).Trailing("Ctrl+Shift+C").Chosen() {
-			a.openConvert(ids)
-		}
 		if !many {
 			a.shareMenu(m, b)
-			if m.Item("Show in folder").Icon(icons.Menu(icons.Folder)).Chosen() {
+			if m.Item(locales.CommonShowInFolder()).Icon(icons.Menu(icons.Folder)).Chosen() {
 				a.revealBook(b)
 			}
 		}
 		m.Separator()
-		del := "Remove from library"
+		del := locales.CommonRemoveFromLibrary()
 		if many {
-			del = fmt.Sprintf("Remove %d books", len(ids))
+			del = locales.BooksMenuRemoveMany(len(ids))
 		}
 		if m.Item(del).Icon(icons.Menu(icons.Trash)).Danger().Trailing("Del").Chosen() {
 			a.askDelete(ids)

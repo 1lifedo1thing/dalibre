@@ -1,0 +1,213 @@
+---
+// "Send books to your device": the Settings › OPDS sharing card (Figma node
+// 61:12137) and a book's format menu, redrawn in HTML, next to a generic
+// e-ink reader browsing the shared library.
+import { getImage } from "astro:assets";
+import type { ImageMetadata } from "astro";
+
+const files = import.meta.glob<{ default: ImageMetadata }>("../assets/covers/*.jpg", { eager: true });
+const cover = async (slug: string) =>
+  (await getImage({ src: files[`../assets/covers/${slug}.jpg`].default, width: 96, format: "webp", quality: 80 })).src;
+
+const shelf = [
+  { slug: "piranesi", title: "Piranesi", author: "Susanna Clarke", meta: "EPUB · 1.1 MB", state: "done" },
+  { slug: "three-body", title: "The Three-Body Problem", author: "Liu Cixin", meta: "EPUB · 1.8 MB", state: "loading" },
+  { slug: "left-hand", title: "The Left Hand of Darkness", author: "Ursula K. Le Guin", meta: "EPUB · 0.7 MB", state: "" },
+  { slug: "klara", title: "Klara and the Sun", author: "Kazuo Ishiguro", meta: "EPUB · 1.0 MB", state: "" },
+  { slug: "neuromancer", title: "Neuromancer", author: "William Gibson", meta: "AZW3 · 0.8 MB", state: "" },
+];
+for (const b of shelf) (b as any).src = await cover(b.slug);
+
+const svg = (paths: string, size = 16, sw = 1.75) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+const wifi = svg('<path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/>');
+const copy = svg('<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>');
+const check = svg('<path d="M20 6 9 17l-5-5"/>', 12, 2.5);
+const dl = svg('<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>', 14);
+const share = svg('<path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>', 14);
+const network = svg('<rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/>', 14);
+const user = svg('<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', 14);
+const key = svg('<path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/>', 14);
+const addr = "http://192.168.1.20:8080/opds";
+---
+
+<div class="sd grid items-center gap-10 lg:grid-cols-[1.25fr_1fr] lg:gap-6">
+  <!-- Dalibre: Settings › OPDS -->
+  <div class="relative">
+    <div class="sd-card" data-share-card>
+      <div class="flex items-start gap-4">
+        <div class="flex-1">
+          <p class="text-[14px] font-semibold">Share this library over OPDS</p>
+          <p class="mt-1 text-[13px] leading-[1.45] text-[var(--t2)]">
+            Reading apps on your network (KOReader, Moon+ Reader, Thorium, KyBook) can browse this library and download books from it while Dalibre is open.
+          </p>
+        </div>
+        <button class="sd-switch" role="switch" aria-checked="true" aria-label="Share this library over OPDS" data-share-switch><i></i></button>
+      </div>
+
+      <div class="sd-on"><div>
+        <div class="mt-4 flex items-center gap-3 rounded-lg bg-[var(--subtle)] py-2 pr-2 pl-3.5">
+          <span class="text-[var(--ok)]" set:html={wifi} />
+          <span class="min-w-0 flex-1">
+            <span class="block truncate font-mono text-[12px]">{addr}</span>
+            <span class="block text-[12px] text-[var(--ok)]" data-readers>Sharing · 2 readers connected today</span>
+          </span>
+          <button class="sd-icon-btn" aria-label="Copy address" data-copy={addr} set:html={copy} />
+        </div>
+
+        <label class="mt-4 flex items-center gap-2 text-[13px]">
+          <span class="sd-check" set:html={check} />Require a username and password
+        </label>
+        <div class="mt-3 grid grid-cols-[88px_1fr_1fr] gap-2.5 text-[12px]">
+          <div><p class="mb-1 text-[var(--t2)]">Port</p><p class="sd-input"><span set:html={network} />8080</p></div>
+          <div><p class="mb-1 text-[var(--t2)]">Username</p><p class="sd-input"><span set:html={user} />randy</p></div>
+          <div><p class="mb-1 text-[var(--t2)]">Password</p><p class="sd-input"><span set:html={key} />••••••••</p></div>
+        </div>
+      </div></div>
+      <p class="mt-4 text-[12px] leading-snug text-[var(--t3)]">
+        Only devices on this network can connect. Books are read from your library as they are; nothing is uploaded anywhere.
+      </p>
+    </div>
+
+  </div>
+
+  <!-- A reading app on an e-ink reader -->
+  <div class="flex justify-center lg:justify-end">
+    <div class="sd-device" data-device>
+      <div class="sd-screen">
+        <div class="flex items-center justify-between border-b border-[#2b2a24]/15 px-4 pt-3.5 pb-2.5 font-mono text-[10px] tracking-wide text-[#2b2a24]/60 uppercase">
+          <span>‹ Catalogs</span><span>9:41</span>
+        </div>
+        <div class="px-4 pt-3 pb-2">
+          <p class="font-serif text-[22px] leading-none">Calibre Library</p>
+          <p class="mt-1 font-mono text-[10px] text-[#2b2a24]/60" data-device-status>192.168.1.20 · 1,284 books</p>
+        </div>
+        <ul class="sd-list">
+          {shelf.map((b: any) => (
+            <li>
+              <img src={b.src} alt="" width="34" height="50" loading="lazy" />
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-[13px] font-medium">{b.title}</span>
+                <span class="block truncate text-[11px] text-[#2b2a24]/65">{b.author}</span>
+                {b.state === "loading" ? (
+                  <span class="mt-1.5 block h-[3px] w-24 bg-[#2b2a24]/15"><span class="sd-progress block h-full bg-[#2b2a24]" /></span>
+                ) : (
+                  <span class="mt-0.5 block font-mono text-[10px] text-[#2b2a24]/55">{b.meta}</span>
+                )}
+              </span>
+              <span class="sd-dl" set:html={b.state === "done" ? check : dl} />
+            </li>
+          ))}
+        </ul>
+        <div class="sd-offline" aria-hidden="true">
+          <span set:html={svg('<path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/>', 28)} />
+          <p class="mt-3 text-[13px] font-medium">Can't reach Calibre Library</p>
+          <p class="mt-1 text-[11px] opacity-60">Sharing is off in Dalibre.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- One book: the format menu -->
+<div class="sd mt-16 flex flex-col gap-8 sm:flex-row sm:items-center sm:gap-12">
+    <div class="sd-card sd-format-card w-full max-w-[320px]">
+      <p class="sd-cap">Formats</p>
+      <div class="sd-format sd-format-hover">
+        <span class="sd-badge">EPUB</span>
+        <span class="flex-1 truncate">Piranesi.epub</span>
+        <span class="font-mono text-[11px] text-[var(--t3)]">1.1 MB</span>
+      </div>
+      <div class="sd-menu" role="menu" aria-label="EPUB format">
+        <p>Open</p>
+        <p class="sd-menu-on"><span set:html={share} />Share…</p>
+        <p>Show in folder</p>
+        <hr />
+        <p class="text-[var(--danger)]">Remove EPUB</p>
+      </div>
+    </div>
+  <div class="max-w-sm">
+    <p class="text-lg font-medium tracking-tight">Just one book?</p>
+    <p class="mt-2 leading-relaxed text-sand-11">
+      On a Mac, right-click a format in the detail panel and choose Share… to
+      send it with AirDrop, Messages or Mail.
+    </p>
+  </div>
+</div>
+
+<script>
+  const card = document.querySelector<HTMLElement>("[data-share-card]");
+  const sw = document.querySelector<HTMLButtonElement>("[data-share-switch]");
+  const device = document.querySelector<HTMLElement>("[data-device]");
+  sw?.addEventListener("click", () => {
+    const on = sw.getAttribute("aria-checked") !== "true";
+    sw.setAttribute("aria-checked", String(on));
+    card?.classList.toggle("is-off", !on);
+    device?.classList.toggle("is-off", !on);
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copy!); } catch {}
+      const r = document.querySelector<HTMLElement>("[data-readers]");
+      if (!r) return;
+      const was = r.textContent;
+      r.textContent = "Copied the address";
+      setTimeout(() => (r.textContent = was), 1400);
+    }),
+  );
+</script>
+
+<style is:global>
+  .sd {
+    --surface: #ffffff; --subtle: #f1f0ef; --border: #dad9d6; --border-subtle: #e2e1de;
+    --t1: #21201c; --t2: #63635e; --t3: #8d8d86; --accent: #3e63dd; --ok: #218358; --danger: #ce2c31;
+  }
+  .sd-card {
+    position: relative; z-index: 1;
+    padding: 22px 24px; border-radius: 14px; background: var(--surface); color: var(--t1);
+    border: 1px solid var(--border-subtle);
+    box-shadow: 0 30px 60px -30px rgba(33,32,28,.25), 0 2px 6px rgba(33,32,28,.04);
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  }
+  .sd-format-card { z-index: 2; padding: 16px; }
+  .sd-switch { flex: none; width: 36px; height: 20px; border-radius: 99px; background: var(--accent); position: relative; transition: background .2s; cursor: pointer; }
+  .sd-switch i { position: absolute; top: 2px; left: 18px; width: 16px; height: 16px; border-radius: 99px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .2s; }
+  .sd-switch[aria-checked="false"] { background: #cfceca; }
+  .sd-switch[aria-checked="false"] i { left: 2px; }
+  .sd-on { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .35s ease, opacity .25s; }
+  .sd-on > * { min-height: 0; }
+  .sd-on { overflow: hidden; }
+  .is-off .sd-on { grid-template-rows: 0fr; opacity: 0; }
+  .sd-icon-btn { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; color: var(--t2); cursor: pointer; }
+  .sd-icon-btn:hover { background: #e9e8e6; }
+  .sd-check { width: 16px; height: 16px; border-radius: 4px; background: var(--accent); color: #fff; display: grid; place-items: center; }
+  .sd-input { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border); color: var(--t1); font-size: 13px; }
+  .sd-input > span { color: var(--t3); display: flex; }
+  .sd-cap { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--t3); margin-bottom: 10px; }
+  .sd-format { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border-subtle); font-size: 12px; color: var(--t2); }
+  .sd-format-hover { background: #e9e8e6; }
+  .sd-badge { font-family: "Geist Mono", ui-monospace, monospace; font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 4px; color: #218358; background: #e6f6eb; }
+  .sd-menu { margin: 6px 0 0 72px; width: 180px; padding: 4px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border-subtle); box-shadow: 0 12px 28px -8px rgba(33,32,28,.25); font-size: 13px; }
+  .sd-menu p { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-radius: 6px; }
+  .sd-menu p > span { display: flex; }
+  .sd-menu-on { background: var(--accent); color: #fff; }
+  .sd-menu hr { border: 0; height: 1px; background: var(--border-subtle); margin: 4px 0; }
+
+  /* the e-reader */
+  .sd-device {
+    width: 300px; padding: 18px 16px 44px; border-radius: 26px;
+    background: linear-gradient(160deg, #3b3a37, #21201c 60%);
+    box-shadow: 0 40px 80px -30px rgba(33,32,28,.55), inset 0 1px 0 rgba(255,255,255,.08);
+    position: relative;
+  }
+  .sd-device::after { content: ""; position: absolute; bottom: 16px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 4px; background: rgba(255,255,255,.12); }
+  .sd-screen { position: relative; height: 400px; overflow: hidden; border-radius: 6px; background: #efeee8; color: #2b2a24; }
+  .sd-list li { display: flex; align-items: center; gap: 12px; padding: 9px 16px; border-top: 1px solid rgba(43,42,36,.1); }
+  .sd-list img { width: 34px; height: 50px; object-fit: cover; filter: grayscale(1) contrast(1.1); border-radius: 1px; box-shadow: 0 0 0 1px rgba(43,42,36,.15); }
+  .sd-dl { width: 26px; height: 26px; flex: none; display: grid; place-items: center; border-radius: 99px; border: 1px solid rgba(43,42,36,.3); }
+  @keyframes sd-load { from { width: 8%; } to { width: 100%; } }
+  .sd-progress { animation: sd-load 3.2s ease-in-out infinite; }
+  .sd-offline { position: absolute; inset: 37px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #efeee8; opacity: 0; pointer-events: none; transition: opacity .3s; }
+  .is-off .sd-offline { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .sd-progress { animation: none; width: 60%; } }
+</style>

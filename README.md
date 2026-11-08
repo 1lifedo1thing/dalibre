@@ -26,6 +26,26 @@ Build a release (exe + installer in `cmd/dalibre/build`):
 go tool mygo build ./cmd/dalibre
 ```
 
+### Release
+
+Dalibre updates itself from this repository's GitHub releases. Releases
+are signed with the update key of `go tool mygo keygen`, which is the
+`MYGO_UPDATER_PRIVATE_KEY` secret of the repository; keep a copy in a
+password manager, as installed apps only accept updates it signs.
+
+1. Bump `version` in `cmd/dalibre/mygo.json`, and add its `## <version>`
+   section to [CHANGELOG.md](CHANGELOG.md): the update window shows it.
+2. Commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
+3. The [Release workflow](.github/workflows/release.yml) builds every
+   platform into a draft release. Publish the draft, and installed apps
+   update to it.
+
+The workflow signs the macOS app with the Developer ID and notarizes it,
+from the `MACOS_CERTIFICATE` and `MACOS_CERTIFICATE_PASSWORD` secrets, and
+an App Store Connect API key in `APPLE_API_KEY`, `APPLE_API_KEY_ID` and
+`APPLE_API_ISSUER` (see the top of the workflow). `mygo.json`
+leaves signing out, so local builds are signed ad hoc.
+
 ## Layout
 
 ```
@@ -35,13 +55,13 @@ cmd/
   dalibre-plugin/     CLI for plugin authors: init, check, search, download, pack, install
 plugins/
   gutenberg/          Project Gutenberg, built into the app (dalibre.gutenberg)
+  neodb/              NeoDB metadata lookup, built into the app (dalibre.neodb)
 sdk/                  for plugin authors: dalibre.d.ts, plugin.schema.json, template
 internal/
   calibre/            calibre library access: schema, SQL functions its
                       triggers need, naming rules, CRUD, OPF
   ebookmeta/          title/authors/cover from EPUB, MOBI/AZW3 and file names
   catalog/            search, filters, sorting and sidebar counts (no UI)
-  convert/            conversion model and engine detection (UI only in v1)
   plugin/             plugins: manifest, sandboxed JS runtime, consent, packages
   settings/           user settings persisted as JSON
   thumbs/             on-disk cover thumbnails

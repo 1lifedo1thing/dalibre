@@ -152,6 +152,9 @@ func (p *Plugin) checkExports() error {
 			return &Error{Plugin: m.ID, Kind: KindInvalid, Msg: msg}
 		}
 	}
+	if m.IsMetadataSource() && !slices.Contains(p.exported, "identify") {
+		return &Error{Plugin: m.ID, Kind: KindInvalid, Msg: "a metadata source must export identify"}
+	}
 	return nil
 }
 

@@ -1,15 +1,22 @@
 # Writing Dalibre plugins
 
 A Dalibre plugin is a folder with a `plugin.json` and a JavaScript file.
-Plugin API 1 has one capability, a **book source**: it searches and
-browses a catalogue and says where each book's file is. Dalibre shows
-every book source in its **Get books** page, with the same controls for
-all; your plugin gives data and never draws UI. Dalibre downloads the
-file and adds the book to the user's library, with the metadata the
-plugin gave.
+Plugin API 1 has two capabilities; a plugin may have either or both:
 
-The [Project Gutenberg plugin](../../plugins/gutenberg) ships inside
-Dalibre and uses everything below; read it as a worked example.
+- A **book source** searches and browses a catalogue and says where each
+  book's file is. Dalibre shows every book source in its **Get books**
+  page, with the same controls for all, downloads the file and adds the
+  book to the user's library, with the metadata the plugin gave.
+- A **metadata source** looks books up: given a book's title, authors
+  and identifiers, it returns candidates with their details. Dalibre
+  shows them in Edit metadata › **Fetch metadata**, next to the book's
+  own values, and fills in the fields the user picks.
+
+Your plugin gives data and never draws UI.
+
+The [Project Gutenberg plugin](../../plugins/gutenberg) (a book source)
+and the [NeoDB plugin](../../plugins/neodb) (a metadata source) ship
+inside Dalibre; read them as worked examples.
 
 No build step and nothing to install besides the `dalibre-plugin` tool:
 plugins are plain JavaScript modules (ES2023), run sandboxed by the
@@ -17,7 +24,7 @@ QuickJS interpreter built into Dalibre.
 
 - [Quick start](#quick-start)
 - [plugin.json](#pluginjson)
-- [main.js](#mainjs): [`search`](#search), [filters](#filters), [`collections` and `list`](#collections-and-list), [`get`](#get), [`resolve`](#resolve), [the `dalibre` object](#the-dalibre-object), [errors](#errors)
+- [main.js](#mainjs): [`search`](#search), [filters](#filters), [`collections` and `list`](#collections-and-list), [`get`](#get), [`resolve`](#resolve), [`identify`](#identify), [the `dalibre` object](#the-dalibre-object), [errors](#errors)
 - [Permissions and limits](#permissions-and-limits)
 - [Testing](#testing)
 - [Publishing](#publishing)
@@ -95,8 +102,9 @@ Node's built-ins or the browser's.
 | `author`, `homepage`, `license` | Shown when the user installs. `license` is an SPDX id. The page's Open site button opens `homepage`. |
 | `icon` | One of Dalibre's icons: `globe` (default), `library`, `book-open`, `database`, `network`, `building`, `bookmark`, `layers`. Never an image, so a plugin can't dress up as another app. |
 | `main` | The script, relative to `plugin.json`. Default `main.js`. |
-| `capabilities` | **Required.** `{"bookSource": {…}}`: `collections` (`true` when you export `collections` and `list`) and up to 4 `filters` ([below](#filters)). `["source"]`, the form API 1 began with, still means a book source with no filters or collections. |
+| `capabilities` | **Required.** `{"bookSource": {…}}`: `collections` (`true` when you export `collections` and `list`) and up to 4 `filters` ([below](#filters)). `{"metadata": {…}}`: a metadata source ([`identify`](#identify)). `["source"]`, the form API 1 began with, still means a book source with no filters or collections; `["metadata"]` works too. |
 | `permissions.hosts` | **Required for a source.** Every host your plugin reaches, through `fetch`, file downloads, covers **and redirects**. `*.example.com` matches any subdomain, not `example.com` itself. |
+| `permissions.library` | `"read"`: your plugin sees the title, authors, identifiers and language of the books the user looks up with it. **Required for a metadata source**; the install dialog says so. |
 | `permissions.localNetwork` | Reach this computer and the local network: a home OPDS or Calibre server. Users are warned. Default `false`. |
 | `settings` | Values the user enters: up to 32. `type` is `text` (default) or `secret` (masked, hidden in logs, and kept in the system's keychain rather than Dalibre's settings file). `required` settings must be filled before your plugin is called. |
 
@@ -252,6 +260,48 @@ progress and cancel, follows redirects within your hosts, refuses an
 HTML page (a login or error page) where a book was expected, and turns
 HTTP 401/403/404/429 into the errors below.
 
+### identify
+
+A metadata source declares `"metadata"` in its capabilities and
+`"library": "read"` in its permissions: it sees the books the user looks
+up with it, and the install dialog says so.
+
+```json
+"capabilities": { "metadata": { "fields": ["title", "authors", "cover", "description"] } },
+"permissions": { "hosts": ["api.example.com"], "library": "read" }
+```
+
+`fields` (optional) lists what you can fill, from `title`, `authors`,
+`series`, `tags`, `publisher`, `pubdate`, `language`, `identifiers`,
+`cover` and `description`.
+
+`identify(book) → Candidate[]` is called when the user opens Fetch
+metadata or searches in it. `book` is
+`{ title, authors, identifiers, language? }`: the book's own values, or,
+when the user typed something else, `{ title: "what they typed" }` or
+`{ identifiers: { isbn } }` when they typed an ISBN. Nothing else of
+the library is sent.
+
+```js
+export async function identify({ title, authors, identifiers }) {
+  const q = identifiers.isbn || [title, authors[0]].filter(Boolean).join(" ");
+  const res = await dalibre.fetch(`https://api.example.com/books?q=${encodeURIComponent(q)}`);
+  return res.json().books.map((b) => ({
+    id: b.key, title: b.title, authors: b.authors, publisher: b.publisher, pubdate: b.date,
+    identifiers: { isbn: b.isbn, example: b.key }, cover: b.image, description: b.summary,
+  }));
+}
+```
+
+Return candidates best first, at most 20, `[]` when nothing matches. A
+candidate is a [result](#search) without `formats`: `id` and `title` are
+required, everything else is optional and shown next to the book's
+value. Give everything you know in `identify`: there is no second call
+for details. Dalibre fetches `cover` when the candidate is shown;
+`identifiers` are added to the book's (keys are lower-cased), so add
+your own id under your plugin's name. Rank with what you are given: an
+ISBN match first, then the title, then the authors.
+
 ### The dalibre object
 
 | | |
@@ -334,6 +384,8 @@ dalibre-plugin search . "dune" --json         # exactly what Dalibre gets
 dalibre-plugin collections .                  # what the browse page shows
 dalibre-plugin list . popular --page 2
 dalibre-plugin get . "dune" --item 2          # what the detail panel shows
+dalibre-plugin identify . "Dune" --author "Frank Herbert"   # what Fetch metadata shows
+dalibre-plugin identify . --isbn 9780441172719 --json
 dalibre-plugin download . "dune" --item 3 --format PDF -o /tmp
 ```
 

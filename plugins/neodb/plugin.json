@@ -1,0 +1,21 @@
+{
+  "$schema": "../../sdk/plugin.schema.json",
+  "id": "dalibre.neodb",
+  "name": "NeoDB",
+  "version": "1.0.0",
+  "api": 1,
+  "icon": "database",
+  "description": "Book details from NeoDB, an open catalogue linked to Douban, Goodreads and more",
+  "author": "Dalibre",
+  "homepage": "https://neodb.social",
+  "license": "MIT",
+  "capabilities": {
+    "metadata": {
+      "fields": ["title", "authors", "series", "tags", "publisher", "pubdate", "language", "identifiers", "cover", "description"]
+    }
+  },
+  "permissions": {
+    "hosts": ["neodb.social"],
+    "library": "read"
+  }
+}

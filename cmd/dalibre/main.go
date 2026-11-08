@@ -4,10 +4,12 @@ package main
 
 import (
 	"log"
+	"runtime"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/app"
 	"dalibre/internal/app/theme"
 	"dalibre/internal/settings"
@@ -19,11 +21,13 @@ func main() {
 	}
 	a := app.New(settings.DefaultPath())
 	mygo.App.WhenReady(func() {
+		setMenu(a)
+		mygo.App.OnLocaleChanged(func(string) { setMenu(a) })
 		win := mygo.NewWindow(mygo.WindowOptions{
 			Title:           "Dalibre",
 			Width:           1440,
 			Height:          900,
-			MinWidth:        960,
+			MinWidth:        1040,
 			MinHeight:       600,
 			StateKey:        "main",
 			TitleBarStyle:   mygo.TitleBarHiddenInset,
@@ -36,4 +40,32 @@ func main() {
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// setMenu adds "Check for Updates…" after About in the macOS app menu,
+// keeping the rest of the default menu bar: it opens Settings › General
+// and checks. Other systems have no menu bar by default, so they keep
+// none; Settings checks there.
+func setMenu(a *app.App) {
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	mygo.App.SetMenu(mygo.NewMenu([]*mygo.MenuItem{
+		{Role: mygo.RoleAppMenu, Submenu: []*mygo.MenuItem{
+			{Role: mygo.RoleAbout},
+			{Label: locales.AppUpdatesMenu(), Click: func(*mygo.MenuItem, *mygo.Window) { a.CheckForUpdates() }},
+			mygo.Separator(),
+			{Role: mygo.RoleServices},
+			mygo.Separator(),
+			{Role: mygo.RoleHide},
+			{Role: mygo.RoleHideOthers},
+			{Role: mygo.RoleUnhide},
+			mygo.Separator(),
+			{Role: mygo.RoleQuit},
+		}},
+		{Role: mygo.RoleFileMenu},
+		{Role: mygo.RoleEditMenu},
+		{Role: mygo.RoleViewMenu},
+		{Role: mygo.RoleWindowMenu},
+	}))
 }

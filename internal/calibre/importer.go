@@ -1,6 +1,7 @@
 package calibre
 
 import (
+	"path/filepath"
 	"strings"
 
 	"dalibre/internal/ebookmeta"
@@ -39,6 +40,20 @@ func (l *Library) Import(file string) (int64, error) { return l.ImportWith(file,
 // leaves empty from the file; identifiers from both are kept. The cover
 // is the file's, else cover.
 func (l *Library) ImportWith(file string, over Metadata, cover []byte) (int64, error) {
+	return l.Add(Prepare(file, over, cover))
+}
+
+// Prepared is an e-book file read for adding, before it is added: what
+// the import checks for books the library has already.
+type Prepared struct {
+	File     string
+	Format   string // the file's extension in upper case, as "EPUB"
+	Metadata Metadata
+	Cover    []byte
+}
+
+// Prepare reads file's metadata and cover, as ImportWith does.
+func Prepare(file string, over Metadata, cover []byte) Prepared {
 	m, _ := ebookmeta.Read(file) // a file we can't parse is still added, named after itself
 	md := Metadata{
 		Title: m.Title, Authors: m.Authors, Publisher: m.Publisher, Tags: m.Tags,
@@ -84,5 +99,10 @@ func (l *Library) ImportWith(file string, over Metadata, cover []byte) (int64, e
 	if len(m.Cover) > 0 {
 		cover = m.Cover
 	}
-	return l.AddBook(NewBook{Metadata: md, File: file, Cover: cover})
+	return Prepared{File: file, Format: strings.ToUpper(strings.TrimPrefix(filepath.Ext(file), ".")), Metadata: md, Cover: cover}
+}
+
+// Add adds a prepared file as a new book.
+func (l *Library) Add(p Prepared) (int64, error) {
+	return l.AddBook(NewBook{Metadata: p.Metadata, File: p.File, Cover: p.Cover})
 }

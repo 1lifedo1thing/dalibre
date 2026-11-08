@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"github.com/egoist/mygo/i18n"
 	"os"
 	"slices"
 	"time"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/plugin"
 	"dalibre/internal/settings"
 )
@@ -120,7 +122,7 @@ func (a *App) ghFind() {
 			} else if def != "" {
 				a.ghChoose("", def)
 			} else {
-				g.err = "The repository has no releases or branches."
+				g.err = locales.PluginsRepoEmpty()
 			}
 		})
 	})
@@ -148,14 +150,15 @@ func (a *App) ghChoose(tag, branch string) {
 			c, err = gh.Commit(ctx, repo, branch)
 			if err == nil {
 				ref = c.SHA
-				detail = "branch " + branch + " at " + c.Short() + " · " + ago(c.Date)
+				detail = locales.PluginsDetailBranch(branch, c.Short(), ago(c.Date))
 				archive, err = gh.Download(ctx, c.Archive, os.TempDir())
 			}
 		} else {
 			ref = rel.Tag
-			detail = "release " + rel.Tag + " · " + ago(rel.Published)
 			if rel.Asset != "" {
-				detail += " · " + rel.Asset + ", " + humanSize(rel.Size)
+				detail = locales.PluginsDetailReleaseAsset(rel.Tag, ago(rel.Published), rel.Asset, humanSize(rel.Size))
+			} else {
+				detail = locales.PluginsDetailRelease(rel.Tag, ago(rel.Published))
 			}
 			archive, err = gh.Download(ctx, rel.Archive, os.TempDir())
 		}
@@ -175,7 +178,7 @@ func (a *App) ghChoose(tag, branch string) {
 				if archive != "" {
 					os.Remove(archive)
 				}
-				g.err = fmt.Sprintf("This isn’t a Dalibre plugin: %v", err)
+				g.err = locales.PluginsNotAPlugin(err.Error())
 				return
 			}
 			g.archive, g.manifest, g.ref, g.detail = archive, m, ref, detail
@@ -192,7 +195,7 @@ func (a *App) ghInstallChosen() {
 	}
 	m := g.manifest
 	st := a.settings.Plugin(m.ID)
-	st.Granted = &settings.Grant{Hosts: slices.Clone(m.Permissions.Hosts), LocalNetwork: m.Permissions.LocalNetwork}
+	st.Granted = &settings.Grant{Hosts: slices.Clone(m.Permissions.Hosts), LocalNetwork: m.Permissions.LocalNetwork, Library: m.Permissions.Library}
 	src := &settings.PluginSource{Repo: g.repo.String(), Branch: g.branch, Ref: g.ref, Auto: g.keep}
 	archive := g.archive
 	g.archive = "" // finishInstall removes it
@@ -204,20 +207,20 @@ func (a *App) ghInstallChosen() {
 // ago says how long ago t was, roughly.
 func ago(t time.Time) string {
 	if t.IsZero() {
-		return "date unknown"
+		return locales.PluginsAgoUnknown()
 	}
 	d := time.Since(t)
 	switch {
 	case d < time.Hour:
-		return "just now"
+		return locales.PluginsAgoNow()
 	case d < 24*time.Hour:
 		n := int(d.Hours())
-		return fmt.Sprintf("%d %s ago", n, plural(n, "hour", "hours"))
+		return locales.PluginsAgoHours(n)
 	case d < 60*24*time.Hour:
 		n := int(d.Hours() / 24)
-		return fmt.Sprintf("%d %s ago", n, plural(n, "day", "days"))
+		return locales.PluginsAgoDays(n)
 	}
-	return t.Format("Jan 2, 2006")
+	return i18n.FormatDate(i18n.Locale(), t, i18n.DateOptions{Skeleton: "yMMMd"})
 }
 
 // ---- Updates
@@ -249,7 +252,7 @@ func (a *App) checkUpdates(force bool) {
 		for _, it := range items {
 			u, err := latestUpdate(gh, it.src)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("Checking %s for updates: %w", it.id, err))
+				errs = append(errs, errors.New(locales.PluginsCheckFailed(it.id, err.Error())))
 				continue
 			}
 			if u != nil {
@@ -277,7 +280,7 @@ func (a *App) checkUpdates(force bool) {
 					a.toastError(err)
 				}
 				if len(errs) == 0 && len(found) == 0 {
-					a.toast("Plugins are up to date")
+					a.toast("%s", locales.PluginsUpToDate())
 				}
 			}
 		})
@@ -296,7 +299,7 @@ func latestUpdate(gh *plugin.GitHub, src settings.PluginSource) (*pluginUpdate, 
 		if err != nil || c.SHA == src.Ref {
 			return nil, err
 		}
-		return &pluginUpdate{ref: c.SHA, label: src.Branch + " at " + c.Short(), notes: c.Message, published: c.Date, archive: c.Archive}, nil
+		return &pluginUpdate{ref: c.SHA, label: locales.PluginsUpdateBranchLabel(src.Branch, c.Short()), notes: c.Message, published: c.Date, archive: c.Archive}, nil
 	}
 	rels, err := gh.Releases(ctx, repo)
 	if err != nil {
@@ -329,7 +332,7 @@ func (a *App) updatePlugin(id string, auto bool) {
 			m, err = plugin.Inspect(archive)
 		}
 		if err == nil && m.ID != id {
-			err = fmt.Errorf("the update is a different plugin, %q", m.ID)
+			err = errors.New(locales.PluginsUpdateWrongPlugin(m.ID))
 		}
 		a.post(func() {
 			u.busy = false
@@ -337,7 +340,7 @@ func (a *App) updatePlugin(id string, auto bool) {
 				if archive != "" {
 					os.Remove(archive)
 				}
-				a.toastError(fmt.Errorf("Couldn’t update %s: %w", a.pluginName(id), err))
+				a.toastError(errors.New(locales.PluginsUpdateFailed(a.pluginName(id), err.Error())))
 				return
 			}
 			if !granted(a.settings.Plugins[id], m) {

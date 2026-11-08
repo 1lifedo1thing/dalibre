@@ -9,6 +9,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/app/icons"
 	"dalibre/internal/app/theme"
 	"dalibre/internal/app/widgets"
@@ -32,6 +33,13 @@ func (a *App) view(c *ui.Context) {
 
 	a.shortcuts(c)
 
+	if a.lib == nil {
+		a.welcomeScreen(c)
+		a.dialogs(c)
+		return
+	}
+	a.welcome.missing = nil // looked at again when the welcome screen next shows
+
 	root := ui.Row(c).Fill().AlignItems(ui.Stretch).Background(pal().BgApp).TextColor(pal().Text)
 	if files := root.DroppedFiles(); files != nil && a.lib != nil {
 		a.importFiles(files)
@@ -41,7 +49,7 @@ func (a *App) view(c *ui.Context) {
 		a.sidebar(c)
 		// The toolbar heads the middle column only; the detail panel runs
 		// the window's full height beside it, as in Figma.
-		ui.Column(c.Key("main")).Grow(1).MinWidth(0).AlignItems(ui.Stretch).Children(func() {
+		ui.Column(c.Key("main")).Grow(1).MinWidth(0).ClipX().Bind(&a.mainBox).AlignItems(ui.Stretch).Children(func() {
 			switch a.page {
 			case pageGetBooks:
 				a.getBooksToolbar(c)
@@ -75,6 +83,13 @@ func (a *App) shortcuts(c *ui.Context) {
 	c.OnWindowShortcut(ui.Cmd, ui.KeyO, func() {
 		if a.lib != nil {
 			a.chooseBooks()
+		} else if !a.anyDialog() {
+			a.chooseLibrary()
+		}
+	})
+	c.OnWindowShortcut(ui.Cmd|ui.Shift, ui.KeyN, func() {
+		if !a.anyDialog() {
+			a.openCreateSheet()
 		}
 	})
 	focus := func() {
@@ -91,7 +106,6 @@ func (a *App) shortcuts(c *ui.Context) {
 		return
 	}
 	c.OnWindowShortcut(ui.Cmd, ui.KeyI, func() { a.openEditor(a.current()) })
-	c.OnWindowShortcut(ui.Cmd|ui.Shift, ui.KeyC, func() { a.openConvert(a.selectedIDs()) })
 	c.OnWindowShortcut(ui.Cmd|ui.Alt, ui.KeyI, func() {
 		a.settings.HideDetail = !a.settings.HideDetail
 		a.saveSettings()
@@ -104,7 +118,7 @@ func (a *App) shortcuts(c *ui.Context) {
 }
 
 func (a *App) anyDialog() bool {
-	return a.editOpen || a.convertOpen || a.deleteOpen || a.createAsk || a.settingsOpen || a.consent != nil
+	return a.editOpen || a.deleteOpen || a.welcome.notLib.open || a.welcome.create.open || a.settingsOpen || a.consent != nil
 }
 
 // ---- Sidebar
@@ -130,14 +144,14 @@ func (a *App) sidebar(c *ui.Context) {
 			}
 			defer a.getBooksNav(c)
 			ui.Column(c).Gap(theme.Space2).AlignItems(ui.Stretch).Children(func() {
-				a.navItem(c, "all", icons.Library, "All books", a.counts.All, a.query.Shelf == catalog.AllBooks && a.query.Filter.Kind == catalog.NoFilter, nil, func() {
+				a.navItem(c, "all", icons.Library, locales.MainNavAllBooks(), a.counts.All, a.query.Shelf == catalog.AllBooks && a.query.Filter.Kind == catalog.NoFilter, nil, func() {
 					a.setQuery(catalog.AllBooks, catalog.Filter{})
 				})
-				a.navItem(c, "recent", icons.Clock, "Recently added", a.counts.Recent, a.query.Shelf == catalog.RecentlyAdded && a.query.Filter.Kind == catalog.NoFilter, nil, func() {
+				a.navItem(c, "recent", icons.Clock, locales.MainNavRecentlyAdded(), a.counts.Recent, a.query.Shelf == catalog.RecentlyAdded && a.query.Filter.Kind == catalog.NoFilter, nil, func() {
 					a.setQuery(catalog.RecentlyAdded, catalog.Filter{})
 				})
 			})
-			a.navSection(c, "formats", "Formats", catalog.ByFormat, a.counts.Formats, icons.File, 0)
+			a.navSection(c, "formats", locales.MainNavFormats(), catalog.ByFormat, a.counts.Formats, icons.File, 0)
 			a.catalogsNav(c)
 		})
 		if a.lib == nil {
@@ -212,12 +226,12 @@ func (a *App) navSection(c *ui.Context, key, title string, kind catalog.FilterKi
 		all := a.sectionsOn[key+":all"]
 		for i, it := range items {
 			if limit > 0 && i >= limit && !all {
-				more := ui.ButtonBase(c).Height(26).Padding(0, theme.Space8, 0, theme.Space32).AlignItems(ui.Center).Radius(theme.RadiusSM).Label("Show all")
+				more := ui.ButtonBase(c).Height(26).Padding(0, theme.Space8, 0, theme.Space32).AlignItems(ui.Center).Radius(theme.RadiusSM).Label(locales.CommonShowAll())
 				if more.Hovered() {
 					more.Background(pal().Hover)
 				}
 				more.OnClick(func() { a.sectionsOn[key+":all"] = true }).Children(func() {
-					ui.Textf(c, "Show all %d", len(items)).FontSize(12).TextColor(pal().TextAccent)
+					ui.Text(c, locales.MainShowAllCount(len(items))).FontSize(12).TextColor(pal().TextAccent)
 				})
 				break
 			}
@@ -240,13 +254,13 @@ func (a *App) navSection(c *ui.Context, key, title string, kind catalog.FilterKi
 }
 
 func (a *App) librarySwitcher(c *ui.Context) {
-	name, sub := "No library", "Open or create one"
+	name, sub := locales.MainNoLibrary(), locales.MainOpenOrCreateLibrary()
 	if a.lib != nil {
 		name = filepath.Base(a.lib.Root)
-		sub = fmt.Sprintf("%s %s", groupDigits(a.counts.All), plural(a.counts.All, "book", "books"))
+		sub = locales.CommonBookCount(a.counts.All)
 	}
 	b := ui.ButtonBase(c).Padding(theme.Space8).Gap(theme.Space10).AlignItems(ui.Center).Radius(theme.RadiusMD).
-		Background(pal().SurfaceRaised).Border(1, pal().BorderSubtle).Shadow(0, 1, 2, 0, ui.RGBA(26, 23, 18, 0.05)).Label("Library")
+		Background(pal().SurfaceRaised).Border(1, pal().BorderSubtle).Shadow(0, 1, 2, 0, ui.RGBA(26, 23, 18, 0.05)).Label(locales.CommonLibrary())
 	if b.Hovered() {
 		b.Border(1, pal().Border)
 	}
@@ -269,8 +283,11 @@ func (a *App) librarySwitcher(c *ui.Context) {
 		if len(recent) > 0 {
 			m.Separator()
 		}
-		if m.Item("Open library…").Chosen() {
+		if m.Item(locales.MainOpenLibraryMenu()).Chosen() {
 			a.chooseLibrary()
+		}
+		if m.Item(locales.MainNewLibraryMenu()).Chosen() {
+			a.openCreateSheet()
 		}
 	})
 	b.Children(func() {
@@ -286,7 +303,12 @@ func (a *App) librarySwitcher(c *ui.Context) {
 }
 
 // revealLabel names showing a file in the system's file manager.
-var revealLabel = map[bool]string{true: "Show in Finder", false: "Show in folder"}[runtime.GOOS == "darwin"]
+func revealLabel() string {
+	if runtime.GOOS == "darwin" {
+		return locales.MainShowInFinder()
+	}
+	return locales.CommonShowInFolder()
+}
 
 // recentLibraryRow shows a library in the switcher's menu: its name and
 // path, and, while the item is highlighted, a button revealing its folder.
@@ -297,7 +319,7 @@ func (a *App) recentLibraryRow(x ui.MenuItemContent, root string) {
 			ui.Text(c, filepath.Base(root)).SingleLine().TextColor(x.Text)
 			ui.Text(c, root).FontSize(12).SingleLine().TextColor(x.Muted)
 		})
-		reveal := ui.ButtonBase(c).Size(24, 24).Radius(theme.RadiusXS).Center().Label(revealLabel + ": " + filepath.Base(root)).Tooltip(revealLabel)
+		reveal := ui.ButtonBase(c).Size(24, 24).Radius(theme.RadiusXS).Center().Label(locales.MainRevealRow(revealLabel(), filepath.Base(root))).Tooltip(revealLabel())
 		if !x.Highlighted {
 			reveal.Opacity(0)
 		} else if reveal.Hovered() {
@@ -310,7 +332,7 @@ func (a *App) recentLibraryRow(x ui.MenuItemContent, root string) {
 }
 
 func (a *App) sidebarFooter(c *ui.Context) {
-	if a.busy == "" && len(a.jobs) == 0 && len(a.downloads) == 0 {
+	if a.busy == "" && len(a.downloads) == 0 {
 		return
 	}
 	ui.Column(c).Padding(0, theme.Space8, theme.Space12, theme.Space8).Gap(theme.Space8).AlignItems(ui.Stretch).Children(func() {
@@ -319,9 +341,9 @@ func (a *App) sidebarFooter(c *ui.Context) {
 			ui.Row(c).Padding(theme.Space4, theme.Space8).Gap(theme.Space10).AlignItems(ui.Center).Children(func() {
 				ui.Spinner(c).Size(16, 16).Label(a.busy)
 				ui.Column(c).Grow(1).Gap(theme.Space6).AlignItems(ui.Stretch).Children(func() {
-					label := a.busy + "…"
+					label := locales.MainBusyEllipsis(a.busy)
 					if a.busyTotal > 0 {
-						label = fmt.Sprintf("%s %d of %d", a.busy, a.busyDone, a.busyTotal)
+						label = locales.MainBusyProgress(a.busy, a.busyDone, a.busyTotal)
 					}
 					ui.Text(c, label).FontSize(12).FontWeight(500).SingleLine()
 					v := -1.0
@@ -332,7 +354,7 @@ func (a *App) sidebarFooter(c *ui.Context) {
 				})
 			})
 		}
-		if len(a.jobs) > 0 || len(a.downloads) > 0 {
+		if len(a.downloads) > 0 {
 			a.jobsButton(c)
 		}
 	})
@@ -352,7 +374,16 @@ func (a *App) toolbar(c *ui.Context) {
 		if a.lib != nil {
 			title, count = a.viewTitle(), groupDigits(len(a.visible()))
 		}
+		// In a narrow middle column (a small window with the detail panel
+		// open) the controls come first: the search field gives up width,
+		// the title goes (the sidebar still names the view) and Add books
+		// keeps only its icon, so nothing runs under the detail panel.
+		w := a.mainBox.Bounds(c).W
+		noTitle, compact := w > 0 && w < 640, w > 0 && w < 540
 		ui.Row(c).Grow(1).MinWidth(0).Gap(theme.Space8).AlignItems(ui.Baseline).Children(func() {
+			if noTitle {
+				return
+			}
 			ui.Text(c, title).FontWeight(600).FontSize(22).LetterSpacing(-0.4).SingleLine().Shrink(1)
 			if count != "" {
 				ui.Text(c, count).Font(theme.FontMono).FontSize(12).TextColor(pal().TextTertiary)
@@ -361,34 +392,42 @@ func (a *App) toolbar(c *ui.Context) {
 		if a.lib == nil {
 			return
 		}
-		ui.SearchField(c, &a.query.Search).Placeholder("Search title, author, tag…").Label("Search library").Width(260).Bind(&a.searchFocus).OnChange(func() {
+		ui.SearchField(c, &a.query.Search).Placeholder(locales.MainSearchPlaceholder()).Label(locales.MainSearchLabel()).Width(260).Shrink(1).MinWidth(140).Bind(&a.searchFocus).OnChange(func() {
 			a.curID = 0
 		})
 		a.viewToggle(c)
-		sort := widgets.IconButton(c, icons.Sort, "Sort: "+a.query.Sort.Label(), false)
+		sort := widgets.IconButton(c, icons.Sort, locales.MainSortButton(sortLabel(a.query.Sort)), false)
 		sort.PopoverMenuButton(func(m *ui.Menu) {
 			for _, k := range catalog.SortKeys {
-				if m.Item(k.Label).Radio(a.query.Sort == k.Key).Chosen() {
+				if m.Item(sortLabel(k.Key)).Radio(a.query.Sort == k.Key).Chosen() {
 					a.query.Sort = k.Key
 					a.saveSettings()
 				}
 			}
 			m.Separator()
-			if m.Item("Ascending").Radio(!a.query.Descending).Chosen() {
+			if m.Item(locales.MainSortAscending()).Radio(!a.query.Descending).Chosen() {
 				a.query.Descending = false
 				a.saveSettings()
 			}
-			if m.Item("Descending").Radio(a.query.Descending).Chosen() {
+			if m.Item(locales.MainSortDescending()).Radio(a.query.Descending).Chosen() {
 				a.query.Descending = true
 				a.saveSettings()
 			}
 		})
-		if widgets.IconButton(c, icons.PanelRight, "Details (Ctrl+Alt+I)", !a.settings.HideDetail).Clicked() {
+		if widgets.IconButton(c, icons.PanelRight, locales.MainDetailsTooltip(), !a.settings.HideDetail).Clicked() {
 			a.settings.HideDetail = !a.settings.HideDetail
 			a.saveSettings()
 		}
 		ui.Box(c).Size(1, 20).Background(pal().Border).Margin(0, theme.Space4)
-		if widgets.Button(c, widgets.Primary, icons.Plus, "Add books").Tooltip("Add books (Ctrl+O)").Disabled(a.busy != "").Clicked() {
+		label := locales.CommonAddBooks()
+		if compact {
+			label = ""
+		}
+		add := widgets.Button(c, widgets.Primary, icons.Plus, label).Label(locales.CommonAddBooks()).Tooltip(locales.MainAddBooksTooltip()).Disabled(a.busy != "")
+		if compact {
+			add.Width(theme.ControlM).Padding(0)
+		}
+		if add.Clicked() {
 			a.chooseBooks()
 		}
 	})
@@ -401,9 +440,9 @@ func (a *App) viewTitle() string {
 		return languageName(f.Value)
 	case catalog.NoFilter:
 		if a.query.Shelf == catalog.RecentlyAdded {
-			return "Recently added"
+			return locales.MainNavRecentlyAdded()
 		}
-		return "All books"
+		return locales.MainNavAllBooks()
 	}
 	return f.Value
 }
@@ -415,9 +454,9 @@ func (a *App) viewToggle(c *ui.Context) {
 		sel = 1
 	}
 	seg := ui.SegmentedBase(c, &sel, 2)
-	seg.Track.Padding(theme.Space2).Gap(theme.Space2).Radius(theme.RadiusSM).Background(pal().Subtle).Label("View").Children(func() {
+	seg.Track.Padding(theme.Space2).Gap(theme.Space2).Radius(theme.RadiusSM).Background(pal().Subtle).Label(locales.MainViewToggleLabel()).Children(func() {
 		for i, ic := range []*ui.SVG{icons.Grid, icons.List} {
-			s := seg.Segment(i).Size(36, 28).Radius(theme.RadiusXS).Center().Label([]string{"Grid", "List"}[i])
+			s := seg.Segment(i).Size(36, 28).Radius(theme.RadiusXS).Center().Label([]string{locales.MainViewGrid(), locales.MainViewList()}[i])
 			fg := pal().IconMuted
 			if i == sel {
 				s.Background(pal().SurfaceRaised).Shadow(0, 1, 2, 0, ui.RGBA(26, 23, 18, 0.08))
@@ -440,12 +479,9 @@ func (a *App) mainContent(c *ui.Context) {
 	switch {
 	case a.loading:
 		ui.Column(c).Grow(1).Center().Gap(theme.Space12).Children(func() {
-			ui.Spinner(c).Size(24, 24).Label("Loading")
-			ui.Text(c, "Opening library…").TextColor(pal().TextSecondary)
+			ui.Spinner(c).Size(24, 24).Label(locales.CommonLoading())
+			ui.Text(c, locales.MainOpeningLibrary()).TextColor(pal().TextSecondary)
 		})
-		return
-	case a.lib == nil:
-		a.welcome(c)
 		return
 	}
 	a.filterBar(c)
@@ -464,8 +500,44 @@ func (a *App) mainContent(c *ui.Context) {
 }
 
 func filterKindName(k catalog.FilterKind) string {
-	return map[catalog.FilterKind]string{catalog.ByFormat: "Format", catalog.ByAuthor: "Author", catalog.BySeries: "Series",
-		catalog.ByTag: "Tag", catalog.ByPublisher: "Publisher", catalog.ByLanguage: "Language"}[k]
+	switch k {
+	case catalog.ByFormat:
+		return locales.MainFilterFormat()
+	case catalog.ByAuthor:
+		return locales.CommonAuthor()
+	case catalog.BySeries:
+		return locales.CommonSeries()
+	case catalog.ByTag:
+		return locales.CommonTag()
+	case catalog.ByPublisher:
+		return locales.CommonPublisher()
+	case catalog.ByLanguage:
+		return locales.CommonLanguage()
+	}
+	return ""
+}
+
+// sortLabel names an order in the sort menu.
+func sortLabel(k catalog.SortKey) string {
+	switch k {
+	case catalog.SortDateAdded:
+		return locales.MainSortDateAdded()
+	case catalog.SortTitle:
+		return locales.CommonTitle()
+	case catalog.SortAuthor:
+		return locales.CommonAuthor()
+	case catalog.SortSeries:
+		return locales.CommonSeries()
+	case catalog.SortRating:
+		return locales.CommonRating()
+	case catalog.SortPublished:
+		return locales.CommonPublished()
+	case catalog.SortSize:
+		return locales.MainSortSize()
+	case catalog.SortModified:
+		return locales.MainSortModified()
+	}
+	return k.Label()
 }
 
 func (a *App) emptyState(c *ui.Context) {
@@ -478,66 +550,19 @@ func (a *App) emptyState(c *ui.Context) {
 			ui.Icon(c, ic).FontSize(24).TextColor(pal().IconMuted)
 		})
 		if len(a.books) == 0 {
-			ui.Text(c, "Your library is empty").FontWeight(600).FontSize(18)
-			ui.Text(c, "Drop EPUB, PDF or MOBI files here, or add them from disk.").TextColor(pal().TextSecondary)
-			if widgets.Button(c, widgets.Primary, icons.Plus, "Add books").Margin(theme.Space8, 0, 0, 0).Clicked() {
+			ui.Text(c, locales.MainEmptyTitle()).FontWeight(600).FontSize(18)
+			ui.Text(c, locales.MainEmptyHint()).TextColor(pal().TextSecondary)
+			if widgets.Button(c, widgets.Primary, icons.Plus, locales.CommonAddBooks()).Margin(theme.Space8, 0, 0, 0).Clicked() {
 				a.chooseBooks()
 			}
 			return
 		}
-		ui.Text(c, "No books match").FontWeight(600).FontSize(18)
-		ui.Text(c, "Try another search or clear the filters.").TextColor(pal().TextSecondary)
-		if widgets.Button(c, widgets.Secondary, nil, "Clear filters").Margin(theme.Space8, 0, 0, 0).Clicked() {
+		ui.Text(c, locales.MainNoMatchTitle()).FontWeight(600).FontSize(18)
+		ui.Text(c, locales.MainNoMatchHint()).TextColor(pal().TextSecondary)
+		if widgets.Button(c, widgets.Secondary, nil, locales.MainClearFilters()).Margin(theme.Space8, 0, 0, 0).Clicked() {
 			a.query.Search = ""
 			a.setQuery(catalog.AllBooks, catalog.Filter{})
 		}
-	})
-}
-
-func (a *App) welcome(c *ui.Context) {
-	ui.Column(c).Grow(1).Center().Gap(theme.Space16).Padding(theme.Space48).Children(func() {
-		ui.Text(c, "DALIBRE").FontSize(11).FontWeight(600).LetterSpacing(1.2).TextColor(pal().TextAccent)
-		ui.Text(c, "A calm library for your books.").FontWeight(600).FontSize(28).LetterSpacing(-0.6).TextAlign(ui.Center)
-		ui.Text(c, "Open an existing calibre library, or pick an empty folder to start a new one.").TextColor(pal().TextSecondary).TextAlign(ui.Center).MaxWidth(420)
-		if a.loadErr != "" {
-			ui.Row(c).Padding(theme.Space8, theme.Space12).Gap(theme.Space8).Radius(theme.RadiusMD).Background(pal().Danger.BG).AlignItems(ui.Center).MaxWidth(520).Children(func() {
-				ui.Icon(c, icons.Alert).FontSize(16).TextColor(pal().Danger.FG)
-				ui.Text(c, a.loadErr).FontSize(13).TextColor(pal().Danger.FG)
-			})
-		}
-		ui.Row(c).Gap(theme.Space8).Margin(theme.Space8, 0, 0, 0).Children(func() {
-			if widgets.Button(c, widgets.Primary, icons.Folder, "Open library…").Clicked() {
-				a.chooseLibrary()
-			}
-		})
-		if len(a.settings.Recent) > 0 {
-			ui.Column(c).Gap(theme.Space4).Margin(theme.Space24, 0, 0, 0).Width(420).AlignItems(ui.Stretch).Children(func() {
-				widgets.Overline(c, "RECENT").Margin(0, 0, theme.Space4, theme.Space8)
-				for _, r := range a.settings.Recent {
-					row := ui.ButtonBase(c.Key(r)).Padding(theme.Space8).Gap(theme.Space10).Radius(theme.RadiusMD).AlignItems(ui.Center).Label(r)
-					if row.Hovered() {
-						row.Background(pal().Hover)
-					}
-					row.OnClick(func() { a.openLibrary(r) }).Children(func() {
-						ui.Icon(c, icons.Database).FontSize(16).TextColor(pal().IconMuted)
-						ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-							ui.Text(c, filepath.Base(r)).FontWeight(500).SingleLine()
-							ui.Text(c, r).Font(theme.FontMono).FontSize(11).TextColor(pal().TextTertiary).SingleLine()
-						})
-					})
-				}
-			})
-		}
-	})
-}
-
-func (a *App) dropOverlay(c *ui.Context) {
-	ui.Box(c).Absolute().Top(theme.Space12).Left(theme.Space12).Right(theme.Space12).Bottom(theme.Space12).PassThrough().
-		Radius(theme.RadiusXL).Border(2, pal().Accent).BorderStyle(ui.BorderDashed).Background(pal().Accent.Alpha(0.06)).Center().Children(func() {
-		ui.Column(c).Center().Gap(theme.Space8).Padding(theme.Space24).Radius(theme.RadiusLG).Background(pal().SurfaceRaised).Shadow(0, 8, 24, 0, ui.RGBA(0, 0, 0, 0.12)).Children(func() {
-			ui.Icon(c, icons.Upload).FontSize(24).TextColor(pal().TextAccent)
-			ui.Text(c, "Drop to add to the library").FontWeight(500)
-		})
 	})
 }
 

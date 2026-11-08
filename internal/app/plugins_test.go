@@ -394,7 +394,7 @@ func TestBuiltinPlugins(t *testing.T) {
 	a.builtins = true
 	a.pluginTransport = fakeWeb{http.NotFoundHandler()}
 	a.loadPlugins()
-	if a.pluginByID("dalibre.gutenberg") == nil || len(a.pluginsKnown) != 1 || !a.pluginsKnown[0].builtin {
+	if a.pluginByID("dalibre.gutenberg") == nil || a.pluginByID("dalibre.neodb") == nil || len(a.pluginsKnown) != 2 || !a.pluginsKnown[0].builtin {
 		t.Fatalf("plugins %v, known %v, errors %v", a.plugins, a.pluginsKnown, a.pluginErrs)
 	}
 	a.openGetBooks()
@@ -402,7 +402,7 @@ func TestBuiltinPlugins(t *testing.T) {
 		t.Fatalf("source %q", a.gb.source)
 	}
 	a.setPluginEnabled("dalibre.gutenberg", false)
-	if len(a.plugins) != 0 || len(a.pluginsKnown) != 1 {
+	if len(a.plugins) != 1 || len(a.pluginsKnown) != 2 {
 		t.Fatalf("plugins %d, known %d after turning off", len(a.plugins), len(a.pluginsKnown))
 	}
 	tt := ui.NewTester(a.View, 1440, 900)

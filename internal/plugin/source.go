@@ -290,6 +290,15 @@ func (p *Plugin) parsePage(raw json.RawMessage) (Page, error) {
 // check normalizes a result. It returns warnings for fields it drops,
 // and an error when the result can't be used.
 func (r *Result) check() (warnings []string, err error) {
+	if len(r.Formats) == 0 && strings.TrimSpace(r.ID) != "" && strings.TrimSpace(r.Title) != "" {
+		return nil, errors.New("formats: none; a result needs at least one")
+	}
+	return r.checkDetails()
+}
+
+// checkDetails normalizes a result whose formats may be empty: a
+// metadata candidate.
+func (r *Result) checkDetails() (warnings []string, err error) {
 	r.ID, r.Title = strings.TrimSpace(r.ID), strings.TrimSpace(r.Title)
 	switch {
 	case r.ID == "":
@@ -298,8 +307,6 @@ func (r *Result) check() (warnings []string, err error) {
 		return nil, errors.New("id: over 256 characters")
 	case r.Title == "":
 		return nil, errors.New("title: missing")
-	case len(r.Formats) == 0:
-		return nil, errors.New("formats: none; a result needs at least one")
 	}
 	r.Authors = slices.DeleteFunc(r.Authors, func(a string) bool { return strings.TrimSpace(a) == "" })
 	for i := range r.Formats {

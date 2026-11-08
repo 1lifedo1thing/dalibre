@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/app/icons"
 	"dalibre/internal/app/theme"
 	"dalibre/internal/app/widgets"
@@ -28,9 +29,9 @@ func (a *App) catalogsNav(c *ui.Context) {
 	}
 	open := a.sectionsOn[key]
 	ui.Column(c.Key(key)).Gap(theme.Space2).AlignItems(ui.Stretch).Children(func() {
-		h := ui.ButtonBase(c).Height(24).Padding(0, theme.Space8).AlignItems(ui.Center).Radius(theme.RadiusXS).Label("OPDS catalogs")
+		h := ui.ButtonBase(c).Height(24).Padding(0, theme.Space8).AlignItems(ui.Center).Radius(theme.RadiusXS).Label(locales.CatalogSectionLabel())
 		h.OnClick(func() { a.sectionsOn[key] = !a.sectionsOn[key] }).Children(func() {
-			widgets.Overline(c, "OPDS CATALOGS").Grow(1)
+			widgets.Overline(c, locales.CatalogSectionTitle()).Grow(1)
 			chev := icons.ChevronDown
 			if !open {
 				chev = icons.ChevronRight
@@ -50,13 +51,13 @@ func (a *App) catalogsNav(c *ui.Context) {
 			a.navItem(c, "catalog:"+id, icons.Rss, cat.Name, 0, a.page == pageCatalog && a.cp.id == id, col, func() { a.openCatalog(id) })
 		}
 		muted := pal().IconMuted
-		add := ui.ButtonBase(c.Key("catalog:add")).Height(30).Radius(theme.RadiusSM).Padding(0, theme.Space8).Gap(theme.Space8).AlignItems(ui.Center).Justify(ui.Start).Label("Add catalog…")
+		add := ui.ButtonBase(c.Key("catalog:add")).Height(30).Radius(theme.RadiusSM).Padding(0, theme.Space8).Gap(theme.Space8).AlignItems(ui.Center).Justify(ui.Start).Label(locales.CatalogAdd())
 		if add.Hovered() {
 			add.Background(pal().Hover)
 		}
 		add.OnClick(func() { a.openCatalogSheet("") }).Children(func() {
 			ui.Icon(c, icons.Plus).FontSize(16).TextColor(muted)
-			ui.Text(c, "Add catalog…").TextColor(pal().TextTertiary).SingleLine()
+			ui.Text(c, locales.CatalogAdd()).TextColor(pal().TextTertiary).SingleLine()
 		})
 	})
 }
@@ -66,12 +67,12 @@ func (a *App) catalogsNav(c *ui.Context) {
 func (a *App) settingsNav(c *ui.Context) {
 	ui.Column(c).Padding(0, theme.Space8, theme.Space8, theme.Space8).Gap(theme.Space2).AlignItems(ui.Stretch).Children(func() {
 		if st := a.share; st != nil && a.settings.OPDS.Share.On {
-			label, col := "Sharing over OPDS", pal().Success.FG
+			label, col := locales.CatalogSharing(), pal().Success.FG
 			switch {
 			case st.err != nil:
-				label, col = "Couldn’t share over OPDS", pal().Danger.FG
+				label, col = locales.CatalogShareFailed(), pal().Danger.FG
 			case st.server == nil:
-				label, col = "Starting to share…", pal().IconMuted
+				label, col = locales.CatalogShareStarting(), pal().IconMuted
 			}
 			row := ui.ButtonBase(c.Key("sharing")).Height(30).Radius(theme.RadiusSM).Padding(0, theme.Space8).Gap(theme.Space8).AlignItems(ui.Center).Label(label)
 			if a.share.server != nil {
@@ -85,13 +86,13 @@ func (a *App) settingsNav(c *ui.Context) {
 				ui.Text(c, label).FontSize(12).FontWeight(500).Grow(1).SingleLine()
 			})
 		}
-		row := ui.ButtonBase(c.Key("settings")).Height(30).Radius(theme.RadiusSM).Padding(0, theme.Space8).Gap(theme.Space8).AlignItems(ui.Center).Label("Settings")
+		row := ui.ButtonBase(c.Key("settings")).Height(30).Radius(theme.RadiusSM).Padding(0, theme.Space8).Gap(theme.Space8).AlignItems(ui.Center).Label(locales.CommonSettings())
 		if row.Hovered() {
 			row.Background(pal().Hover)
 		}
 		row.OnClick(func() { a.openSettings(a.section) }).Children(func() {
 			ui.Icon(c, icons.Settings).FontSize(16).TextColor(pal().Icon)
-			ui.Text(c, "Settings").Grow(1).SingleLine()
+			ui.Text(c, locales.CommonSettings()).Grow(1).SingleLine()
 			ui.Text(c, "⌘,").Font(theme.FontMono).FontSize(12).TextColor(pal().TextTertiary)
 		})
 	})
@@ -105,7 +106,7 @@ func (a *App) catalogToolbar(c *ui.Context) {
 		right += c.TitleBar().Right
 	}
 	p := a.catalogByID(a.cp.id)
-	title, sub := "Catalog", ""
+	title, sub := locales.CatalogTitleDefault(), ""
 	if n := len(a.cp.path); n > 0 {
 		title = a.cp.path[n-1].title
 	}
@@ -122,16 +123,16 @@ func (a *App) catalogToolbar(c *ui.Context) {
 				ui.Text(c, sub).Font(theme.FontMono).FontSize(12).TextColor(pal().TextTertiary).SingleLine()
 			}
 		})
-		if widgets.IconButton(c, icons.Settings, "Catalog settings", false).Clicked() {
+		if widgets.IconButton(c, icons.Settings, locales.CatalogSettingsTooltip(), false).Clicked() {
 			a.openSettings(sectionOPDS)
 		}
-		if widgets.IconButton(c, icons.PanelRight, "Details (Ctrl+Alt+I)", !a.settings.HideDetail).Clicked() {
+		if widgets.IconButton(c, icons.PanelRight, locales.GetBooksDetailsTooltip(), !a.settings.HideDetail).Clicked() {
 			a.settings.HideDetail = !a.settings.HideDetail
 			a.saveSettings()
 		}
 		if p != nil {
 			ui.Box(c).Size(1, 20).Background(pal().Border).Margin(0, theme.Space4)
-			if widgets.Button(c, widgets.Secondary, icons.Refresh, "Refresh").Clicked() {
+			if widgets.Button(c, widgets.Secondary, icons.Refresh, locales.CatalogRefresh()).Clicked() {
 				a.retryFeed()
 			}
 		}
@@ -143,7 +144,7 @@ func (a *App) catalogToolbar(c *ui.Context) {
 func (a *App) catalogContent(c *ui.Context) {
 	p := a.catalogByID(a.cp.id)
 	if p == nil {
-		a.getBooksPrompt(c, icons.Rss, "This catalog was removed", "")
+		a.getBooksPrompt(c, icons.Rss, locales.CatalogRemoved(), "")
 		return
 	}
 	st := a.catalogStatus[a.cp.id]
@@ -152,7 +153,7 @@ func (a *App) catalogContent(c *ui.Context) {
 		ui.Row(c).Gap(theme.Space12).AlignItems(ui.Center).Children(func() {
 			a.breadcrumb(c)
 			if st != nil && st.searchable {
-				f := ui.SearchField(c, &a.cp.text).Placeholder("Search " + p.Manifest.Name).Label("Search " + p.Manifest.Name).Width(280)
+				f := ui.SearchField(c, &a.cp.text).Placeholder(locales.GetBooksSearchSource(p.Manifest.Name)).Label(locales.GetBooksSearchSource(p.Manifest.Name)).Width(280)
 				if f.Submitted() {
 					a.catalogSearch()
 				}
@@ -165,13 +166,13 @@ func (a *App) catalogContent(c *ui.Context) {
 	switch {
 	case fs == nil || fs.loading:
 		ui.Column(c).Grow(1).Center().Gap(theme.Space12).Children(func() {
-			ui.Spinner(c).Size(24, 24).Label("Loading")
-			ui.Textf(c, "Reading %s…", p.Manifest.Name).TextColor(pal().TextSecondary)
+			ui.Spinner(c).Size(24, 24).Label(locales.CommonLoading())
+			ui.Text(c, locales.CatalogReading(p.Manifest.Name)).TextColor(pal().TextSecondary)
 		})
 	case fs.err != nil:
 		a.feedProblem(c, p, fs.err)
 	case len(fs.entries) == 0:
-		a.getBooksPrompt(c, icons.Rss, "Nothing here", "This part of the catalog is empty.")
+		a.getBooksPrompt(c, icons.Rss, locales.CatalogEmptyTitle(), locales.CatalogEmptyBody())
 	default:
 		ui.Scroll(c).Grow(1).MinHeight(0).Padding(0, theme.Space24, theme.Space24, theme.Space24).Gap(theme.Space4).AlignItems(ui.Stretch).Children(func() {
 			for i, e := range fs.entries {
@@ -184,9 +185,9 @@ func (a *App) catalogContent(c *ui.Context) {
 			ui.Row(c).Padding(theme.Space12, 0).Justify(ui.Center).Children(func() {
 				switch {
 				case fs.loadingMore:
-					ui.Spinner(c).Size(20, 20).Label("Loading more")
+					ui.Spinner(c).Size(20, 20).Label(locales.GetBooksLoadingMore())
 				case fs.next != "":
-					if widgets.Button(c, widgets.Ghost, nil, "Next page").Clicked() {
+					if widgets.Button(c, widgets.Ghost, nil, locales.CatalogNextPage()).Clicked() {
 						a.loadFeed(a.cp.path[len(a.cp.path)-1].url, true)
 					}
 				}
@@ -207,7 +208,7 @@ func (a *App) breadcrumb(c *ui.Context) {
 				ui.Text(c.Key(cr.url), cr.title).FontSize(13).FontWeight(500).SingleLine()
 				continue
 			}
-			b := ui.ButtonBase(c.Key(cr.url)).Padding(theme.Space2, theme.Space4).Radius(theme.RadiusXS).Label("Back to " + cr.title)
+			b := ui.ButtonBase(c.Key(cr.url)).Padding(theme.Space2, theme.Space4).Radius(theme.RadiusXS).Label(locales.GetBooksBackTo(cr.title))
 			if b.Hovered() {
 				b.Background(pal().Hover)
 			}
@@ -217,6 +218,9 @@ func (a *App) breadcrumb(c *ui.Context) {
 		}
 	})
 }
+
+// defaultFacetGroup is the group of facet links that name none.
+const defaultFacetGroup = "View"
 
 // facets are the feed's ways to sort or narrow it, a menu per group.
 func (a *App) facets(c *ui.Context, fs *feedState) {
@@ -229,7 +233,7 @@ func (a *App) facets(c *ui.Context, fs *feedState) {
 	for _, l := range links {
 		g := l.FacetGroup
 		if g == "" {
-			g = "View"
+			g = defaultFacetGroup
 		}
 		if byGroup[g] == nil {
 			groups = append(groups, g)
@@ -239,14 +243,18 @@ func (a *App) facets(c *ui.Context, fs *feedState) {
 	ui.Row(c).Gap(theme.Space8).AlignItems(ui.Center).Wrap().Children(func() {
 		for _, g := range groups {
 			ls := byGroup[g]
-			label := g
+			name := g
+			if g == defaultFacetGroup {
+				name = locales.CatalogFacetView()
+			}
+			label := name
 			for _, l := range ls {
 				if l.Active {
 					label = l.Title
 				}
 			}
 			b := ui.ButtonBase(c.Key(g)).Height(28).Padding(0, theme.Space8, 0, theme.Space10).Gap(theme.Space6).AlignItems(ui.Center).
-				Radius(theme.RadiusSM).Background(pal().Surface).Border(1, pal().Border).Label(g + ": " + label)
+				Radius(theme.RadiusSM).Background(pal().Surface).Border(1, pal().Border).Label(locales.GetBooksLabelValue(name, label))
 			b.PopoverMenuButton(func(m *ui.Menu) {
 				for _, l := range ls {
 					if m.Item(l.Title).ID(l.Href).Radio(l.Active).Chosen() {
@@ -311,12 +319,12 @@ func entryIcon(title string) *ui.SVG {
 func (a *App) feedProblem(c *ui.Context, p *plugin.Plugin, err error) {
 	kind := errKind(err)
 	ui.Column(c).Grow(1).Center().Gap(theme.Space12).Padding(theme.Space48).Children(func() {
-		ic, title, body := icons.Alert, p.Manifest.Name+" isn’t answering", errText(err)
+		ic, title, body := icons.Alert, locales.GetBooksSourceNotAnswering(p.Manifest.Name), errText(err)
 		switch kind {
 		case plugin.KindAuth:
-			ic, title, body = icons.Key, p.Manifest.Name+" asks you to sign in", "Add your username and password to the catalog in Settings › OPDS."
+			ic, title, body = icons.Key, locales.CatalogSignInTitle(p.Manifest.Name), locales.CatalogSignInBody()
 		case plugin.KindInvalid:
-			title = "Dalibre can’t read this part of " + p.Manifest.Name
+			title = locales.CatalogCantRead(p.Manifest.Name)
 		}
 		ui.Box(c).Size(48, 48).Radius(theme.RadiusFull).Background(pal().Subtle).Center().Children(func() {
 			ui.Icon(c, ic).FontSize(20).TextColor(pal().IconMuted)
@@ -325,11 +333,11 @@ func (a *App) feedProblem(c *ui.Context, p *plugin.Plugin, err error) {
 		ui.Text(c, body).FontSize(13).TextColor(pal().TextSecondary).TextAlign(ui.Center).MaxWidth(460)
 		ui.Row(c).Gap(theme.Space8).Margin(theme.Space8, 0, 0, 0).Children(func() {
 			if kind == plugin.KindAuth {
-				if widgets.Button(c, widgets.Primary, nil, "Sign in…").Clicked() {
+				if widgets.Button(c, widgets.Primary, nil, locales.CatalogSignIn()).Clicked() {
 					a.openCatalogSheet(a.cp.id)
 				}
 			}
-			if widgets.Button(c, widgets.Secondary, icons.Refresh, "Try again").Clicked() {
+			if widgets.Button(c, widgets.Secondary, icons.Refresh, locales.CommonTryAgain()).Clicked() {
 				a.retryFeed()
 			}
 		})

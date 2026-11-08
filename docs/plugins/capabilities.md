@@ -1,8 +1,9 @@
 # Plugin capabilities
 
-Status: rollout steps 1 and 2 are built (the Get books page, the book
+Status: rollout steps 1, 2 and 4 are built (the Get books page, the book
 source capability with filters, collections, `get`, and the built-in
-Project Gutenberg plugin); the rest is a proposal. Extends plugin API 1
+Project Gutenberg plugin; the metadata capability, `permissions.library`
+and the built-in NeoDB plugin); the rest is a proposal. Extends plugin API 1
 without breaking it; see [design.md](design.md) for the engine, sandbox
 and trust model, which this keeps as they are. Plugin authors read
 [README.md](README.md).
@@ -133,18 +134,32 @@ no filters and no collections, and works unchanged.
 
 ## Capability: Metadata
 
-calibre's metadata sources. Shows up as "Fetch details" in the edit
-metadata dialog and in the book menu.
+calibre's metadata sources. Shows up as **Fetch metadata** in the Edit
+metadata dialog (Figma, Screens › 04 · Edit metadata, "Fetch metadata").
 
 | Export | Returns |
 |---|---|
-| `identify(book)` | `Result[]` candidates, best first |
-| `cover(book)` | an image URL (optional) |
+| `identify(book)` | candidates, best first, at most 20: `Result`s without `formats` |
 
-`book` is only what the user asked to look up: title, authors,
-identifiers, language. Dalibre shows the candidates side by side with
-the current values and writes only what the user accepts. Needs
+`book` is only what the user asked to look up: `{ title, authors,
+identifiers, language? }`, or what they typed in the step's search box
+(a title, or an ISBN as `identifiers.isbn`). The candidate's `cover` is
+an image URL on the plugin's hosts, fetched by Dalibre; there is no
+separate `cover` export. Dalibre shows the candidates next to the
+current values, one checkbox per field (on for fields that differ and
+the candidate fills), merges identifiers, and fills the form with what
+the user picks; only Save writes the library. Needs
 `permissions.library: "read"`.
+
+With several metadata plugins, the step searches all of them at once, or
+the one picked in its source menu; candidates are listed by plugin, then
+rank.
+
+Built in: **NeoDB** (`dalibre.neodb`, `plugins/neodb`): neodb.social's
+catalog API, no account. By NeoDB id or ISBN when the book has one
+(an ISBN search keeps only that edition), else by title and first
+author, ranked by title, then authors and language. Candidates carry
+NeoDB, Douban, Goodreads, Open Library and Google Books ids.
 
 ## Later capabilities
 
@@ -218,7 +233,8 @@ enforce it.
    All sources. Project Gutenberg rewritten on gutenberg.org's own OPDS
    catalog and built into Dalibre as `dalibre.gutenberg`.
 3. `dalibre.storage`, new setting types, keychain.
-4. Metadata capability with `permissions.library`.
+4. ✅ Metadata capability with `permissions.library`; Fetch metadata in
+   Edit metadata; NeoDB built in as `dalibre.neodb`.
 5. Index, restricted mode, updates.
 6. Actions and hooks.
 
@@ -237,4 +253,6 @@ Each step ships on its own and keeps earlier plugins working.
 | `internal/app/view_plugins.go` | the Plugins dialog and the permission dialog |
 | `internal/app/plugins.go` | loading (built-in and installed), consent, downloads |
 | `sdk/dalibre.d.ts`, `plugin.schema.json`, `README.md` | the contract |
-| Later: `internal/plugin/metadata.go` | `identify`, `cover` |
+| `internal/plugin/metadata.go` | `identify`: `Book`, candidates and their checks |
+| `internal/app/fetchmeta.go`, `view_fetchmeta.go` | the Fetch metadata step: search, candidates, comparison, apply |
+| `plugins/neodb` | the NeoDB metadata plugin |

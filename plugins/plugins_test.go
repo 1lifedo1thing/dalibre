@@ -2,6 +2,8 @@ package plugins
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -83,11 +85,7 @@ func TestGutenberg(t *testing.T) {
 		w.Header().Set("Content-Type", "application/epub+zip")
 		w.Write([]byte("PK epub"))
 	})
-	all := Builtin()
-	if len(all) != 1 {
-		t.Fatalf("%d built-in plugins", len(all))
-	}
-	p, err := plugin.LoadBuiltin(all[0], plugin.Options{Transport: serve{mux}})
+	p, err := plugin.LoadBuiltin(builtinFS(t, "gutenberg"), plugin.Options{Transport: serve{mux}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,5 +139,112 @@ func TestGutenberg(t *testing.T) {
 	}
 	if filepath.Ext(path) != ".epub" {
 		t.Fatalf("path %s", path)
+	}
+}
+
+// builtinFS is the built-in plugin in folder name.
+func builtinFS(t *testing.T, name string) fs.FS {
+	t.Helper()
+	sub, err := fs.Sub(files, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(Builtin()) != 2 {
+		t.Fatalf("%d built-in plugins", len(Builtin()))
+	}
+	return sub
+}
+
+const neodbThreeBody = `{"uuid":"7OGq","category":"book","title":"三体","orig_title":"三体","author":["Liu Cixin"],
+	"language":["zh"],"pub_house":"重庆出版社","pub_year":2008,"pub_month":1,"series":"中国科幻基石丛书","isbn":"9787536692930",
+	"tags":["科幻","小说"],"rating":8.6,"rating_count":1548,"pages":"302",
+	"description":"文化大革命如火如荼进行的同时。\r\n\u3000\u3000四光年外……",
+	"cover_image_url":"https://neodb.social/m/item/a.jpg",
+	"external_resources":[{"url":"https://book.douban.com/subject/2567698/"},{"url":"https://www.goodreads.com/book/show/9574008"}]}`
+
+const neodbSequel = `{"uuid":"4nl4","category":"book","title":"三体3","orig_title":"三体","author":["刘慈欣"],
+	"cover_image_url":"https://neodb.social/s/img/missing.png"}`
+
+func TestNeoDB(t *testing.T) {
+	var queries []string
+	mux := http.NewServeMux()
+	mux.HandleFunc("neodb.social/api/catalog/search", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query().Get("query")
+		queries = append(queries, q)
+		if r.URL.Query().Get("category") != "book" {
+			t.Errorf("category %q", r.URL.Query().Get("category"))
+		}
+		switch q {
+		case "9787536692930":
+			w.Write([]byte(`{"data":[` + neodbThreeBody + `],"pages":1,"count":1}`))
+		case "三体 刘慈欣":
+			w.Write([]byte(`{"data":[` + neodbSequel + `],"pages":1,"count":1}`))
+		case "三体":
+			w.Write([]byte(`{"data":[` + neodbSequel + `,` + neodbThreeBody + `,{"uuid":"x","category":"movie"}],"pages":1,"count":3}`))
+		case "busy":
+			w.WriteHeader(429)
+		default:
+			w.Write([]byte(`{"data":[],"pages":0,"count":0}`))
+		}
+	})
+	mux.HandleFunc("neodb.social/api/book/7OGq", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(neodbThreeBody)) })
+	mux.HandleFunc("neodb.social/api/book/gone000000", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(404) })
+	p, err := plugin.LoadBuiltin(builtinFS(t, "neodb"), plugin.Options{Transport: serve{mux}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	if p.Manifest.ID != "dalibre.neodb" || !p.Manifest.IsMetadataSource() || p.Manifest.IsBookSource() {
+		t.Fatalf("manifest %+v", p.Manifest)
+	}
+	ctx := context.Background()
+
+	// By title and author: the exact title first, though its author is written differently.
+	got, err := p.Identify(ctx, plugin.Book{Title: "三体", Authors: []string{"刘慈欣"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].ID != "7OGq" || got[1].ID != "4nl4" {
+		t.Fatalf("candidates %+v", got)
+	}
+	if strings.Join(queries, "|") != "三体 刘慈欣|三体" {
+		t.Errorf("queries %q", queries)
+	}
+	c := got[0]
+	if c.Title != "三体" || c.Authors[0] != "Liu Cixin" || c.Publisher != "重庆出版社" || c.Pubdate != "2008-01" || c.Language != "zh" ||
+		c.Series != "中国科幻基石丛书" || len(c.Tags) != 2 || c.Cover != "https://neodb.social/m/item/a.jpg" || c.URL != "https://neodb.social/book/7OGq" {
+		t.Fatalf("candidate %+v", c)
+	}
+	if c.Identifiers["isbn"] != "9787536692930" || c.Identifiers["douban"] != "2567698" || c.Identifiers["goodreads"] != "9574008" || c.Identifiers["neodb"] != "7OGq" {
+		t.Errorf("identifiers %v", c.Identifiers)
+	}
+	if c.Description != "文化大革命如火如荼进行的同时。\n四光年外……" {
+		t.Errorf("description %q", c.Description)
+	}
+	if got[1].Cover != "" {
+		t.Errorf("missing cover kept: %q", got[1].Cover)
+	}
+
+	// By ISBN: one search, the edition only.
+	queries = nil
+	got, err = p.Identify(ctx, plugin.Book{Title: "whatever", Identifiers: map[string]string{"isbn": "978-7-5366-9293-0"}})
+	if err != nil || len(got) != 1 || got[0].ID != "7OGq" || len(queries) != 1 {
+		t.Fatalf("by isbn: %v %+v %q", err, got, queries)
+	}
+
+	// By NeoDB id, and falling back when it is gone.
+	got, err = p.Identify(ctx, plugin.Book{Identifiers: map[string]string{"neodb": "7OGq000000"}})
+	if err != nil || len(got) != 0 {
+		t.Errorf("unknown id: %v %+v", err, got)
+	}
+	queries = nil
+	got, err = p.Identify(ctx, plugin.Book{Title: "nothing", Identifiers: map[string]string{"neodb": "gone000000"}})
+	if err != nil || len(got) != 0 || len(queries) != 1 {
+		t.Errorf("gone id: %v %+v %q", err, got, queries)
+	}
+
+	var pe *plugin.Error
+	if _, err := p.Identify(ctx, plugin.Book{Title: "busy"}); !errors.As(err, &pe) || pe.Kind != plugin.KindRateLimited {
+		t.Errorf("rate limited: %v", err)
 	}
 }

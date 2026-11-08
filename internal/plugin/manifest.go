@@ -10,10 +10,11 @@
 // field by field before the host uses it.
 //
 // A plugin declares what it adds to Dalibre in its manifest's
-// capabilities. API version 1 has one, "bookSource" ("source" in the
-// array form): a plugin that searches and browses a catalogue and says
-// where a book's file is; the host downloads it. Dalibre shows every
-// book source in its Get books page; plugins never draw UI.
+// capabilities. API version 1 has two: "bookSource" ("source" in the
+// array form), a plugin that searches and browses a catalogue and says
+// where a book's file is (the host downloads it), shown in the Get books
+// page; and "metadata", a plugin that looks up a book's details for the
+// Edit metadata dialog's Fetch metadata. Plugins never draw UI.
 package plugin
 
 import (
@@ -80,7 +81,16 @@ type Permissions struct {
 	// server at home. Without it those addresses are refused, whatever
 	// a listed host resolves to.
 	LocalNetwork bool `json:"localNetwork,omitempty"`
+	// Library is what the plugin sees of the user's library: LibraryRead
+	// lets it see the books it is asked to look up (their title, authors,
+	// identifiers and language), which a metadata plugin needs.
+	Library string `json:"library,omitempty"`
 }
+
+// Library access a plugin may ask for.
+const (
+	LibraryRead = "read"
+)
 
 // Setting is a value the user gives a plugin, as an API key.
 type Setting struct {
@@ -97,6 +107,22 @@ type Setting struct {
 // ["source"].
 type Capabilities struct {
 	BookSource *BookSource `json:"bookSource,omitempty"`
+	Metadata   *Metadata   `json:"metadata,omitempty"`
+}
+
+// Metadata looks up books' details for the Edit metadata dialog. The
+// plugin exports identify(book), which returns candidates, best first;
+// Dalibre shows them next to the book's values and writes only the
+// fields the user picks. It needs permissions.library "read".
+type Metadata struct {
+	// Fields are those the source can fill, as MetadataFields names them;
+	// shown to the user. Empty means it doesn't say.
+	Fields []string `json:"fields,omitempty"`
+}
+
+// MetadataFields are the fields a metadata source may declare.
+var MetadataFields = []string{
+	"title", "authors", "series", "tags", "publisher", "pubdate", "language", "identifiers", "cover", "description",
 }
 
 // BookSource is a catalogue Dalibre's Get books page searches, browses and
@@ -136,6 +162,9 @@ func (c Capabilities) Names() []string {
 	if c.BookSource != nil {
 		out = append(out, "bookSource")
 	}
+	if c.Metadata != nil {
+		out = append(out, "metadata")
+	}
 	return out
 }
 
@@ -151,6 +180,10 @@ func (c *Capabilities) UnmarshalJSON(data []byte) error {
 			case "source", "bookSource":
 				if c.BookSource == nil {
 					c.BookSource = &BookSource{}
+				}
+			case "metadata":
+				if c.Metadata == nil {
+					c.Metadata = &Metadata{}
 				}
 			default:
 				return fmt.Errorf("unknown capability %q", n)
@@ -174,6 +207,9 @@ func (c *Capabilities) UnmarshalJSON(data []byte) error {
 
 // IsBookSource reports whether the plugin is a book source.
 func (m *Manifest) IsBookSource() bool { return m.Capabilities.BookSource != nil }
+
+// IsMetadataSource reports whether the plugin looks up books' metadata.
+func (m *Manifest) IsMetadataSource() bool { return m.Capabilities.Metadata != nil }
 
 // Filters are the book source's filters; none when it isn't one.
 func (m *Manifest) Filters() []Filter {
@@ -266,6 +302,22 @@ func (m *Manifest) check() error {
 		if err := checkFilters(m.Capabilities.BookSource.Filters); err != nil {
 			return fmt.Errorf("capabilities.bookSource.%w", err)
 		}
+	}
+	if md := m.Capabilities.Metadata; md != nil {
+		if len(m.Permissions.Hosts) == 0 {
+			return errors.New("a metadata source must list the hosts it reaches in permissions.hosts")
+		}
+		if m.Permissions.Library != LibraryRead {
+			return errors.New(`a metadata source sees the books it looks up: it needs permissions.library "read"`)
+		}
+		for _, f := range md.Fields {
+			if !slices.Contains(MetadataFields, f) {
+				return fmt.Errorf("capabilities.metadata.fields: %q isn’t one of %s", f, strings.Join(MetadataFields, ", "))
+			}
+		}
+	}
+	if l := m.Permissions.Library; l != "" && l != LibraryRead {
+		return fmt.Errorf(`permissions.library %q must be "read" (or left out)`, l)
 	}
 	for _, h := range m.Permissions.Hosts {
 		if !hostPattern.MatchString(h) || !strings.Contains(strings.TrimPrefix(h, "*."), ".") && h != "localhost" {
@@ -367,6 +419,9 @@ func (p Permissions) Covers(want Permissions) bool {
 	if want.LocalNetwork && !p.LocalNetwork {
 		return false
 	}
+	if want.Library != "" && p.Library != want.Library {
+		return false
+	}
 	for _, h := range want.Hosts {
 		if !slices.Contains(p.Hosts, h) {
 			return false
@@ -387,6 +442,9 @@ func (p Permissions) Describe() []string {
 	}
 	if p.LocalNetwork {
 		out = append(out, "Connect to this computer and your local network")
+	}
+	if p.Library == LibraryRead {
+		out = append(out, "See the title, authors and identifiers of books you look up with it")
 	}
 	return out
 }

@@ -9,20 +9,20 @@
     "id": {
       "description": "Unique, permanent id: lowercase letters, digits and '-', in dot-separated parts. Prefer a domain you own, reversed: \"com.example.books\".",
       "type": "string", "maxLength": 64,
-      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
     },
     "name": { "type": "string", "minLength": 1, "maxLength": 64 },
     "version": {
       "description": "Semantic version of the plugin.",
       "type": "string",
-      "pattern": "^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$"
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
     },
     "api": { "description": "The plugin API the plugin is written for.", "const": 1 },
     "description": { "type": "string" },
     "author": { "type": "string" },
     "homepage": { "type": "string", "format": "uri" },
     "license": { "description": "An SPDX identifier, as \"MIT\".", "type": "string" },
-    "main": { "description": "The script, relative to plugin.json. Default main.js.", "type": "string", "pattern": "\.js$" },
+    "main": { "description": "The script, relative to plugin.json. Default main.js.", "type": "string", "pattern": "\\.js$" },
     "icon": {
       "description": "The plugin's icon, from Dalibre's set.",
       "enum": ["globe", "library", "book-open", "database", "network", "building", "bookmark", "layers"]
@@ -30,7 +30,7 @@
     "capabilities": {
       "description": "What the plugin adds to Dalibre.",
       "oneOf": [
-        { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["source", "bookSource"] } },
+        { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["source", "bookSource", "metadata"] } },
         {
           "type": "object", "additionalProperties": false, "minProperties": 1,
           "properties": {
@@ -62,6 +62,17 @@
                   }
                 }
               }
+            },
+            "metadata": {
+              "description": "Looks up books' details for Fetch metadata in Edit metadata. Export identify; needs permissions.library \"read\".",
+              "type": "object", "additionalProperties": false,
+              "properties": {
+                "fields": {
+                  "description": "The fields the source can fill, shown to the user.",
+                  "type": "array", "uniqueItems": true,
+                  "items": { "enum": ["title", "authors", "series", "tags", "publisher", "pubdate", "language", "identifiers", "cover", "description"] }
+                }
+              }
             }
           }
         }
@@ -73,11 +84,15 @@
         "hosts": {
           "description": "Every host the plugin fetches or downloads from, redirects included. \"*.example.com\" matches subdomains.",
           "type": "array", "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$" }
+          "items": { "type": "string", "pattern": "^(\\*\\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$" }
         },
         "localNetwork": {
           "description": "Reach this computer and the local network, as a home OPDS server. Users are warned.",
           "type": "boolean"
+        },
+        "library": {
+          "description": "\"read\": see the title, authors, identifiers and language of the books the user looks up with the plugin. Metadata sources need it.",
+          "enum": ["read"]
         }
       }
     },

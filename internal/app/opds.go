@@ -15,6 +15,7 @@ import (
 
 	"github.com/egoist/mygo"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/calibre"
 	"dalibre/internal/opds"
 	"dalibre/internal/plugin"
@@ -77,13 +78,13 @@ type catalogStatus struct {
 func (s *catalogStatus) text() (string, string) {
 	switch {
 	case s == nil || s.checking:
-		return "Checking…", "muted"
+		return locales.OpdsChecking(), "muted"
 	case s.err == nil:
-		return "Connected", "success"
+		return locales.OpdsConnected(), "success"
 	case errKind(s.err) == plugin.KindAuth:
-		return "Needs sign-in", "warning"
+		return locales.OpdsNeedsSignIn(), "warning"
 	}
-	return "Can’t reach", "danger"
+	return locales.OpdsCantReach(), "danger"
 }
 
 func errKind(err error) plugin.ErrorKind {
@@ -102,7 +103,7 @@ func newCatalogSource(cat *settings.Catalog, password string, transport http.Rou
 	}
 	m := &plugin.Manifest{
 		ID: catalogPrefix + cat.ID, Name: cat.Name, Version: "1.0.0", API: plugin.APIVersion,
-		Description:  "OPDS catalog at " + host,
+		Description:  locales.OpdsCatalogDescription(host),
 		Capabilities: plugin.Capabilities{BookSource: &plugin.BookSource{}},
 		// A catalog's files and covers may be anywhere it links to; it
 		// reaches the local network only when the user said it is there.
@@ -218,7 +219,7 @@ func (a *App) saveCatalog(cat settings.Catalog, password string) {
 		}
 		a.post(func() {
 			if err != nil {
-				a.toastError(fmt.Errorf("Couldn’t keep the password in the keychain: %w", err))
+				a.toastError(errors.New(locales.OpdsKeychainError(err.Error())))
 			}
 			a.loadCatalogs()
 		})
@@ -266,7 +267,7 @@ func (a *App) probeCatalog(rawURL, user, password string) *catalogProbe {
 		defer cancel()
 		u, err := url.Parse(rawURL)
 		if err == nil && (u.Scheme != "http" && u.Scheme != "https" || u.Host == "") {
-			err = errors.New("give the catalog’s address, starting with http:// or https://")
+			err = errors.New(locales.OpdsAddressError())
 		}
 		var f *opds.Feed
 		local, searchable := false, false
@@ -356,10 +357,10 @@ func (a *App) catalogSearch() {
 		t, err := src.SearchTemplate(context.Background(), p.Fetcher())
 		a.post(func() {
 			if err != nil || t == "" {
-				a.toast("%s can’t search", p.Manifest.Name)
+				a.toast("%s", locales.OpdsCantSearch(p.Manifest.Name))
 				return
 			}
-			a.cp.path = append(a.cp.path[:1], crumb{title: "Search: " + text, url: opds.FillTemplate(t, text)})
+			a.cp.path = append(a.cp.path[:1], crumb{title: locales.OpdsSearchCrumb(text), url: opds.FillTemplate(t, text)})
 			a.loadFeed(a.cp.path[1].url, false)
 		})
 	})
@@ -478,7 +479,7 @@ func (a *App) applyShare() {
 				return
 			}
 			if err != nil {
-				st.err = fmt.Errorf("couldn’t share on port %d: %w", port, err)
+				st.err = errors.New(locales.OpdsSharePortError(strconv.Itoa(port), err.Error()))
 				return
 			}
 			st.server, st.opds = srv, o

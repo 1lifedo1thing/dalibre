@@ -203,7 +203,7 @@ Designed in Figma first (Screens › 05–07), built in `internal/app`:
    shelves from its collections, results with covers and formats, the
    detail panel filled by `get`, download per format. "In library" by
    identifier.
-2. **Downloads** in the jobs popover beside conversions: progress,
+2. **Downloads** in the jobs popover: progress,
    cancel, retry, show in library; error kinds turned into what to do.
 3. **Plugins** dialog (from the picker's "Get more sources…" and the
    source's settings button): every plugin found (built in, on, off,

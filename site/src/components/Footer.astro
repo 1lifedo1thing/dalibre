@@ -1,0 +1,80 @@
+---
+interface Props {
+  /** The page's content width, so the footer lines up with it. */
+  width?: string;
+}
+const { width = "max-w-6xl" } = Astro.props;
+
+type Link = { label: string; href: string };
+const columns: { title: string; links: Link[] }[] = [
+  {
+    title: "Product",
+    links: [
+      { label: "Plugins", href: "/#plugins" },
+      { label: "Send to device", href: "/#devices" },
+      { label: "calibre compatibility", href: "/#calibre" },
+      { label: "Docs", href: "/docs/" },
+    ],
+  },
+  {
+    title: "Contact",
+    links: [
+      { label: "X", href: "https://x.com/randyloop" },
+      { label: "Telegram", href: "https://t.me/djyde" },
+      { label: "GitHub", href: "https://github.com/djyde/dalibre" },
+      { label: "hi@taonan.lu", href: "mailto:hi@taonan.lu" },
+    ],
+  },
+];
+const external = (href: string) => (href.startsWith("http") ? { target: "_blank", rel: "noopener" } : {});
+---
+
+<footer class="border-t border-sand-4 text-sm">
+  <div class:list={["mx-auto px-5", width]}>
+    <div class="grid gap-12 py-14 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
+      <div>
+        <a href="/" class="inline-flex items-center gap-2 font-medium tracking-tight">
+          <img src="/icon.png" alt="" class="size-7" />
+          Dalibre
+        </a>
+        <p class="mt-3 max-w-[16rem] leading-relaxed text-sand-11">
+          A lighter home for your calibre library.
+        </p>
+      </div>
+
+      {
+        columns.map((col) => (
+          <nav aria-label={col.title}>
+            <p class="text-xs font-medium text-ink">{col.title}</p>
+            <ul class="mt-4 space-y-2.5">
+              {col.links.map((l) => (
+                <li>
+                  <a href={l.href} class="text-sand-11 transition-colors hover:text-ink" {...external(l.href)}>
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))
+      }
+
+      <div>
+        <p class="text-xs font-medium text-ink">More apps</p>
+        <ul class="mt-4">
+          <li>
+            <a href="https://nowdex.app" target="_blank" rel="noopener" class="text-sand-11 transition-colors hover:text-ink">
+              Nowdex
+            </a>
+            <p class="mt-0.5 text-xs leading-relaxed text-sand-9">Your AI quotas on every screen</p>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-2 border-t border-sand-4 py-6 text-xs text-sand-9 sm:flex-row sm:justify-between">
+      <span>© {new Date().getFullYear()} Dalibre</span>
+      <span>calibre is a separate project by Kovid Goyal. Dalibre is not affiliated with it.</span>
+    </div>
+  </div>
+</footer>

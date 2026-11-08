@@ -18,6 +18,9 @@ type Settings struct {
 	HideDetail bool     `json:"hideDetail"`
 	Sort       int      `json:"sort"`
 	Descending bool     `json:"descending"`
+	// Language is the language the user chose Dalibre to show, a tag of
+	// its catalogs; "" follows the system's.
+	Language string `json:"language,omitempty"`
 	// GetBooksSource is the source Get books searched last: a plugin id,
 	// or "*" for all.
 	GetBooksSource string `json:"getBooksSource,omitempty"`
@@ -28,8 +31,23 @@ type Settings struct {
 	UpdatesChecked time.Time `json:"updatesChecked,omitzero"`
 	// OPDS is the catalogs the user added and sharing the library.
 	OPDS OPDS `json:"opds,omitzero"`
+	// AppUpdates is how Dalibre keeps itself up to date.
+	AppUpdates AppUpdates `json:"appUpdates,omitzero"`
 
 	path string
+}
+
+// AppUpdates is what the user chose about new versions of Dalibre.
+type AppUpdates struct {
+	// Manual turns the automatic checks off.
+	Manual bool `json:"manual,omitempty"`
+	// Beta offers prereleases too.
+	Beta bool `json:"beta,omitempty"`
+	// Checked is when the last check succeeded.
+	Checked time.Time `json:"checked,omitzero"`
+	// Skipped is the version the user chose to skip: automatic checks
+	// don't offer it again.
+	Skipped string `json:"skipped,omitempty"`
 }
 
 // OPDS is what the user set up of OPDS. Passwords aren't here: they are
@@ -116,6 +134,7 @@ type PluginSource struct {
 type Grant struct {
 	Hosts        []string `json:"hosts"`
 	LocalNetwork bool     `json:"localNetwork,omitempty"`
+	Library      string   `json:"library,omitempty"`
 }
 
 // Plugin returns the state of plugin id, creating it.

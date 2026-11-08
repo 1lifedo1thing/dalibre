@@ -1,10 +1,11 @@
 package app
 
 import (
-	"fmt"
+	"errors"
 	"maps"
 	"slices"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/plugin"
 )
 
@@ -106,7 +107,7 @@ func (a *App) savePluginValues(m *plugin.Manifest, values map[string]string, don
 		}
 		a.post(func() {
 			if err != nil {
-				a.toastError(fmt.Errorf("Couldn’t save %s’s password in the system’s keychain: %w", m.Name, err))
+				a.toastError(errors.New(locales.PluginsKeychainFailed(m.Name, err.Error())))
 				return
 			}
 			a.settings.Plugin(m.ID).Values = plain

@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/app/icons"
 	"dalibre/internal/app/theme"
 	"dalibre/internal/app/widgets"
@@ -41,9 +42,28 @@ func pluginIcon(m *plugin.Manifest) *ui.SVG {
 }
 
 // formatPurpose says what a format is for, beside its badge.
-var formatPurpose = map[string]string{
-	"EPUB": "Most e-readers", "KEPUB": "Kobo", "AZW3": "Kindle", "MOBI": "Older Kindles", "PDF": "Fixed layout",
-	"TXT": "Plain text", "FB2": "FictionBook", "CBZ": "Comics", "DJVU": "Scans",
+func formatPurpose(format string) string {
+	switch format {
+	case "EPUB":
+		return locales.GetBooksPurposeEpub()
+	case "KEPUB":
+		return locales.GetBooksPurposeKepub()
+	case "AZW3":
+		return locales.GetBooksPurposeAzw3()
+	case "MOBI":
+		return locales.GetBooksPurposeMobi()
+	case "PDF":
+		return locales.GetBooksPurposePdf()
+	case "TXT":
+		return locales.GetBooksPurposeTxt()
+	case "FB2":
+		return locales.GetBooksPurposeFb2()
+	case "CBZ":
+		return locales.GetBooksPurposeCbz()
+	case "DJVU":
+		return locales.GetBooksPurposeDjvu()
+	}
+	return ""
 }
 
 // optionTitle names a filter option: its title, or a language's name.
@@ -56,7 +76,7 @@ func optionTitle(f plugin.Filter, o plugin.Option) string {
 			return languageName(code)
 		}
 		if o.Value == "" {
-			return "Any language"
+			return locales.GetBooksAnyLanguage()
 		}
 	}
 	return o.Value
@@ -67,7 +87,7 @@ func optionTitle(f plugin.Filter, o plugin.Option) string {
 // getBooksNav is the sidebar's Get books entry, in a group of its own.
 func (a *App) getBooksNav(c *ui.Context) {
 	ui.Column(c).Gap(theme.Space2).AlignItems(ui.Stretch).Children(func() {
-		a.navItem(c, "getbooks", icons.Download, "Get books", 0, a.page == pageGetBooks, nil, a.openGetBooks)
+		a.navItem(c, "getbooks", icons.Download, locales.CommonGetBooks(), 0, a.page == pageGetBooks, nil, a.openGetBooks)
 	})
 }
 
@@ -84,19 +104,19 @@ func (a *App) getBooksToolbar(c *ui.Context) {
 		one = srcs[0]
 	}
 	ui.Row(c).Height(theme.ToolbarHeight).Padding(0, right, 0, theme.Space32).Gap(theme.Space8).AlignItems(ui.Center).DragWindow().Children(func() {
-		ui.Text(c, "Get books").FontWeight(600).FontSize(22).LetterSpacing(-0.4).SingleLine().Grow(1)
+		ui.Text(c, locales.CommonGetBooks()).FontWeight(600).FontSize(22).LetterSpacing(-0.4).SingleLine().Grow(1)
 		if one != nil {
-			if widgets.IconButton(c, icons.Sliders, one.Manifest.Name+" settings", false).Clicked() {
+			if widgets.IconButton(c, icons.Sliders, locales.GetBooksSourceSettings(one.Manifest.Name), false).Clicked() {
 				a.openPlugins(one.Manifest.ID)
 			}
 		}
-		if widgets.IconButton(c, icons.PanelRight, "Details (Ctrl+Alt+I)", !a.settings.HideDetail).Clicked() {
+		if widgets.IconButton(c, icons.PanelRight, locales.GetBooksDetailsTooltip(), !a.settings.HideDetail).Clicked() {
 			a.settings.HideDetail = !a.settings.HideDetail
 			a.saveSettings()
 		}
 		if one != nil && one.Manifest.Homepage != "" {
 			ui.Box(c).Size(1, 20).Background(pal().Border).Margin(0, theme.Space4)
-			if widgets.Button(c, widgets.Secondary, icons.External, "Open site").Tooltip(one.Manifest.Homepage).Clicked() {
+			if widgets.Button(c, widgets.Secondary, icons.External, locales.GetBooksOpenSite()).Tooltip(one.Manifest.Homepage).Clicked() {
 				openURL(one.Manifest.Homepage)
 			}
 		}
@@ -111,11 +131,11 @@ func (a *App) getBooksContent(c *ui.Context) {
 	ui.Column(c).Padding(0, theme.Space32, theme.Space12, theme.Space32).Gap(theme.Space12).AlignItems(ui.Stretch).Children(func() {
 		ui.Row(c).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
 			a.sourcePicker(c)
-			placeholder := "Search every source"
+			placeholder := locales.GetBooksSearchAll()
 			if g.source != allSources && len(srcs) == 1 {
-				placeholder = "Search " + srcs[0].Manifest.Name
+				placeholder = locales.GetBooksSearchSource(srcs[0].Manifest.Name)
 			}
-			f := ui.SearchField(c, &g.text).Placeholder(placeholder).Label("Search books to get").Grow(1).Bind(&g.focus)
+			f := ui.SearchField(c, &g.text).Placeholder(placeholder).Label(locales.GetBooksSearchLabel()).Grow(1).Bind(&g.focus)
 			if f.Submitted() {
 				a.gbSearch()
 			}
@@ -127,7 +147,7 @@ func (a *App) getBooksContent(c *ui.Context) {
 	})
 	switch {
 	case len(a.sources()) == 0 && a.pluginsLoading:
-		ui.Column(c).Grow(1).Center().Children(func() { ui.Spinner(c).Size(24, 24).Label("Loading plugins") })
+		ui.Column(c).Grow(1).Center().Children(func() { ui.Spinner(c).Size(24, 24).Label(locales.GetBooksLoadingPlugins()) })
 	case len(a.sources()) == 0:
 		a.noSources(c)
 	case g.source == allSources:
@@ -141,18 +161,18 @@ func (a *App) getBooksContent(c *ui.Context) {
 // every book source, with what each holds and whether it is set up.
 func (a *App) sourcePicker(c *ui.Context) {
 	g := &a.gb
-	label, icon := "All sources", icons.Layers
+	label, icon := locales.CommonAllSources(), icons.Layers
 	if p := a.pluginByID(g.source); p != nil && g.source != allSources {
 		label, icon = p.Manifest.Name, pluginIcon(p.Manifest)
 	}
 	b := ui.ButtonBase(c).Width(220).Height(theme.ControlM).Padding(0, theme.Space8, 0, theme.Space10).Gap(theme.Space8).AlignItems(ui.Center).
-		Radius(theme.RadiusSM).Background(pal().Surface).Border(1, pal().Border).Label("Source: " + label)
+		Radius(theme.RadiusSM).Background(pal().Surface).Border(1, pal().Border).Label(locales.GetBooksSourceLabel(label))
 	if b.Hovered() {
 		b.Border(1, pal().BorderStrong)
 	}
 	b.PopoverMenuButton(func(m *ui.Menu) {
 		m.MaxWidth(320)
-		if m.Item("All sources").Subtitle("Search every source at once").Icon(icons.Menu(icons.Layers)).Checked(g.source == allSources).Chosen() {
+		if m.Item(locales.CommonAllSources()).Subtitle(locales.GetBooksSearchAllAtOnce()).Icon(icons.Menu(icons.Layers)).Checked(g.source == allSources).Chosen() {
 			a.gbSetSource(allSources)
 		}
 		// A separator only between groups that have items: with every
@@ -170,19 +190,19 @@ func (a *App) sourcePicker(c *ui.Context) {
 			mf := p.Manifest
 			it := m.Item(mf.Name).ID(mf.ID).Subtitle(mf.Description).Icon(icons.Menu(pluginIcon(mf))).Checked(g.source == mf.ID)
 			if p.MissingSettings() != nil {
-				it.Trailing("Set up")
+				it.Trailing(locales.GetBooksSetUp())
 			}
 			if it.Chosen() {
 				a.gbSetSource(mf.ID)
 			}
 		}
 		for _, mf := range a.pluginsPending {
-			if mf.IsBookSource() && m.Item(mf.Name).ID("pending:"+mf.ID).Subtitle("Waiting for your permission").Icon(icons.Menu(pluginIcon(mf))).Trailing("Review").Chosen() {
+			if mf.IsBookSource() && m.Item(mf.Name).ID("pending:"+mf.ID).Subtitle(locales.GetBooksWaitingPermission()).Icon(icons.Menu(pluginIcon(mf))).Trailing(locales.GetBooksReview()).Chosen() {
 				a.askConsent(mf.ID)
 			}
 		}
 		m.Separator()
-		if m.Item("Get more sources…").Icon(icons.Menu(icons.Puzzle)).Chosen() {
+		if m.Item(locales.GetBooksGetMoreSources()).Icon(icons.Menu(icons.Puzzle)).Chosen() {
 			a.openPlugins("")
 		}
 	})
@@ -252,18 +272,22 @@ func (a *App) resultsCount(srcs []*plugin.Plugin) string {
 				answered++
 			}
 		}
-		return fmt.Sprintf("%d of %d %s answered", answered, len(srcs), plural(len(srcs), "source", "sources"))
+		return locales.GetBooksSourcesAnswered(answered, len(srcs))
 	}
 	if len(srcs) == 1 {
 		if l := a.gbList(srcs[0], g.collection); l != nil && l.page > 0 {
-			n := groupDigits(len(l.items))
-			if l.hasMore {
-				n += "+"
-			}
-			return n + " " + plural(len(l.items), "result", "results")
+			return resultCountText(len(l.items), l.hasMore)
 		}
 	}
 	return ""
+}
+
+// resultCountText is "12 results", or "12+ results" while more can be loaded.
+func resultCountText(n int, more bool) string {
+	if more {
+		return locales.GetBooksResultCountMore(n)
+	}
+	return locales.GetBooksResultCount(n)
 }
 
 // filterSelect is a filter's drop-down.
@@ -276,7 +300,7 @@ func (a *App) filterSelect(c *ui.Context, f plugin.Filter, value string, pick fu
 		}
 	}
 	b := ui.ButtonBase(c).Height(28).Padding(0, theme.Space8, 0, theme.Space10).Gap(theme.Space6).AlignItems(ui.Center).
-		Radius(theme.RadiusSM).Background(pal().Surface).Border(1, pal().Border).Label(f.Title + ": " + label)
+		Radius(theme.RadiusSM).Background(pal().Surface).Border(1, pal().Border).Label(locales.GetBooksLabelValue(f.Title, label))
 	if b.Hovered() {
 		b.Border(1, pal().BorderStrong)
 	}
@@ -316,7 +340,7 @@ func (a *App) sourceBody(c *ui.Context, p *plugin.Plugin) {
 			}
 		}
 		ui.Row(c).Padding(0, theme.Space32, theme.Space8, theme.Space24).Children(func() {
-			back := ui.ButtonBase(c).Padding(theme.Space2, theme.Space8, theme.Space2, theme.Space4).Gap(theme.Space2).Radius(theme.RadiusXS).AlignItems(ui.Center).Label("Back to " + p.Manifest.Name)
+			back := ui.ButtonBase(c).Padding(theme.Space2, theme.Space8, theme.Space2, theme.Space4).Gap(theme.Space2).Radius(theme.RadiusXS).AlignItems(ui.Center).Label(locales.GetBooksBackTo(p.Manifest.Name))
 			if back.Hovered() {
 				back.Background(pal().Hover)
 			}
@@ -334,7 +358,7 @@ func (a *App) sourceBody(c *ui.Context, p *plugin.Plugin) {
 	case p.Manifest.HasCollections():
 		a.browsePage(c, p)
 	default:
-		a.getBooksPrompt(c, pluginIcon(p.Manifest), "Search "+p.Manifest.Name, p.Manifest.Description)
+		a.getBooksPrompt(c, pluginIcon(p.Manifest), locales.GetBooksSearchSource(p.Manifest.Name), p.Manifest.Description)
 	}
 }
 
@@ -348,8 +372,8 @@ func (a *App) resultsList(c *ui.Context, p *plugin.Plugin, collection string) {
 			a.sourceProblem(c, p, sourceState(p, l.err), l.err, func() { a.gbRetry(p, collection) })
 		default:
 			ui.Column(c).Grow(1).Center().Gap(theme.Space12).Children(func() {
-				ui.Spinner(c).Size(24, 24).Label("Searching")
-				ui.Textf(c, "Searching %s…", p.Manifest.Name).TextColor(pal().TextSecondary)
+				ui.Spinner(c).Size(24, 24).Label(locales.CommonSearching())
+				ui.Text(c, locales.GetBooksSearchingSource(p.Manifest.Name)).TextColor(pal().TextSecondary)
 			})
 		}
 		return
@@ -365,14 +389,14 @@ func (a *App) resultsList(c *ui.Context, p *plugin.Plugin, collection string) {
 		ui.Row(c).Padding(theme.Space12, 0).Justify(ui.Center).Children(func() {
 			switch {
 			case l.loading:
-				ui.Spinner(c).Size(20, 20).Label("Loading more")
+				ui.Spinner(c).Size(20, 20).Label(locales.GetBooksLoadingMore())
 			case l.err != nil:
 				a.inlineProblem(c, p, l.err, func() {
 					l.err = nil
 					a.gbLoad(p, collection, true)
 				})
 			case l.hasMore:
-				if widgets.Button(c, widgets.Ghost, nil, "Show more results").Clicked() {
+				if widgets.Button(c, widgets.Ghost, nil, locales.GetBooksShowMore()).Clicked() {
 					a.gbLoad(p, collection, true)
 				}
 			}
@@ -440,13 +464,13 @@ func resultMeta(r plugin.Result) string {
 func (a *App) resultAction(c *ui.Context, p *plugin.Plugin, r plugin.Result, sel bool) {
 	src := p.Manifest.ID
 	if id := a.inLibrary(r); id != 0 {
-		b := ui.ButtonBase(c).Padding(theme.Space4, theme.Space6).Gap(theme.Space6).Radius(theme.RadiusSM).AlignItems(ui.Center).Label("In library: show " + r.Title)
+		b := ui.ButtonBase(c).Padding(theme.Space4, theme.Space6).Gap(theme.Space6).Radius(theme.RadiusSM).AlignItems(ui.Center).Label(locales.GetBooksInLibraryShow(r.Title))
 		if b.Hovered() {
 			b.Background(pal().Hover)
 		}
 		b.OnClick(func() { a.showInLibrary(id) }).Children(func() {
 			ui.Icon(c, icons.CheckCircle).FontSize(14).TextColor(pal().Success.FG)
-			ui.Text(c, "In library").FontSize(12).FontWeight(500).TextColor(pal().Success.FG)
+			ui.Text(c, locales.GetBooksInLibrary()).FontSize(12).FontWeight(500).TextColor(pal().Success.FG)
 		})
 		return
 	}
@@ -462,7 +486,7 @@ func (a *App) resultAction(c *ui.Context, p *plugin.Plugin, r plugin.Result, sel
 	if sel {
 		v = widgets.Primary
 	}
-	if widgets.ButtonSized(c, v, icons.Download, "Get "+format, theme.ControlS).Tooltip("Download " + format + " and add it to the library").Clicked() {
+	if widgets.ButtonSized(c, v, icons.Download, locales.GetBooksGetFormat(format), theme.ControlS).Tooltip(locales.GetBooksDownloadTooltip(format)).Clicked() {
 		a.getBook(p, a.gbFull(src, r), format)
 	}
 }
@@ -479,7 +503,7 @@ func (a *App) gbFormat(source string, r plugin.Result) string {
 // getBook downloads r as format into the library.
 func (a *App) getBook(p *plugin.Plugin, r plugin.Result, format string) {
 	if a.lib == nil {
-		a.toast("Open a library first")
+		a.toast("%s", locales.GetBooksOpenLibraryFirst())
 		return
 	}
 	a.downloadBook(p, r, format)
@@ -497,7 +521,7 @@ func (a *App) browsePage(c *ui.Context, p *plugin.Plugin) {
 	b := a.gb.browse[p.Manifest.ID]
 	switch {
 	case b == nil || b.loading:
-		ui.Column(c).Grow(1).Center().Children(func() { ui.Spinner(c).Size(24, 24).Label("Loading") })
+		ui.Column(c).Grow(1).Center().Children(func() { ui.Spinner(c).Size(24, 24).Label(locales.CommonLoading()) })
 		return
 	case b.err != nil:
 		a.sourceProblem(c, p, sourceState(p, b.err), b.err, func() {
@@ -506,7 +530,7 @@ func (a *App) browsePage(c *ui.Context, p *plugin.Plugin) {
 		})
 		return
 	case len(b.collections) == 0:
-		a.getBooksPrompt(c, pluginIcon(p.Manifest), "Search "+p.Manifest.Name, p.Manifest.Description)
+		a.getBooksPrompt(c, pluginIcon(p.Manifest), locales.GetBooksSearchSource(p.Manifest.Name), p.Manifest.Description)
 		return
 	}
 	ui.Scroll(c).Grow(1).MinHeight(0).Padding(theme.Space8, theme.Space32, theme.Space32, theme.Space32).Gap(theme.Space32).AlignItems(ui.Stretch).Children(func() {
@@ -522,9 +546,9 @@ func (a *App) shelf(c *ui.Context, p *plugin.Plugin, cl plugin.Collection, title
 	ui.Column(c).Gap(theme.Space12).AlignItems(ui.Stretch).Children(func() {
 		ui.Row(c).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, title).FontSize(15).FontWeight(600).Grow(1)
-			all := ui.ButtonBase(c).Padding(theme.Space2, theme.Space4).Radius(theme.RadiusXS).Label("See all: " + title)
+			all := ui.ButtonBase(c).Padding(theme.Space2, theme.Space4).Radius(theme.RadiusXS).Label(locales.GetBooksSeeAllTitle(title))
 			all.OnClick(func() { a.gbOpenCollection(p.Manifest.ID, cl.ID) }).Children(func() {
-				t := ui.Text(c, "See all").FontSize(12).FontWeight(500).TextColor(pal().TextAccent)
+				t := ui.Text(c, locales.CommonSeeAll()).FontSize(12).FontWeight(500).TextColor(pal().TextAccent)
 				if all.Hovered() {
 					t.Underline()
 				}
@@ -532,7 +556,7 @@ func (a *App) shelf(c *ui.Context, p *plugin.Plugin, cl plugin.Collection, title
 		})
 		switch {
 		case l == nil || l.page == 0 && l.err == nil:
-			ui.Row(c).Height(theme.CoverH + 44).Center().Children(func() { ui.Spinner(c).Size(20, 20).Label("Loading") })
+			ui.Row(c).Height(theme.CoverH + 44).Center().Children(func() { ui.Spinner(c).Size(20, 20).Label(locales.CommonLoading()) })
 		case l.err != nil:
 			a.inlineProblem(c, p, l.err, func() { a.gbRetry(p, cl.ID) })
 		default:
@@ -588,7 +612,7 @@ func (a *App) allSourcesBody(c *ui.Context, srcs []*plugin.Plugin) {
 			}
 		}
 		if len(browsing) == 0 {
-			a.getBooksPrompt(c, icons.Layers, "Search every source at once", "Results come in from each source as it answers.")
+			a.getBooksPrompt(c, icons.Layers, locales.GetBooksSearchAllAtOnce(), locales.GetBooksAllSourcesHint())
 			return
 		}
 		ui.Scroll(c).Grow(1).MinHeight(0).Padding(theme.Space8, theme.Space32, theme.Space32, theme.Space32).Gap(theme.Space32).AlignItems(ui.Stretch).Children(func() {
@@ -598,7 +622,7 @@ func (a *App) allSourcesBody(c *ui.Context, srcs []*plugin.Plugin) {
 					continue
 				}
 				cl := b.collections[0]
-				a.shelf(c.Key(p.Manifest.ID), p, cl, cl.Title+" · "+p.Manifest.Name)
+				a.shelf(c.Key(p.Manifest.ID), p, cl, locales.GetBooksShelfTitle(cl.Title, p.Manifest.Name))
 			}
 		})
 		return
@@ -623,14 +647,14 @@ func (a *App) sourceGroup(c *ui.Context, p *plugin.Plugin) {
 	ui.Row(c).Padding(theme.Space8, theme.Space4).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
 		ui.Icon(c, pluginIcon(m)).FontSize(16).TextColor(pal().Icon)
 		ui.Text(c, m.Name).FontSize(13).FontWeight(600)
-		link := func(label string, onClick func()) {
-			b := ui.ButtonBase(c).Padding(theme.Space2, theme.Space4).Gap(theme.Space2).Radius(theme.RadiusXS).AlignItems(ui.Center).Label(label + ": " + m.Name)
+		link := func(label string, chevron bool, onClick func()) {
+			b := ui.ButtonBase(c).Padding(theme.Space2, theme.Space4).Gap(theme.Space2).Radius(theme.RadiusXS).AlignItems(ui.Center).Label(locales.GetBooksLabelValue(label, m.Name))
 			b.OnClick(onClick).Children(func() {
 				t := ui.Text(c, label).FontSize(12).FontWeight(500).TextColor(pal().TextAccent)
 				if b.Hovered() {
 					t.Underline()
 				}
-				if label == "See all" {
+				if chevron {
 					ui.Icon(c, icons.ChevronRight).FontSize(12).TextColor(pal().TextAccent)
 				}
 			})
@@ -638,21 +662,17 @@ func (a *App) sourceGroup(c *ui.Context, p *plugin.Plugin) {
 		switch {
 		case kind == plugin.KindSettings || kind == plugin.KindAuth:
 			ui.Text(c, problemTitle(p, kind)).FontSize(12).TextColor(pal().Warning.FG).Grow(1).SingleLine()
-			link("Set up", func() { a.openPlugins(m.ID) })
+			link(locales.GetBooksSetUp(), false, func() { a.openPlugins(m.ID) })
 		case err != nil:
 			ui.Text(c, problemTitle(p, kind)).FontSize(12).TextColor(pal().Danger.FG).Grow(1).SingleLine()
-			link("Retry", func() { a.gbRetry(p, "") })
+			link(locales.CommonRetry(), false, func() { a.gbRetry(p, "") })
 		case l == nil || l.loading && l.page == 0:
-			ui.Spinner(c).Size(14, 14).Label("Searching")
-			ui.Text(c, "Searching…").FontSize(12).TextColor(pal().TextTertiary).Grow(1)
+			ui.Spinner(c).Size(14, 14).Label(locales.CommonSearching())
+			ui.Text(c, locales.GetBooksSearching()).FontSize(12).TextColor(pal().TextTertiary).Grow(1)
 		default:
-			n := groupDigits(len(l.items))
-			if l.hasMore {
-				n += "+"
-			}
-			ui.Text(c, n+" "+plural(len(l.items), "result", "results")).Font(theme.FontMono).FontSize(11).TextColor(pal().TextTertiary).Grow(1)
+			ui.Text(c, resultCountText(len(l.items), l.hasMore)).Font(theme.FontMono).FontSize(11).TextColor(pal().TextTertiary).Grow(1)
 			if len(l.items) > 0 {
-				link("See all", func() {
+				link(locales.CommonSeeAll(), true, func() {
 					a.gb.source = m.ID
 					a.settings.GetBooksSource = m.ID
 					a.saveSettings()
@@ -674,17 +694,36 @@ func (a *App) sourceGroup(c *ui.Context, p *plugin.Plugin) {
 func problemTitle(p *plugin.Plugin, kind plugin.ErrorKind) string {
 	switch kind {
 	case plugin.KindSettings:
-		return "Needs " + strings.Join(p.MissingSettings(), ", ")
+		return locales.GetBooksNeeds(strings.Join(p.MissingSettings(), ", "))
 	case plugin.KindAuth:
-		return "Needs you to sign in"
+		return locales.GetBooksNeedsSignIn()
 	case plugin.KindRateLimited:
-		return "Is busy; try again in a minute"
+		return locales.GetBooksIsBusy()
 	case plugin.KindUnavailable, plugin.KindTimeout:
-		return "Isn’t answering"
+		return locales.GetBooksIsntAnswering()
 	case plugin.KindNotFound:
-		return "Doesn’t have that"
+		return locales.GetBooksDoesntHaveThat()
 	}
-	return "The plugin failed"
+	return locales.GetBooksPluginFailedShort()
+}
+
+// problemSentence is problemTitle as a sentence about the source, for the
+// banner above a list.
+func problemSentence(p *plugin.Plugin, kind plugin.ErrorKind) string {
+	name := p.Manifest.Name
+	switch kind {
+	case plugin.KindSettings:
+		return locales.GetBooksInlineNeeds(name, strings.Join(p.MissingSettings(), ", "))
+	case plugin.KindAuth:
+		return locales.GetBooksInlineNeedsSignIn(name)
+	case plugin.KindRateLimited:
+		return locales.GetBooksInlineBusy(name)
+	case plugin.KindUnavailable, plugin.KindTimeout:
+		return locales.GetBooksInlineNotAnswering(name)
+	case plugin.KindNotFound:
+		return locales.GetBooksInlineDoesntHaveThat(name)
+	}
+	return locales.GetBooksInlinePluginFailed(name)
 }
 
 // sourceProblem fills the page with why a source can't be used, and what
@@ -693,22 +732,22 @@ func (a *App) sourceProblem(c *ui.Context, p *plugin.Plugin, kind plugin.ErrorKi
 	m := p.Manifest
 	ui.Column(c).Grow(1).Center().Gap(theme.Space12).Padding(theme.Space48).Children(func() {
 		ic := icons.Alert
-		title, body := m.Name+" isn’t answering", "Check your connection, or try again in a while."
+		title, body := locales.GetBooksSourceNotAnswering(m.Name), locales.GetBooksCheckConnection()
 		if msg := errText(err); msg != "" {
 			body = msg // what the plugin knows is wrong beats a guess
 		}
 		switch kind {
 		case plugin.KindSettings, plugin.KindAuth:
 			ic = icons.Key
-			title = m.Name + " needs setting up"
-			body = "Fill in " + strings.Join(p.MissingSettings(), ", ") + " in the plugin’s settings, then search again."
+			title = locales.GetBooksSourceNeedsSetup(m.Name)
+			body = locales.GetBooksFillInSettings(strings.Join(p.MissingSettings(), ", "))
 			if kind == plugin.KindAuth {
-				body = "It refused the account or key in its settings: " + errText(err)
+				body = locales.GetBooksAuthRefused(errText(err))
 			}
 		case plugin.KindRateLimited:
-			title, body = m.Name+" is busy", "It asked to slow down. Try again in a minute."
+			title, body = locales.GetBooksSourceBusy(m.Name), locales.GetBooksSlowDown()
 		case plugin.KindInvalid, plugin.KindScript, plugin.KindPermission:
-			title, body = "The "+m.Name+" plugin failed", errText(err)
+			title, body = locales.GetBooksPluginFailed(m.Name), errText(err)
 		}
 		ui.Box(c).Size(48, 48).Radius(theme.RadiusFull).Background(pal().Subtle).Center().Children(func() {
 			ui.Icon(c, ic).FontSize(20).TextColor(pal().IconMuted)
@@ -716,11 +755,11 @@ func (a *App) sourceProblem(c *ui.Context, p *plugin.Plugin, kind plugin.ErrorKi
 		ui.Text(c, title).FontWeight(600).FontSize(16).TextAlign(ui.Center)
 		ui.Text(c, body).FontSize(13).TextColor(pal().TextSecondary).TextAlign(ui.Center).MaxWidth(420)
 		if kind == plugin.KindSettings || kind == plugin.KindAuth {
-			if widgets.Button(c, widgets.Primary, nil, "Open plugin settings").Margin(theme.Space8, 0, 0, 0).Clicked() {
+			if widgets.Button(c, widgets.Primary, nil, locales.GetBooksOpenPluginSettings()).Margin(theme.Space8, 0, 0, 0).Clicked() {
 				a.openPlugins(m.ID)
 			}
 		} else if retry != nil {
-			if widgets.Button(c, widgets.Secondary, icons.Refresh, "Try again").Margin(theme.Space8, 0, 0, 0).Clicked() {
+			if widgets.Button(c, widgets.Secondary, icons.Refresh, locales.CommonTryAgain()).Margin(theme.Space8, 0, 0, 0).Clicked() {
 				retry()
 			}
 		}
@@ -733,8 +772,8 @@ func (a *App) inlineProblem(c *ui.Context, p *plugin.Plugin, err error, retry fu
 	ui.Row(c).Grow(1).Padding(theme.Space8, theme.Space8, theme.Space8, theme.Space12).Gap(theme.Space8).Radius(theme.RadiusMD).
 		Background(pal().Warning.BG).AlignItems(ui.Center).Children(func() {
 		ui.Icon(c, icons.Alert).FontSize(14).TextColor(pal().Warning.FG)
-		ui.Text(c, p.Manifest.Name+" "+strings.ToLower(problemTitle(p, kind)[:1])+problemTitle(p, kind)[1:]+".").FontSize(12).TextColor(pal().Warning.FG).Grow(1)
-		if widgets.ButtonSized(c, widgets.Secondary, icons.Refresh, "Retry", theme.ControlS).Clicked() {
+		ui.Text(c, problemSentence(p, kind)).FontSize(12).TextColor(pal().Warning.FG).Grow(1)
+		if widgets.ButtonSized(c, widgets.Secondary, icons.Refresh, locales.CommonRetry(), theme.ControlS).Clicked() {
 			retry()
 		}
 	})
@@ -756,10 +795,10 @@ func (a *App) noResults(c *ui.Context, p *plugin.Plugin) {
 		ui.Box(c).Size(48, 48).Radius(theme.RadiusFull).Background(pal().Subtle).Center().Children(func() {
 			ui.Icon(c, icons.Search).FontSize(20).TextColor(pal().IconMuted)
 		})
-		ui.Textf(c, "No books match “%s”", a.gb.query).FontWeight(600).FontSize(16)
-		ui.Text(c, "Check the spelling or use fewer words. Other sources may have it.").FontSize(13).TextColor(pal().TextSecondary).TextAlign(ui.Center).MaxWidth(420)
+		ui.Text(c, locales.GetBooksNoMatch(a.gb.query)).FontWeight(600).FontSize(16)
+		ui.Text(c, locales.GetBooksNoMatchHint()).FontSize(13).TextColor(pal().TextSecondary).TextAlign(ui.Center).MaxWidth(420)
 		if len(a.sources()) > 1 {
-			if widgets.Button(c, widgets.Secondary, icons.Layers, "Search all sources").Margin(theme.Space8, 0, 0, 0).Clicked() {
+			if widgets.Button(c, widgets.Secondary, icons.Layers, locales.GetBooksSearchAllSources()).Margin(theme.Space8, 0, 0, 0).Clicked() {
 				a.gbSetSource(allSources)
 			}
 		}
@@ -783,9 +822,9 @@ func (a *App) noSources(c *ui.Context) {
 		ui.Box(c).Size(48, 48).Radius(theme.RadiusFull).Background(pal().Subtle).Center().Children(func() {
 			ui.Icon(c, icons.Puzzle).FontSize(20).TextColor(pal().IconMuted)
 		})
-		ui.Text(c, "No book sources are on").FontWeight(600).FontSize(16)
-		ui.Text(c, "Book sources are plugins. Turn one on, or install one from a file.").FontSize(13).TextColor(pal().TextSecondary).TextAlign(ui.Center)
-		if widgets.Button(c, widgets.Primary, icons.Puzzle, "Manage plugins").Margin(theme.Space8, 0, 0, 0).Clicked() {
+		ui.Text(c, locales.GetBooksNoSourcesTitle()).FontWeight(600).FontSize(16)
+		ui.Text(c, locales.GetBooksNoSourcesBody()).FontSize(13).TextColor(pal().TextSecondary).TextAlign(ui.Center)
+		if widgets.Button(c, widgets.Primary, icons.Puzzle, locales.GetBooksManagePlugins()).Margin(theme.Space8, 0, 0, 0).Clicked() {
 			a.openPlugins("")
 		}
 	})
@@ -800,7 +839,7 @@ func (a *App) resultDetail(c *ui.Context) {
 	if ref == nil || a.pluginByID(ref.source) == nil {
 		ui.Column(c).Grow(1).Center().Gap(theme.Space8).Padding(theme.Space32).Children(func() {
 			ui.Icon(c, icons.BookOpen).FontSize(28).TextColor(pal().IconMuted)
-			ui.Text(c, "Select a book to see its details").TextColor(pal().TextTertiary).TextAlign(ui.Center)
+			ui.Text(c, locales.GetBooksSelectBook()).TextColor(pal().TextTertiary).TextAlign(ui.Center)
 		})
 		return
 	}
@@ -826,17 +865,17 @@ func (a *App) resultDetail(c *ui.Context) {
 		if r.Description != "" {
 			widgets.Hairline(c)
 			ui.Column(c).Gap(theme.Space8).AlignItems(ui.Stretch).Children(func() {
-				widgets.Overline(c, "ABOUT")
+				widgets.Overline(c, locales.GetBooksAbout())
 				ui.Text(c, htmlToText(r.Description)).FontSize(13).FixedLineHeight(20).TextColor(pal().TextSecondary).Selectable()
 			})
 		}
 		ui.Row(c).Gap(theme.Space6).AlignItems(ui.Start).Children(func() {
-			ic, from := icons.Puzzle, "From the "+p.Manifest.Name+" plugin."
+			ic, from := icons.Puzzle, locales.GetBooksFromPlugin(p.Manifest.Name)
 			if p.Native() != nil {
-				ic, from = icons.Rss, "From "+p.Manifest.Name+", an OPDS catalog."
+				ic, from = icons.Rss, locales.GetBooksFromCatalog(p.Manifest.Name)
 			}
 			ui.Icon(c, ic).FontSize(12).TextColor(pal().IconMuted)
-			ui.Text(c, from+" Dalibre downloads the file and adds it to your library.").
+			ui.Text(c, from).
 				FontSize(11).TextColor(pal().TextTertiary).Grow(1)
 		})
 	})
@@ -851,7 +890,7 @@ func (a *App) resultDownload(c *ui.Context, p *plugin.Plugin, r plugin.Result) {
 	inLib := a.inLibrary(r)
 	d := a.downloadOf(src, r)
 	ui.Column(c).Gap(theme.Space8).AlignItems(ui.Stretch).Children(func() {
-		widgets.Overline(c, "DOWNLOAD AS")
+		widgets.Overline(c, locales.GetBooksDownloadAs())
 		for _, f := range r.Formats {
 			opt := ui.ButtonBase(c.Key(f.Format)).Height(36).Padding(0, theme.Space10).Gap(theme.Space10).Radius(theme.RadiusMD).AlignItems(ui.Center).
 				Role(ui.RoleRadio).Label(f.Format)
@@ -865,7 +904,7 @@ func (a *App) resultDownload(c *ui.Context, p *plugin.Plugin, r plugin.Result) {
 			}
 			opt.OnClick(func() { a.gb.format[k] = f.Format }).Children(func() {
 				widgets.FormatBadge(c, f.Format, false)
-				ui.Text(c, formatPurpose[f.Format]).FontSize(13).Grow(1).SingleLine()
+				ui.Text(c, formatPurpose(f.Format)).FontSize(13).Grow(1).SingleLine()
 				if f.Size > 0 {
 					ui.Text(c, humanSize(f.Size)).Font(theme.FontMono).FontSize(11).TextColor(pal().TextTertiary)
 				}
@@ -873,21 +912,21 @@ func (a *App) resultDownload(c *ui.Context, p *plugin.Plugin, r plugin.Result) {
 		}
 		switch {
 		case inLib != 0:
-			if widgets.Button(c, widgets.Secondary, icons.CheckCircle, "In library · Show").Clicked() {
+			if widgets.Button(c, widgets.Secondary, icons.CheckCircle, locales.GetBooksInLibraryShowButton()).Clicked() {
 				a.showInLibrary(inLib)
 			}
 		case d != nil && !d.finished:
 			ui.Column(c).Gap(theme.Space6).AlignItems(ui.Stretch).Children(func() {
 				ui.Progress(c, d.fraction()).Height(4)
 				ui.Row(c).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, "Downloading "+d.progressText()).FontSize(12).TextColor(pal().TextSecondary).Grow(1)
-					if widgets.ButtonSized(c, widgets.Ghost, icons.X, "Cancel", theme.ControlS).Clicked() {
+					ui.Text(c, locales.GetBooksDownloading(d.progressText())).FontSize(12).TextColor(pal().TextSecondary).Grow(1)
+					if widgets.ButtonSized(c, widgets.Ghost, icons.X, locales.CommonCancel(), theme.ControlS).Clicked() {
 						d.cancel()
 					}
 				})
 			})
 		default:
-			if widgets.Button(c, widgets.Primary, icons.Download, "Add to library").Disabled(a.lib == nil).Clicked() {
+			if widgets.Button(c, widgets.Primary, icons.Download, locales.GetBooksAddToLibrary()).Disabled(a.lib == nil).Clicked() {
 				a.getBook(p, r, chosen)
 			}
 			if d != nil && d.err != nil {
@@ -901,44 +940,44 @@ func (a *App) resultDownload(c *ui.Context, p *plugin.Plugin, r plugin.Result) {
 func (a *App) resultFacts(c *ui.Context, p *plugin.Plugin, r plugin.Result, f *fullResult) {
 	ui.Column(c).Gap(theme.Space12).AlignItems(ui.Stretch).Children(func() {
 		ui.Row(c).AlignItems(ui.Center).Children(func() {
-			widgets.Overline(c, "DETAILS").Grow(1)
+			widgets.Overline(c, locales.GetBooksDetails()).Grow(1)
 			if f != nil && f.loading {
-				ui.Spinner(c).Size(12, 12).Label("Loading details")
+				ui.Spinner(c).Size(12, 12).Label(locales.GetBooksLoadingDetails())
 			}
 		})
-		row := func(k, v string) {
+		row := func(k, label, v string) {
 			if v == "" {
 				return
 			}
 			ui.Row(c.Key(k)).Gap(theme.Space12).AlignItems(ui.Start).Children(func() {
-				ui.Text(c, k).FontSize(13).TextColor(pal().TextTertiary).Width(84)
+				ui.Text(c, label).FontSize(13).TextColor(pal().TextTertiary).Width(84)
 				ui.Text(c, v).FontSize(13).Grow(1).Selectable()
 			})
 		}
 		if code := calibre.LanguageCode(r.Language); code != "" {
-			row("Language", languageName(code))
+			row("language", locales.CommonLanguage(), languageName(code))
 		}
 		if t := plugin.ParseDate(r.Pubdate); !t.IsZero() {
-			row("Published", r.Pubdate)
+			row("published", locales.CommonPublished(), r.Pubdate)
 		}
-		row("Publisher", r.Publisher)
+		row("publisher", locales.CommonPublisher(), r.Publisher)
 		if r.Series != "" {
 			s := r.Series
 			if r.SeriesIndex > 0 {
 				s += " #" + seriesIndex(r.SeriesIndex)
 			}
-			row("Series", s)
+			row("series", locales.CommonSeries(), s)
 		}
 		for _, fl := range r.Fields {
-			row(fl.Label, fl.Value)
+			row("field:"+fl.Label, fl.Label, fl.Value)
 		}
 		if f != nil && f.err != nil {
-			ui.Text(c, "Couldn’t load more details: "+errText(f.err)).FontSize(12).TextColor(pal().TextTertiary)
+			ui.Text(c, locales.GetBooksDetailsError(errText(f.err))).FontSize(12).TextColor(pal().TextTertiary)
 		}
 		if len(r.Tags) > 0 {
 			ui.Row(c).Gap(theme.Space6).Wrap().Children(func() {
 				for _, t := range r.Tags {
-					if widgets.Tag(c.Key(t), t, false, nil).Tooltip("Search “" + t + "”").Clicked() {
+					if widgets.Tag(c.Key(t), t, false, nil).Tooltip(locales.GetBooksSearchTag(t)).Clicked() {
 						a.gb.text = t
 						a.gbSearch()
 					}
@@ -946,9 +985,9 @@ func (a *App) resultFacts(c *ui.Context, p *plugin.Plugin, r plugin.Result, f *f
 			})
 		}
 		if r.URL != "" {
-			l := ui.ButtonBase(c).Gap(theme.Space4).AlignItems(ui.Center).Label("Open the book’s page on " + p.Manifest.Name)
+			l := ui.ButtonBase(c).Gap(theme.Space4).AlignItems(ui.Center).Label(locales.GetBooksOpenBookPageOn(p.Manifest.Name))
 			l.OnClick(func() { openURL(r.URL) }).Children(func() {
-				t := ui.Text(c, "Open the book’s page").FontSize(13).TextColor(pal().TextAccent)
+				t := ui.Text(c, locales.GetBooksOpenBookPage()).FontSize(13).TextColor(pal().TextAccent)
 				if l.Hovered() {
 					t.Underline()
 				}
