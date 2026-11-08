@@ -284,6 +284,26 @@ func (l *Library) loadBooks(id int64) ([]*Book, error) {
 	return books, nil
 }
 
+// Identifiers maps every identifier in the library, as "type:value" in
+// lower case ("isbn:9780765382030"), to its book.
+func (l *Library) Identifiers() (map[string]int64, error) {
+	rows, err := l.db.Query(`SELECT book, lower(type), lower(val) FROM identifiers`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int64{}
+	for rows.Next() {
+		var id int64
+		var t, v string
+		if err := rows.Scan(&id, &t, &v); err != nil {
+			return nil, err
+		}
+		out[t+":"+v] = id
+	}
+	return out, rows.Err()
+}
+
 // Details loads the comments, identifiers and files of a book.
 func (l *Library) Details(b *Book) (*Details, error) {
 	d := &Details{Identifiers: map[string]string{}}

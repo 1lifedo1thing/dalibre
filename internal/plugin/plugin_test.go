@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 )
 
@@ -402,7 +403,13 @@ func TestMemoryAndRecovery(t *testing.T) {
 func TestBadManifests(t *testing.T) {
 	for _, m := range []string{
 		`{"id":"Bad Id","name":"x","version":"1.0.0","api":1,"capabilities":["source"],"permissions":{"hosts":["a.com"]}}`,
-		`{"id":"dalibre.x","name":"x","version":"1.0.0","api":1,"capabilities":["source"],"permissions":{"hosts":["a.com"]}}`,
+		`{"id":"x","name":"x","version":"1.0.0","api":1,"capabilities":{"teleport":{}},"permissions":{"hosts":["a.com"]}}`,
+		`{"id":"x","name":"x","version":"1.0.0","api":1,"capabilities":{},"permissions":{"hosts":["a.com"]}}`,
+		`{"id":"x","name":"x","version":"1.0.0","api":1,"icon":"skull","capabilities":["source"],"permissions":{"hosts":["a.com"]}}`,
+		`{"id":"x","name":"x","version":"1.0.0","api":1,"capabilities":{"bookSource":{"filters":[{"key":"k","title":"K","type":"select","options":[]}]}},"permissions":{"hosts":["a.com"]}}`,
+		`{"id":"x","name":"x","version":"1.0.0","api":1,"capabilities":{"bookSource":{"filters":[{"key":"k","title":"K","type":"range","options":[{"value":"a","title":"A"}]}]}},"permissions":{"hosts":["a.com"]}}`,
+		`{"id":"x","name":"x","version":"1.0.0","api":1,"capabilities":{"bookSource":{"filters":[{"key":"k","title":"K","type":"select","options":[{"value":"a","title":"A"}],"default":"b"}]}},"permissions":{"hosts":["a.com"]}}`,
+		`{"id":"x","name":"x","version":"1.0.0","api":1,"capabilities":{"bookSource":{"collections":true}},"permissions":{"hosts":["a.com"]}}`,
 		`{"id":"x","name":"x","version":"1","api":1,"capabilities":["source"],"permissions":{"hosts":["a.com"]}}`,
 		`{"id":"x","name":"x","version":"1.0.0","api":99,"capabilities":["source"],"permissions":{"hosts":["a.com"]}}`,
 		`{"id":"x","name":"x","version":"1.0.0","api":1,"capabilities":["teleport"],"permissions":{"hosts":["a.com"]}}`,
@@ -448,9 +455,10 @@ func TestDiscover(t *testing.T) {
 	mk("dup", testManifest)
 	mk("broken", `{`)
 	mk(".install-123", testManifest)
+	mk("official", strings.Replace(testManifest, `"id":"test"`, `"id":"dalibre.test"`, 1))
 	os.MkdirAll(filepath.Join(root, "not-a-plugin"), 0o755)
 	plugins, errs := Discover(root, nil)
-	if len(plugins) != 1 || len(errs) != 2 {
+	if len(plugins) != 1 || len(errs) != 3 {
 		t.Fatalf("plugins %d, errors %v", len(plugins), errs)
 	}
 	plugins, _ = Discover(root, func(m *Manifest) (Options, bool) { return Options{}, false })
@@ -514,6 +522,106 @@ func TestPackAndInstall(t *testing.T) {
 	}
 }
 
+func TestInstallFolder(t *testing.T) {
+	src := write(t, testManifest, `exports.search = () => ({items: []})`)
+	os.WriteFile(filepath.Join(src, ".secret"), []byte("x"), 0o644)
+	os.MkdirAll(filepath.Join(src, "node_modules", "x"), 0o755)
+	os.WriteFile(filepath.Join(src, "node_modules", "x", "i.js"), []byte("//"), 0o644)
+	m, err := Inspect(src)
+	if err != nil || m.ID != "test" {
+		t.Fatalf("inspect: %v %v", m, err)
+	}
+	root := t.TempDir()
+	if _, err := Install(src, root); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{".secret", "node_modules"} {
+		if _, err := os.Stat(filepath.Join(root, "test", name)); err == nil {
+			t.Errorf("%s copied", name)
+		}
+	}
+	if plugins, errs := Discover(root, nil); len(plugins) != 1 || len(errs) != 0 {
+		t.Fatalf("installed: %d plugins, %v", len(plugins), errs)
+	}
+	if _, err := Inspect(t.TempDir()); err == nil || !strings.Contains(err.Error(), "no plugin.json") {
+		t.Errorf("empty folder: %v", err)
+	}
+	broken := write(t, testManifest, `this is not javascript`)
+	if _, err := Install(broken, root); err == nil {
+		t.Error("installed a plugin whose script doesn’t load")
+	}
+}
+
+// A plugin signs in with a form once: the session cookie is kept and
+// sent with its later requests and downloads, but not to other plugins.
+func TestCookies(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("books.example/login", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		if r.PostForm.Get("password") != "pw" {
+			http.Error(w, "no", 403)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{Name: "session", Value: "abc", Path: "/", Domain: "books.example"})
+		w.Write([]byte(`{}`))
+	})
+	mux.HandleFunc("books.example/me", func(w http.ResponseWriter, r *http.Request) {
+		c, err := r.Cookie("session")
+		if err != nil {
+			http.Error(w, "signed out", 401)
+			return
+		}
+		w.Write([]byte(c.Value))
+	})
+	mux.HandleFunc("books.example/file", func(w http.ResponseWriter, r *http.Request) {
+		if _, err := r.Cookie("session"); err != nil {
+			http.Error(w, "signed out", 401)
+			return
+		}
+		w.Write([]byte("PK fake epub"))
+	})
+	script := `
+		let signedIn = false;
+		exports.search = async function () {
+			if (!signedIn) {
+				const r = await dalibre.fetch("https://books.example/login", { method: "POST",
+					headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "password=pw" });
+				if (!r.ok) throw dalibre.error("auth", "refused");
+				signedIn = true;
+			}
+			const me = await dalibre.fetch("https://books.example/me");
+			if (!me.ok) throw dalibre.error("auth", "signed out");
+			return { items: [{ id: "1", title: me.text(), formats: [{ format: "EPUB", url: "https://books.example/file" }] }] };
+		};`
+	p, err := Load(write(t, testManifest, script), Options{Transport: serve{mux}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		page, err := p.Search(context.Background(), Query{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if page.Items[0].Title != "abc" {
+			t.Fatalf("title %q", page.Items[0].Title)
+		}
+		if _, err := p.Download(context.Background(), page.Items[0], "epub", t.TempDir(), nil); err != nil {
+			t.Fatalf("download without the session: %v", err)
+		}
+	}
+	// Another plugin has its own cookies.
+	other, err := Load(write(t, testManifest, `exports.search = async () => {
+		const me = await dalibre.fetch("https://books.example/me");
+		return { items: [{ id: "1", title: String(me.status), formats: [{ format: "EPUB" }] }] };
+	}`), Options{Transport: serve{mux}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page, err := other.Search(context.Background(), Query{}); err != nil || page.Items[0].Title != "401" {
+		t.Fatalf("another plugin: %+v %v", page, err)
+	}
+}
+
 func TestFileName(t *testing.T) {
 	for _, c := range [][4]string{
 		{"", "Pride: and Prejudice?", "EPUB", "Pride_ and Prejudice_.epub"},
@@ -529,45 +637,75 @@ func TestFileName(t *testing.T) {
 }
 
 // The Gutenberg plugin shipped in plugins/, against a recorded answer.
-func TestGutenbergPlugin(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("gutendex.com/books/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("search") != "pride" || r.URL.Query().Get("languages") != "en,fr" {
-			t.Errorf("query %s", r.URL.RawQuery)
+func TestBookSourceCalls(t *testing.T) {
+	manifest := `{"id":"dalibre.books","name":"Books","version":"1.0.0","api":1,"icon":"library",
+		"capabilities":{"bookSource":{"collections":true,"filters":[
+			{"key":"lang","title":"Language","type":"language","options":[{"value":""},{"value":"en"},{"value":"fr"}]},
+			{"key":"sort","title":"Sort","type":"select","default":"popular","options":[{"value":"new","title":"Newest"},{"value":"popular","title":"Most popular"}]}]}},
+		"permissions":{"hosts":["books.example"]}}`
+	script := `
+		const book = (id, extra) => ({id, title: "Book " + id, formats: [{format: "epub", url: "https://books.example/" + id + ".epub"}], ...extra});
+		export function search(q) { return {items: [book("s", {description: JSON.stringify(q.filters)})]}; }
+		export function collections() { return [{id: "pop", title: "Most popular"}, {id: "", title: "no id"}, {id: "pop", title: "again"}]; }
+		export function list(q) { return {items: [book(q.collection + q.page)], hasMore: q.page < 2}; }
+		export function get(r) { return {id: "other", title: "", description: "Full", url: "https://books.example/" + r.id,
+			fields: [{label: "Rights", value: "Public domain"}, {label: "", value: "x"}]}; }`
+	fsys := fstest.MapFS{"plugin.json": {Data: []byte(manifest)}, "main.js": {Data: []byte(script)}}
+	p, err := LoadBuiltin(fsys, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	if !p.Builtin || p.Manifest.IconName() != "library" || !p.Manifest.HasCollections() {
+		t.Fatalf("manifest %+v", p.Manifest)
+	}
+	ctx := context.Background()
+	page, err := p.Search(ctx, Query{Text: "x", Filters: map[string]string{"lang": "fr", "sort": "bogus", "other": "1"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := page.Items[0].Description; got != `{"lang":"fr","sort":"popular"}` {
+		t.Errorf("filters passed as %s", got)
+	}
+	cs, err := p.Collections(ctx)
+	if err != nil || len(cs) != 1 || cs[0].ID != "pop" {
+		t.Fatalf("collections %v %v", cs, err)
+	}
+	page, err = p.List(ctx, Query{Collection: "pop", Page: 1})
+	if err != nil || page.Items[0].ID != "pop1" || !page.HasMore {
+		t.Fatalf("list %+v %v", page, err)
+	}
+	full, err := p.Get(ctx, page.Items[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if full.ID != "pop1" || full.Title != "Book pop1" || full.Description != "Full" || len(full.Formats) != 1 ||
+		full.URL != "https://books.example/pop1" || len(full.Fields) != 1 {
+		t.Fatalf("get %+v", full)
+	}
+	// A reserved id loads only as a built-in plugin.
+	if _, err := Inspect(filepath.Join(t.TempDir(), "missing")); err == nil {
+		t.Error("inspected a missing package")
+	}
+	dir := write(t, manifest, script)
+	pk, err := Pack(dir, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Inspect(pk); err == nil || !strings.Contains(err.Error(), "kept for plugins that ship with Dalibre") {
+		t.Errorf("inspect reserved: %v", err)
+	}
+}
+
+func TestCapabilitiesForms(t *testing.T) {
+	for _, m := range []string{
+		`{"id":"x","name":"x","version":"1.0.0","api":1,"capabilities":["source"],"permissions":{"hosts":["a.com"]}}`,
+		`{"id":"x","name":"x","version":"1.0.0","api":1,"capabilities":["bookSource"],"permissions":{"hosts":["a.com"]}}`,
+		`{"id":"x","name":"x","version":"1.0.0","api":1,"capabilities":{"bookSource":{}},"permissions":{"hosts":["a.com"]}}`,
+	} {
+		got, err := ParseManifest([]byte(m))
+		if err != nil || !got.IsBookSource() {
+			t.Errorf("%s: %v", m, err)
 		}
-		w.Write([]byte(`{"count":2,"next":null,"results":[{"id":1342,"title":"Pride and Prejudice",
-			"authors":[{"name":"Austen, Jane"}],"subjects":["England -- Fiction"],"languages":["en"],
-			"formats":{"application/epub+zip":"https://www.gutenberg.org/ebooks/1342.epub3.images",
-			"text/plain; charset=us-ascii":"https://www.gutenberg.org/ebooks/1342.txt.utf-8",
-			"image/jpeg":"https://www.gutenberg.org/cache/epub/1342/pg1342.cover.medium.jpg"}},
-			{"id":9,"title":"An Audio Book","authors":[],"subjects":[],"languages":["en"],"formats":{"audio/mpeg":"https://www.gutenberg.org/9.mp3"}}]}`))
-	})
-	mux.HandleFunc("www.gutenberg.org/ebooks/1342.epub3.images", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/epub+zip")
-		w.Write([]byte("PK epub"))
-	})
-	p, err := Load(filepath.Join("..", "..", "plugins", "gutenberg"), Options{
-		Settings: map[string]string{"languages": "en, fr"}, Transport: serve{mux},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	page, err := p.Search(context.Background(), Query{Text: "pride"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(page.Items) != 1 || len(page.Warnings) != 0 {
-		t.Fatalf("page = %+v", page)
-	}
-	r := page.Items[0]
-	if r.Title != "Pride and Prejudice" || r.Authors[0] != "Jane Austen" || len(r.Formats) != 2 || r.Identifiers["gutenberg"] != "1342" {
-		t.Fatalf("result = %+v", r)
-	}
-	path, err := p.Download(context.Background(), r, "EPUB", t.TempDir(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if filepath.Base(path) != "Pride and Prejudice.epub" {
-		t.Fatalf("path = %s", path)
 	}
 }

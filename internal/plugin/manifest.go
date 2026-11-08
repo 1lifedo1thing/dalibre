@@ -9,8 +9,11 @@
 // deadline and a request budget, and what a plugin returns is checked
 // field by field before the host uses it.
 //
-// API version 1 has one capability, "source": a plugin that searches a
-// catalogue and says where a book's file is; the host downloads it.
+// A plugin declares what it adds to Dalibre in its manifest's
+// capabilities. API version 1 has one, "bookSource" ("source" in the
+// array form): a plugin that searches and browses a catalogue and says
+// where a book's file is; the host downloads it. Dalibre shows every
+// book source in its Get books page; plugins never draw UI.
 package plugin
 
 import (
@@ -30,9 +33,14 @@ import (
 // or removed one. A manifest asking for a newer version is refused.
 const APIVersion = 1
 
-// Capabilities a plugin can declare.
+// Icons a plugin may pick for itself, from Dalibre's own set: never an
+// image, so a plugin can't dress up as another app.
+var Icons = []string{"globe", "library", "book-open", "database", "network", "building", "bookmark", "layers"}
+
+// Filter types a book source may declare.
 const (
-	CapSource = "source"
+	FilterSelect   = "select"   // one of options
+	FilterLanguage = "language" // one of options, which are ISO 639 codes; Dalibre names them
 )
 
 // Limits on what a plugin may be.
@@ -43,19 +51,22 @@ const (
 
 // Manifest is a plugin's plugin.json.
 type Manifest struct {
-	Schema       string      `json:"$schema,omitempty"`
-	ID           string      `json:"id"`
-	Name         string      `json:"name"`
-	Version      string      `json:"version"` // semver, as "1.2.0"
-	API          int         `json:"api"`
-	Description  string      `json:"description,omitempty"`
-	Author       string      `json:"author,omitempty"`
-	Homepage     string      `json:"homepage,omitempty"`
-	License      string      `json:"license,omitempty"`
-	Main         string      `json:"main,omitempty"` // main.js when empty
-	Capabilities []string    `json:"capabilities"`
-	Permissions  Permissions `json:"permissions"`
-	Settings     []Setting   `json:"settings,omitempty"`
+	Schema      string `json:"$schema,omitempty"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Version     string `json:"version"` // semver, as "1.2.0"
+	API         int    `json:"api"`
+	Description string `json:"description,omitempty"`
+	Author      string `json:"author,omitempty"`
+	Homepage    string `json:"homepage,omitempty"`
+	License     string `json:"license,omitempty"`
+	Main        string `json:"main,omitempty"` // main.js when empty
+	// Icon names the plugin's icon in Dalibre's set (Icons); "globe" when
+	// empty.
+	Icon         string       `json:"icon,omitempty"`
+	Capabilities Capabilities `json:"capabilities"`
+	Permissions  Permissions  `json:"permissions"`
+	Settings     []Setting    `json:"settings,omitempty"`
 }
 
 // Permissions are what a plugin may reach. The user grants them when the
@@ -81,8 +92,114 @@ type Setting struct {
 	Required    bool   `json:"required,omitempty"`
 }
 
-// Has reports whether the plugin declares capability c.
-func (m *Manifest) Has(c string) bool { return slices.Contains(m.Capabilities, c) }
+// Capabilities are what a plugin adds to Dalibre. In plugin.json they are
+// an object, {"bookSource": {...}}, or, as API 1 began, an array of names:
+// ["source"].
+type Capabilities struct {
+	BookSource *BookSource `json:"bookSource,omitempty"`
+}
+
+// BookSource is a catalogue Dalibre's Get books page searches, browses and
+// downloads from. The plugin exports search (required), collections and
+// list (with Collections), get and resolve.
+type BookSource struct {
+	// Filters narrow a search; Dalibre draws them and passes their values
+	// in Query.Filters.
+	Filters []Filter `json:"filters,omitempty"`
+	// Collections says the source has collections to browse while the
+	// search box is empty ("Most popular", "New"): it exports collections
+	// and list.
+	Collections bool `json:"collections,omitempty"`
+}
+
+// Filter is a control the Get books page shows under the search box.
+type Filter struct {
+	Key   string `json:"key"`
+	Title string `json:"title"`
+	// Type is FilterSelect or FilterLanguage.
+	Type    string   `json:"type"`
+	Options []Option `json:"options"`
+	// Default is the option chosen at first; the first option when empty.
+	Default string `json:"default,omitempty"`
+}
+
+// Option is one value of a Filter. A language option's title may be left
+// out: Dalibre names the language.
+type Option struct {
+	Value string `json:"value"`
+	Title string `json:"title,omitempty"`
+}
+
+// Names lists the capabilities, as plugin.json names them.
+func (c Capabilities) Names() []string {
+	var out []string
+	if c.BookSource != nil {
+		out = append(out, "bookSource")
+	}
+	return out
+}
+
+func (c *Capabilities) UnmarshalJSON(data []byte) error {
+	data = bytes.TrimSpace(data)
+	if len(data) > 0 && data[0] == '[' {
+		var names []string
+		if err := json.Unmarshal(data, &names); err != nil {
+			return err
+		}
+		for _, n := range names {
+			switch n {
+			case "source", "bookSource":
+				if c.BookSource == nil {
+					c.BookSource = &BookSource{}
+				}
+			default:
+				return fmt.Errorf("unknown capability %q", n)
+			}
+		}
+		return nil
+	}
+	type plain Capabilities
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	var p plain
+	if err := dec.Decode(&p); err != nil {
+		if f, ok := strings.CutPrefix(err.Error(), "json: unknown field "); ok {
+			return fmt.Errorf("unknown capability %s", f)
+		}
+		return err
+	}
+	*c = Capabilities(p)
+	return nil
+}
+
+// IsBookSource reports whether the plugin is a book source.
+func (m *Manifest) IsBookSource() bool { return m.Capabilities.BookSource != nil }
+
+// Filters are the book source's filters; none when it isn't one.
+func (m *Manifest) Filters() []Filter {
+	if m.Capabilities.BookSource == nil {
+		return nil
+	}
+	return m.Capabilities.BookSource.Filters
+}
+
+// HasCollections reports whether the book source has collections to browse.
+func (m *Manifest) HasCollections() bool {
+	return m.Capabilities.BookSource != nil && m.Capabilities.BookSource.Collections
+}
+
+// IconName is the plugin's icon, "globe" by default.
+func (m *Manifest) IconName() string {
+	if m.Icon == "" {
+		return "globe"
+	}
+	return m.Icon
+}
+
+// Reserved reports whether id is kept for plugins that ship with Dalibre.
+func Reserved(id string) bool {
+	return slices.ContainsFunc(reservedPrefix, func(p string) bool { return id == p || strings.HasPrefix(id, p+".") })
+}
 
 var (
 	idPattern      = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`)
@@ -120,8 +237,6 @@ func (m *Manifest) check() error {
 	switch {
 	case len(m.ID) > 64 || !idPattern.MatchString(m.ID):
 		return fmt.Errorf("id %q must be lowercase letters, digits and '-', in dot-separated parts, as \"gutenberg\" or \"com.example.books\"", m.ID)
-	case slices.ContainsFunc(reservedPrefix, func(p string) bool { return m.ID == p || strings.HasPrefix(m.ID, p+".") }):
-		return fmt.Errorf("id %q is reserved", m.ID)
 	case strings.TrimSpace(m.Name) == "" || len(m.Name) > 64:
 		return errors.New("name must be 1 to 64 characters")
 	case !semverPattern.MatchString(m.Version):
@@ -130,8 +245,10 @@ func (m *Manifest) check() error {
 		return errors.New("api is missing; this Dalibre implements api 1")
 	case m.API > APIVersion:
 		return fmt.Errorf("needs plugin API %d; this Dalibre has %d, update Dalibre", m.API, APIVersion)
-	case len(m.Capabilities) == 0:
+	case len(m.Capabilities.Names()) == 0:
 		return errors.New("capabilities are missing")
+	case m.Icon != "" && !slices.Contains(Icons, m.Icon):
+		return fmt.Errorf("icon %q isn’t one of %s", m.Icon, strings.Join(Icons, ", "))
 	case len(m.Settings) > MaxSettings:
 		return fmt.Errorf("at most %d settings", MaxSettings)
 	}
@@ -142,13 +259,13 @@ func (m *Manifest) check() error {
 		slices.Contains(strings.Split(main, "/"), "..") || !strings.HasSuffix(main, ".js") {
 		return fmt.Errorf("main %q must be a .js file inside the plugin's folder", m.Main)
 	}
-	for _, c := range m.Capabilities {
-		if c != CapSource {
-			return fmt.Errorf("unknown capability %q", c)
+	if m.IsBookSource() {
+		if len(m.Permissions.Hosts) == 0 {
+			return errors.New("a book source must list the hosts it reaches in permissions.hosts")
 		}
-	}
-	if m.Has(CapSource) && len(m.Permissions.Hosts) == 0 {
-		return errors.New("a source must list the hosts it reaches in permissions.hosts")
+		if err := checkFilters(m.Capabilities.BookSource.Filters); err != nil {
+			return fmt.Errorf("capabilities.bookSource.%w", err)
+		}
 	}
 	for _, h := range m.Permissions.Hosts {
 		if !hostPattern.MatchString(h) || !strings.Contains(strings.TrimPrefix(h, "*."), ".") && h != "localhost" {
@@ -170,6 +287,63 @@ func (m *Manifest) check() error {
 		keys[s.Key] = true
 	}
 	return nil
+}
+
+// MaxFilters and MaxOptions bound a book source's filters.
+const (
+	MaxFilters = 4
+	MaxOptions = 64
+)
+
+func checkFilters(fs []Filter) error {
+	if len(fs) > MaxFilters {
+		return fmt.Errorf("filters: at most %d", MaxFilters)
+	}
+	keys := map[string]bool{}
+	for i := range fs {
+		f := &fs[i]
+		at := fmt.Sprintf("filters[%d]", i)
+		switch {
+		case !keyPattern.MatchString(f.Key):
+			return fmt.Errorf("%s.key %q must be letters, digits and '_', starting with a letter", at, f.Key)
+		case keys[f.Key]:
+			return fmt.Errorf("%s.key %q is used twice", at, f.Key)
+		case strings.TrimSpace(f.Title) == "":
+			return fmt.Errorf("%s has no title", at)
+		case f.Type != FilterSelect && f.Type != FilterLanguage:
+			return fmt.Errorf("%s.type must be %q or %q", at, FilterSelect, FilterLanguage)
+		case len(f.Options) == 0 || len(f.Options) > MaxOptions:
+			return fmt.Errorf("%s needs 1 to %d options", at, MaxOptions)
+		}
+		keys[f.Key] = true
+		vals := map[string]bool{}
+		for j, o := range f.Options {
+			if vals[o.Value] {
+				return fmt.Errorf("%s.options[%d].value %q is used twice", at, j, o.Value)
+			}
+			vals[o.Value] = true
+			if f.Type == FilterSelect && strings.TrimSpace(o.Title) == "" {
+				return fmt.Errorf("%s.options[%d] has no title", at, j)
+			}
+		}
+		if f.Default != "" && !vals[f.Default] {
+			return fmt.Errorf("%s.default %q isn’t one of its options", at, f.Default)
+		}
+	}
+	return nil
+}
+
+// Value is the filter's option for v: v when it is one, else the default.
+func (f Filter) Value(v string) string {
+	for _, o := range f.Options {
+		if o.Value == v {
+			return v
+		}
+	}
+	if f.Default != "" {
+		return f.Default
+	}
+	return f.Options[0].Value
 }
 
 // allows reports whether the permissions let the plugin reach host.
@@ -216,3 +390,11 @@ func (p Permissions) Describe() []string {
 	}
 	return out
 }
+
+// SecretService is the service in the system's credential store under
+// which Dalibre keeps plugins' secret settings: the app's identifier.
+const SecretService = "app.dalibre"
+
+// SecretKey is the credential store's key for secret setting key of
+// plugin id.
+func SecretKey(id, key string) string { return "plugin-" + id + "-" + key }

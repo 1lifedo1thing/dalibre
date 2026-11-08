@@ -41,13 +41,27 @@ func (a *App) view(c *ui.Context) {
 		a.sidebar(c)
 		// The toolbar heads the middle column only; the detail panel runs
 		// the window's full height beside it, as in Figma.
-		ui.Column(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch).Children(func() {
-			a.toolbar(c)
+		ui.Column(c.Key("main")).Grow(1).MinWidth(0).AlignItems(ui.Stretch).Children(func() {
+			switch a.page {
+			case pageGetBooks:
+				a.getBooksToolbar(c)
+			case pageCatalog:
+				a.catalogToolbar(c)
+			default:
+				a.toolbar(c)
+			}
 			ui.Column(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
-				a.mainContent(c)
+				switch a.page {
+				case pageGetBooks:
+					a.getBooksContent(c)
+				case pageCatalog:
+					a.catalogContent(c)
+				default:
+					a.mainContent(c)
+				}
 			})
 		})
-		if a.lib != nil && !a.settings.HideDetail {
+		if a.detailShown() {
 			a.detailPanel(c)
 		}
 		if dragOver {
@@ -63,8 +77,16 @@ func (a *App) shortcuts(c *ui.Context) {
 			a.chooseBooks()
 		}
 	})
-	c.OnWindowShortcut(ui.Cmd, ui.KeyF, func() { a.searchFocus.Focus() })
-	c.OnWindowShortcut(ui.Cmd, ui.KeyK, func() { a.searchFocus.Focus() })
+	focus := func() {
+		if a.page == pageGetBooks {
+			a.gb.focus.Focus()
+		} else {
+			a.searchFocus.Focus()
+		}
+	}
+	c.OnWindowShortcut(ui.Cmd, ui.KeyComma, func() { a.openSettings(a.section) })
+	c.OnWindowShortcut(ui.Cmd, ui.KeyF, focus)
+	c.OnWindowShortcut(ui.Cmd, ui.KeyK, focus)
 	if a.anyDialog() {
 		return
 	}
@@ -74,14 +96,16 @@ func (a *App) shortcuts(c *ui.Context) {
 		a.settings.HideDetail = !a.settings.HideDetail
 		a.saveSettings()
 	})
-	if !c.FocusTakesText() {
+	if !c.FocusTakesText() && a.page == pageLibrary {
 		if c.Shortcut(0, ui.KeyDelete) || c.Shortcut(0, ui.KeyBackspace) {
 			a.askDelete(a.selectedIDs())
 		}
 	}
 }
 
-func (a *App) anyDialog() bool { return a.editOpen || a.convertOpen || a.deleteOpen || a.createAsk }
+func (a *App) anyDialog() bool {
+	return a.editOpen || a.convertOpen || a.deleteOpen || a.createAsk || a.settingsOpen || a.consent != nil
+}
 
 // ---- Sidebar
 
@@ -104,6 +128,7 @@ func (a *App) sidebar(c *ui.Context) {
 			if a.lib == nil {
 				return
 			}
+			defer a.getBooksNav(c)
 			ui.Column(c).Gap(theme.Space2).AlignItems(ui.Stretch).Children(func() {
 				a.navItem(c, "all", icons.Library, "All books", a.counts.All, a.query.Shelf == catalog.AllBooks && a.query.Filter.Kind == catalog.NoFilter, nil, func() {
 					a.setQuery(catalog.AllBooks, catalog.Filter{})
@@ -113,18 +138,30 @@ func (a *App) sidebar(c *ui.Context) {
 				})
 			})
 			a.navSection(c, "formats", "Formats", catalog.ByFormat, a.counts.Formats, icons.File, 0)
+			a.catalogsNav(c)
 		})
+		if a.lib == nil {
+			ui.Column(c).Padding(0, theme.Space8, theme.Space8, theme.Space8).Gap(theme.Space20).AlignItems(ui.Stretch).Children(func() {
+				a.catalogsNav(c)
+				a.getBooksNav(c)
+			})
+		}
+		a.settingsNav(c)
 		a.sidebarFooter(c)
 	})
 }
 
 func (a *App) setQuery(shelf catalog.Shelf, f catalog.Filter) {
+	a.page = pageLibrary
 	a.query.Shelf, a.query.Filter = shelf, f
 	a.curID = 0
 	a.chosen.Clear()
 }
 
 func (a *App) navItem(c *ui.Context, key string, icon *ui.SVG, label string, count int, selected bool, iconColor *ui.Color, onClick func()) {
+	if key != "getbooks" && !strings.HasPrefix(key, "catalog:") && !strings.HasPrefix(key, "settings:") && a.page != pageLibrary {
+		selected = false
+	}
 	row := ui.ButtonBase(c.Key(key)).Height(30).Radius(theme.RadiusSM).Padding(0, theme.Space8).Gap(theme.Space8).AlignItems(ui.Center).Label(label)
 	fg := pal().Icon
 	switch {
@@ -273,7 +310,7 @@ func (a *App) recentLibraryRow(x ui.MenuItemContent, root string) {
 }
 
 func (a *App) sidebarFooter(c *ui.Context) {
-	if a.busy == "" && len(a.jobs) == 0 {
+	if a.busy == "" && len(a.jobs) == 0 && len(a.downloads) == 0 {
 		return
 	}
 	ui.Column(c).Padding(0, theme.Space8, theme.Space12, theme.Space8).Gap(theme.Space8).AlignItems(ui.Stretch).Children(func() {
@@ -295,7 +332,7 @@ func (a *App) sidebarFooter(c *ui.Context) {
 				})
 			})
 		}
-		if len(a.jobs) > 0 {
+		if len(a.jobs) > 0 || len(a.downloads) > 0 {
 			a.jobsButton(c)
 		}
 	})
@@ -307,7 +344,7 @@ func (a *App) toolbar(c *ui.Context) {
 	// The window's caption buttons, where there are some on the right,
 	// sit over the detail panel when it shows, else over the toolbar.
 	right := float32(theme.Space24)
-	if a.lib == nil || a.settings.HideDetail {
+	if !a.detailShown() {
 		right += c.TitleBar().Right
 	}
 	ui.Row(c).Height(theme.ToolbarHeight).Padding(0, right, 0, theme.Space32).Gap(theme.Space8).AlignItems(ui.Center).DragWindow().Children(func() {

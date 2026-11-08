@@ -34,7 +34,7 @@ cmd/
   seed/               creates a sample calibre library for development
   dalibre-plugin/     CLI for plugin authors: init, check, search, download, pack, install
 plugins/
-  gutenberg/          reference source plugin
+  gutenberg/          Project Gutenberg, built into the app (dalibre.gutenberg)
 sdk/                  for plugin authors: dalibre.d.ts, plugin.schema.json, template
 internal/
   calibre/            calibre library access: schema, SQL functions its
@@ -53,8 +53,10 @@ internal/
 
 ## Plugins
 
-Anyone can add a book source as a plugin: a `plugin.json` and a
-JavaScript file, run sandboxed inside Dalibre. See
+Get books (in the sidebar) searches and browses book sources and adds
+what you pick to your library. Project Gutenberg is built in; anyone can
+add a source as a plugin: a `plugin.json` and a JavaScript file, run
+sandboxed inside Dalibre. See
 [Writing Dalibre plugins](docs/plugins/README.md) and the
 [design](docs/plugins/design.md).
 

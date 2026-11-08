@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -36,7 +37,16 @@ var prelude string
 // goroutine; calls into its script run one at a time.
 type Plugin struct {
 	Manifest *Manifest
-	Dir      string
+	// Dir is the plugin's folder; "" for one built into Dalibre.
+	Dir string
+	// Builtin is set for a plugin that ships inside Dalibre.
+	Builtin bool
+
+	fsys fs.FS // the plugin's files
+	// native is the Go source behind a plugin made by NewNative.
+	native Native
+	// authorize adds credentials to the plugin's requests.
+	authorize func(*http.Request)
 
 	settings map[string]string
 	client   *http.Client
@@ -63,6 +73,9 @@ type Options struct {
 	// go through the sandbox's transport, which refuses local addresses
 	// unless the manifest asks for the local network.
 	Transport http.RoundTripper
+	// Authorize, when set, is called on every request the plugin makes,
+	// to add credentials: the user's account on an OPDS server.
+	Authorize func(*http.Request)
 }
 
 // Load reads the plugin in dir and runs its script, which defines the
@@ -72,7 +85,29 @@ func Load(dir string, opts Options) (*Plugin, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &Plugin{Manifest: m, Dir: dir, ctx: context.Background(), logf: opts.Logf, settings: map[string]string{}}
+	return load(m, os.DirFS(dir), dir, opts)
+}
+
+// LoadBuiltin loads a plugin that ships inside Dalibre, from fsys holding
+// its plugin.json and scripts. It may use a reserved id.
+func LoadBuiltin(fsys fs.FS, opts Options) (*Plugin, error) {
+	data, err := fs.ReadFile(fsys, "plugin.json")
+	if err != nil {
+		return nil, err
+	}
+	m, err := ParseManifest(data)
+	if err != nil {
+		return nil, err
+	}
+	p, err := load(m, fsys, "", opts)
+	if p != nil {
+		p.Builtin = true
+	}
+	return p, err
+}
+
+func load(m *Manifest, fsys fs.FS, dir string, opts Options) (*Plugin, error) {
+	p := &Plugin{Manifest: m, Dir: dir, fsys: fsys, ctx: context.Background(), logf: opts.Logf, settings: map[string]string{}}
 	if p.logf == nil {
 		p.logf = log.Printf
 	}
@@ -84,17 +119,40 @@ func Load(dir string, opts Options) (*Plugin, error) {
 		p.settings[s.Key] = v
 	}
 	p.client = p.httpClient(opts.Transport)
+	p.authorize = opts.Authorize
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.start(); err != nil {
 		return nil, err
 	}
-	if m.Has(CapSource) && !slices.Contains(p.exported, "search") {
+	if err := p.checkExports(); err != nil {
 		p.stop()
-		return nil, &Error{Plugin: m.ID, Kind: KindInvalid, Msg: "a source plugin must export search"}
+		return nil, err
 	}
 	return p, nil
+}
+
+// checkExports checks the script exports what its capabilities need.
+func (p *Plugin) checkExports() error {
+	m := p.Manifest
+	need := []string{}
+	if m.IsBookSource() {
+		need = append(need, "search")
+		if m.HasCollections() {
+			need = append(need, "collections", "list")
+		}
+	}
+	for _, n := range need {
+		if !slices.Contains(p.exported, n) {
+			msg := "a book source must export " + n
+			if n != "search" {
+				msg = "a book source with collections must export " + n
+			}
+			return &Error{Plugin: m.ID, Kind: KindInvalid, Msg: msg}
+		}
+	}
+	return nil
 }
 
 // Close frees the plugin's interpreter. Calls after Close fail.
@@ -170,15 +228,14 @@ func (p *Plugin) resolveModule(_ *quickjs.VM, base, name string) (string, error)
 }
 
 func (p *Plugin) loadModule(_ *quickjs.VM, name string) (string, error) {
-	file := filepath.Join(p.Dir, filepath.FromSlash(name))
-	st, err := os.Stat(file)
-	if err != nil {
+	st, err := fs.Stat(p.fsys, name)
+	if err != nil || st.IsDir() {
 		return "", fmt.Errorf("%s: no such file", name)
 	}
 	if p.srcSize += st.Size(); p.srcSize > MaxScriptSize {
 		return "", fmt.Errorf("the plugin’s scripts are over %d MB", MaxScriptSize>>20)
 	}
-	data, err := os.ReadFile(file)
+	data, err := fs.ReadFile(p.fsys, name)
 	return string(data), err
 }
 
@@ -207,6 +264,10 @@ func Discover(root string, load func(m *Manifest) (Options, bool)) ([]*Plugin, [
 		}
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", e.Name(), err))
+			continue
+		}
+		if Reserved(m.ID) {
+			errs = append(errs, fmt.Errorf("%s: id %q is kept for plugins that ship with Dalibre", e.Name(), m.ID))
 			continue
 		}
 		if other, ok := seen[m.ID]; ok {
@@ -247,6 +308,9 @@ func DefaultDir() string {
 
 // Defines reports whether the plugin exports a function called name.
 func (p *Plugin) Defines(name string) bool {
+	if p.native != nil {
+		return false
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return slices.Contains(p.exported, name)
@@ -270,6 +334,9 @@ func (p *Plugin) call(ctx context.Context, name string, args ...any) (json.RawMe
 	if missing := p.MissingSettings(); len(missing) > 0 {
 		return nil, &Error{Plugin: p.Manifest.ID, Call: name, Kind: KindSettings,
 			Msg: "needs " + strings.Join(missing, ", ") + " in its settings"}
+	}
+	if args == nil {
+		args = []any{}
 	}
 	data, err := json.Marshal(args)
 	if err != nil {

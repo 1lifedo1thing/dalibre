@@ -11,7 +11,7 @@ var iso639_2 = map[string]string{
 	"en": "eng", "zh": "zho", "ja": "jpn", "ko": "kor", "fr": "fra", "de": "deu", "es": "spa", "it": "ita",
 	"pt": "por", "ru": "rus", "ar": "ara", "nl": "nld", "sv": "swe", "no": "nor", "nb": "nob", "da": "dan",
 	"fi": "fin", "pl": "pol", "cs": "ces", "tr": "tur", "el": "ell", "he": "heb", "hi": "hin", "vi": "vie",
-	"th": "tha", "id": "ind", "uk": "ukr", "hu": "hun", "ro": "ron", "la": "lat",
+	"th": "tha", "id": "ind", "uk": "ukr", "hu": "hun", "ro": "ron", "la": "lat", "eo": "epo", "ca": "cat",
 }
 
 // LanguageCode turns "en", "en-US" or "eng" into calibre's "eng".

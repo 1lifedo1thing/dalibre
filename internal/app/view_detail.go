@@ -16,16 +16,35 @@ import (
 	"dalibre/internal/catalog"
 )
 
+// detailShown reports whether the detail panel shows: when the user keeps
+// it on and something is selected to show in it. With nothing selected
+// it is away, not an empty panel.
+func (a *App) detailShown() bool {
+	if a.settings.HideDetail {
+		return false
+	}
+	if a.page != pageLibrary {
+		return a.gb.selected != nil && a.pluginByID(a.gb.selected.source) != nil
+	}
+	return a.lib != nil && len(a.selectedIDs()) > 0
+}
+
 func (a *App) detailPanel(c *ui.Context) {
+	a.detailPanelOf(c, a.page, a.current(), a.selectedIDs())
+}
+
+func (a *App) detailPanelOf(c *ui.Context, pg page, b *calibre.Book, ids []int64) {
 	bar := c.TitleBar()
-	ui.Column(c).Width(theme.DetailWidth).Background(pal().Surface).BorderWidth(0, 0, 0, 1).BorderColor(pal().BorderSubtle).
+	ui.Column(c).Width(theme.DetailWidth).Shrink(0).Background(pal().Surface).BorderWidth(0, 0, 0, 1).BorderColor(pal().BorderSubtle).
 		AlignItems(ui.Stretch).Children(func() {
 		if bar.Right > 0 {
 			// Room for the caption buttons over the panel, to drag by.
 			ui.Box(c).Height(bar.Height).DragWindow()
 		}
-		ids := a.selectedIDs()
-		b := a.current()
+		if pg != pageLibrary {
+			a.resultDetail(c)
+			return
+		}
 		switch {
 		case len(ids) > 1:
 			a.multiDetail(c, ids)

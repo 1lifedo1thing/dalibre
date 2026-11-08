@@ -1,7 +1,8 @@
 // Type declarations for Dalibre plugins, plugin API 1.
 //
-// Plugins are ES modules (ES2023) that export search and, optionally,
-// resolve; CommonJS (module.exports) works too. In plain JavaScript, put
+// A book source plugin is an ES module (ES2023) that exports search and,
+// optionally, collections and list (with "collections": true in
+// plugin.json), get and resolve; CommonJS (module.exports) works too. In plain JavaScript, put
 // this file next to main.js with the template's jsconfig.json and add
 // `// @ts-check` to main.js: editors then check your code and complete
 // the API. In TypeScript, compile to one module, for example with
@@ -16,6 +17,22 @@ declare namespace Dalibre {
     page: number;
     /** The cursor the previous page returned; "" on the first page. */
     cursor: string;
+    /** The value of every filter plugin.json declares, by key: one of its options' values. */
+    filters: Record<string, string>;
+    /** list only: the id of the collection asked for. */
+    collection?: string;
+  }
+
+  /** A list of books to browse while the search box is empty: "Most popular". */
+  interface Collection {
+    id: string;
+    title: string;
+  }
+
+  /** A line of the detail panel: { label: "Rights", value: "Public domain" }. */
+  interface Field {
+    label: string;
+    value: string;
   }
 
   /** A page of results. */
@@ -48,6 +65,10 @@ declare namespace Dalibre {
     identifiers?: Record<string, string>;
     /** An image URL on a host in permissions.hosts. */
     cover?: string;
+    /** The book's page on your site; the detail panel links to it. */
+    url?: string;
+    /** More lines for the detail panel, at most 12. */
+    fields?: Field[];
     /** At least one. */
     formats: Format[];
     /** Anything JSON; handed back unchanged to resolve. */
@@ -100,11 +121,25 @@ declare namespace Dalibre {
     | "unavailable" // the service is down
     | "invalid";    // the query can't be searched
 
-  /** What a source plugin exports. */
+  /** What a book source plugin exports. */
   interface Source {
+    /** The user searched, or asked for the next page. */
     search(query: Query): Page | Promise<Page>;
+    /** With "collections": true, what to browse while the search box is empty. At most 12. */
+    collections?(): Collection[] | Promise<Collection[]>;
+    /** With "collections": true, a page of query.collection. */
+    list?(query: Query): Page | Promise<Page>;
+    /**
+     * The user opened a result: return all you know about it, for the
+     * detail panel. Formats and extra you leave out are kept from item.
+     */
+    get?(item: Result): Result | Promise<Result>;
+    /** Where to download item as format, when format.url won't do. */
     resolve?(item: Result, format: FormatName): DownloadRequest | Promise<DownloadRequest>;
   }
+
+  /** Back-compatible names. */
+  type BookSource = Source;
 }
 
 declare const dalibre: {
@@ -132,6 +167,6 @@ declare const console: {
   debug(...args: unknown[]): void;
 };
 
-/** For CommonJS plugins; ES modules export search and resolve instead. */
+/** For CommonJS plugins; ES modules export their functions instead. */
 declare const module: { exports: Partial<Dalibre.Source> };
 declare const exports: Partial<Dalibre.Source>;

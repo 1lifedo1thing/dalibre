@@ -366,3 +366,36 @@ func TestShareMenu(t *testing.T) {
 		t.Fatalf("shared = %q", shared)
 	}
 }
+
+func TestDetailPanelComesWithSelection(t *testing.T) {
+	a := newTestApp(t)
+	tt := ui.NewTester(a.View, 1440, 900)
+	tt.Frame()
+	if tt.HasText("Select a book to see its details") || a.detailShown() {
+		t.Fatal("an empty detail panel shows with nothing selected")
+	}
+	if err := tt.Click("Piranesi"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !a.detailShown() || !tt.HasText("Susanna Clarke") {
+		t.Fatalf("detail panel: %q", tt.Texts())
+	}
+	// The toolbar ends where the panel begins.
+	bar, _ := tt.Find("Add books")
+	panel, _ := tt.Find("Read")
+	if bar.X+bar.W > panel.X {
+		t.Fatalf("the panel covers the toolbar: %v, %v", bar, panel)
+	}
+	shot(t, tt, "detail-shown")
+	a.chosen.Clear()
+	a.curID, a.cur = 0, -1
+	tt.Frame()
+	if a.detailShown() || tt.HasText("Read") {
+		t.Fatal("the panel stayed")
+	}
+	a.settings.HideDetail = true
+	if a.detailShown() {
+		t.Fatal("shown while turned off")
+	}
+}

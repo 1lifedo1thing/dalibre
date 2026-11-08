@@ -1,22 +1,46 @@
 {
   "$schema": "../../sdk/plugin.schema.json",
-  "id": "gutenberg",
+  "id": "dalibre.gutenberg",
   "name": "Project Gutenberg",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "api": 1,
-  "description": "Search and download over 70,000 public-domain books from Project Gutenberg, through the Gutendex API.",
+  "icon": "library",
+  "description": "Over 70,000 free public-domain ebooks",
   "author": "Dalibre",
   "homepage": "https://www.gutenberg.org",
   "license": "MIT",
-  "capabilities": ["source"],
-  "permissions": {
-    "hosts": ["gutendex.com", "www.gutenberg.org", "gutenberg.org"]
-  },
-  "settings": [
-    {
-      "key": "languages",
-      "title": "Languages",
-      "description": "Two-letter codes, comma separated, as \"en,zh\". Empty searches every language."
+  "capabilities": {
+    "bookSource": {
+      "collections": true,
+      "filters": [
+        {
+          "key": "language",
+          "title": "Language",
+          "type": "language",
+          "options": [
+            { "value": "", "title": "Any language" },
+            { "value": "en" }, { "value": "fr" }, { "value": "de" }, { "value": "es" },
+            { "value": "it" }, { "value": "pt" }, { "value": "nl" }, { "value": "fi" },
+            { "value": "sv" }, { "value": "da" }, { "value": "no" }, { "value": "pl" },
+            { "value": "ru" }, { "value": "el" }, { "value": "la" }, { "value": "zh" },
+            { "value": "ja" }, { "value": "eo" }, { "value": "hu" }, { "value": "ca" }
+          ]
+        },
+        {
+          "key": "sort",
+          "title": "Sort",
+          "type": "select",
+          "default": "popular",
+          "options": [
+            { "value": "popular", "title": "Most popular" },
+            { "value": "new", "title": "Recently added" },
+            { "value": "title", "title": "Title" }
+          ]
+        }
+      ]
     }
-  ]
+  },
+  "permissions": {
+    "hosts": ["www.gutenberg.org"]
+  }
 }

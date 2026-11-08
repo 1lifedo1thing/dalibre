@@ -1,8 +1,11 @@
-# Plugin capabilities: proposal
+# Plugin capabilities
 
-Status: proposal. Extends plugin API 1 without breaking it; see
-[design.md](design.md) for the engine, sandbox and trust model, which this
-keeps as they are.
+Status: rollout steps 1 and 2 are built (the Get books page, the book
+source capability with filters, collections, `get`, and the built-in
+Project Gutenberg plugin); the rest is a proposal. Extends plugin API 1
+without breaking it; see [design.md](design.md) for the engine, sandbox
+and trust model, which this keeps as they are. Plugin authors read
+[README.md](README.md).
 
 UI: Figma, Screens › **07 · Get books** (supersedes the per-source
 pages in 05) and the Plugins dialog there.
@@ -69,9 +72,11 @@ valid in API 1 and means `{ "bookSource": {} }`.
 - `icon`: a name from Dalibre's icon set (Lucide subset), never an image:
   a plugin can't dress up as another app.
 - `description`: one line, shown under the name in the source picker.
-- Filters are typed (`select`, `language`, `text`, `toggle`) so Dalibre
-  draws them with its own controls. In *All sources* only filters every
-  selected source declares are shown (in practice `language`).
+- Filters are typed (`select` and `language` today; `text` and
+  `toggle` when a source needs them) so Dalibre draws them with its own
+  controls. In *All sources* only the language filter shows, shared by
+  every source that has one. While browsing, only the language shows: a
+  collection keeps its own order.
 
 ## Capability: Book source (Get books)
 
@@ -115,8 +120,8 @@ Dalibre, not the plugin, decides:
   ISBN) match a book in the library shows "In library" instead of Get.
 - **All sources**: calls `search` on every enabled source in parallel
   (calls into one plugin are still serialized), shows each source's
-  first 3 results under its header as they arrive, 15 s per source in
-  this mode. One source failing or needing setup is a state of its
+  first 3 results under its header as they arrive. One source failing
+  or needing setup is a state of its
   group, never of the page. This answers the open question in
   design.md: one source by default, all at once when asked.
 - **States** from error kinds (unchanged): `auth`/`settings` → Needs
@@ -205,11 +210,13 @@ enforce it.
 
 ## Rollout
 
-1. **Get books page** (Figma 07 · Get books): fixed page, source picker, search,
-   detail, download, states. API 1 as it is today.
-2. `filters`, `collections` + `list`, `get`, `url`, `fields`; the
+1. ✅ **Get books page** (Figma 07 · Get books): fixed page, source
+   picker, search, browse, detail, download, states; downloads in the
+   jobs popover; the Plugins dialog and the permission dialog.
+2. ✅ `filters`, `collections` + `list`, `get`, `url`, `fields`; the
    object form of `capabilities`; `icon` and one-line `description`.
-   Gutenberg plugin updated to use them. All sources.
+   All sources. Project Gutenberg rewritten on gutenberg.org's own OPDS
+   catalog and built into Dalibre as `dalibre.gutenberg`.
 3. `dalibre.storage`, new setting types, keychain.
 4. Metadata capability with `permissions.library`.
 5. Index, restricted mode, updates.
@@ -221,9 +228,13 @@ Each step ships on its own and keeps earlier plugins working.
 
 | | |
 |---|---|
-| `internal/plugin/manifest.go` | `capabilities` object (array still accepted), `icon`, filters, `permissions.library` |
-| `internal/plugin/source.go` → `booksource.go` | `search`, `list`, `collections`, `get`, `resolve`; checks for `Query.filters`, `Collection`, `fields` |
-| `internal/plugin/metadata.go` | `identify`, `cover` |
-| `internal/app/view_getbooks.go` | the page: picker, filters, results, groups, detail |
-| `internal/app/plugins.go` | fan-out search, "In library" matching |
+| `internal/plugin/manifest.go` | `capabilities` object (array still accepted), `icon`, filters; `Reserved` ids |
+| `internal/plugin/source.go` | `search`, `list`, `collections`, `get`, `resolve`; checks for `Query.filters`, `Collection`, `fields` |
+| `internal/plugin/plugin.go` | `LoadBuiltin`: a plugin from an `fs.FS`, as the built-in ones |
+| `plugins/` | the built-in plugins, embedded (`plugins.Builtin`) |
+| `internal/app/getbooks.go` | the page's state: sources, lists, browse, get, covers, "In library" |
+| `internal/app/view_getbooks.go` | the page: picker, filters, results, shelves, groups, states, detail |
+| `internal/app/view_plugins.go` | the Plugins dialog and the permission dialog |
+| `internal/app/plugins.go` | loading (built-in and installed), consent, downloads |
 | `sdk/dalibre.d.ts`, `plugin.schema.json`, `README.md` | the contract |
+| Later: `internal/plugin/metadata.go` | `identify`, `cover` |

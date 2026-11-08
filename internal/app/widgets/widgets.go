@@ -180,19 +180,35 @@ func pal() *theme.Palette { return theme.P() }
 // DialogFrame is a dialog in the design's look: a dimmed window, a raised
 // panel of the given width, a header with a close button, and a footer.
 func DialogFrame(c *ui.Context, open *bool, width float32, header func(), body func(), footer func()) {
+	dialogFrame(c, open, width, false, header, body, footer)
+}
+
+// CompactDialogFrame is DialogFrame with a slim header and footer, for a
+// window whose body carries its own layout (Settings).
+func CompactDialogFrame(c *ui.Context, open *bool, width float32, header func(), body func(), footer func()) {
+	dialogFrame(c, open, width, true, header, body, footer)
+}
+
+func dialogFrame(c *ui.Context, open *bool, width float32, compact bool, header func(), body func(), footer func()) {
+	headPad := [4]float32{theme.Space16, theme.Space16, theme.Space16, theme.Space24}
+	footV, footH := float32(theme.Space16), float32(theme.Space24)
+	if compact {
+		headPad = [4]float32{theme.Space6, theme.Space8, theme.Space6, theme.Space16}
+		footV, footH = theme.Space8, theme.Space16
+	}
 	ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
 		backdrop.Background(pal().Scrim)
 		panel.Width(width).MaxHeight(ui.Auto).Background(pal().SurfaceRaised).Border(1, pal().BorderSubtle).Radius(theme.RadiusXL).Clip().
 			Shadow(0, 2, 6, 0, ui.RGBA(26, 23, 18, 0.08)).Shadow(0, 24, 48, -8, ui.RGBA(26, 23, 18, 0.24)).AlignItems(ui.Stretch)
 		panel.Children(func() {
-			ui.Row(c).Padding(theme.Space16, theme.Space16, theme.Space16, theme.Space24).Gap(theme.Space12).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(pal().BorderSubtle).Children(func() {
+			ui.Row(c).Padding(headPad[0], headPad[1], headPad[2], headPad[3]).Gap(theme.Space12).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(pal().BorderSubtle).Children(func() {
 				header()
 				if IconButton(c, icons.X, "Close", false).Clicked() {
 					*open = false
 				}
 			})
 			ui.Scroll(c).Grow(1).MinHeight(0).Children(body)
-			ui.Row(c).Padding(theme.Space16, theme.Space24).Gap(theme.Space8).AlignItems(ui.Center).Background(pal().BgApp).BorderWidth(1, 0, 0, 0).BorderColor(pal().BorderSubtle).Children(footer)
+			ui.Row(c).Padding(footV, footH).Gap(theme.Space8).AlignItems(ui.Center).Background(pal().BgApp).BorderWidth(1, 0, 0, 0).BorderColor(pal().BorderSubtle).Children(footer)
 		})
 	})
 }

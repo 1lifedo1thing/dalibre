@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -9,6 +10,7 @@ import (
 	"dalibre/internal/app/icons"
 	"dalibre/internal/app/theme"
 	"dalibre/internal/app/widgets"
+	"dalibre/internal/calibre"
 	"dalibre/internal/convert"
 )
 
@@ -208,9 +210,10 @@ func (a *App) startConversions(ids []int64, opts convert.Options) {
 	})
 }
 
-// jobsButton opens the list of conversions, from the sidebar's footer.
+// jobsButton opens the list of downloads and conversions, from the
+// sidebar's footer.
 func (a *App) jobsButton(c *ui.Context) {
-	running, failed := 0, 0
+	running, failed, downloading := 0, 0, 0
 	for _, j := range a.jobs {
 		switch j.Status {
 		case convert.Queued, convert.Running:
@@ -219,7 +222,16 @@ func (a *App) jobsButton(c *ui.Context) {
 			failed++
 		}
 	}
-	b := ui.ButtonBase(c).Padding(theme.Space6, theme.Space8).Gap(theme.Space10).Radius(theme.RadiusSM).AlignItems(ui.Center).Label("Conversions")
+	for _, d := range a.downloads {
+		switch {
+		case !d.finished:
+			downloading++
+		case d.err != nil && !isCanceled(d.err):
+			failed++
+		}
+	}
+	total := len(a.jobs) + len(a.downloads)
+	b := ui.ButtonBase(c).Padding(theme.Space6, theme.Space8).Gap(theme.Space10).Radius(theme.RadiusSM).AlignItems(ui.Center).Label("Jobs")
 	if b.Hovered() || a.jobsOpen {
 		b.Background(pal().Hover)
 	}
@@ -228,17 +240,20 @@ func (a *App) jobsButton(c *ui.Context) {
 	}
 	b.Children(func() {
 		switch {
-		case running > 0:
+		case running+downloading > 0:
 			ui.Spinner(c).Size(16, 16)
 		case failed > 0:
 			ui.Icon(c, icons.Alert).FontSize(16).TextColor(pal().Danger.FG)
 		default:
 			ui.Icon(c, icons.CheckCircle).FontSize(16).TextColor(pal().Success.FG)
 		}
-		label := fmt.Sprintf("%d %s", len(a.jobs), plural(len(a.jobs), "conversion", "conversions"))
-		if running > 0 {
+		label := fmt.Sprintf("%d %s", total, plural(total, "job", "jobs"))
+		switch {
+		case downloading > 0:
+			label = fmt.Sprintf("Downloading %d of %d", len(a.downloads)-downloading+1, len(a.downloads))
+		case running > 0:
 			label = fmt.Sprintf("Converting %d of %d", len(a.jobs)-running+1, len(a.jobs))
-		} else if failed > 0 {
+		case failed > 0:
 			label = fmt.Sprintf("%d failed", failed)
 		}
 		ui.Text(c, label).FontSize(12).FontWeight(500).Grow(1).SingleLine()
@@ -248,7 +263,7 @@ func (a *App) jobsButton(c *ui.Context) {
 		panel.Width(380).Padding(theme.Space8).Gap(theme.Space4).Radius(theme.RadiusLG).Background(pal().SurfaceRaised).Border(1, pal().Border).
 			Shadow(0, 2, 6, 0, ui.RGBA(26, 23, 18, 0.08)).Shadow(0, 24, 48, -8, ui.RGBA(26, 23, 18, 0.18)).AlignItems(ui.Stretch).Children(func() {
 			ui.Row(c).Padding(theme.Space4, theme.Space4, theme.Space4, theme.Space8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Conversions").FontSize(14).FontWeight(600).Grow(1)
+				ui.Text(c, "Jobs").FontSize(14).FontWeight(600).Grow(1)
 				clear := ui.ButtonBase(c).Padding(theme.Space2, theme.Space6).Radius(theme.RadiusXS).Label("Clear finished")
 				if clear.Hovered() {
 					clear.Background(pal().Hover)
@@ -261,15 +276,70 @@ func (a *App) jobsButton(c *ui.Context) {
 						}
 					}
 					a.jobs = keep
-					if len(keep) == 0 {
+					a.downloads = slices.DeleteFunc(a.downloads, func(d *download) bool { return d.finished })
+					if len(a.jobs)+len(a.downloads) == 0 {
 						a.jobsOpen = false
 					}
 				}).Children(func() { ui.Text(c, "Clear finished").FontSize(12).FontWeight(500).TextColor(pal().TextAccent) })
 			})
-			for i, j := range a.jobs {
-				a.jobItem(c.Key(i), j)
-			}
+			ui.Scroll(c).MaxHeight(420).Gap(theme.Space4).AlignItems(ui.Stretch).Children(func() {
+				for i := len(a.downloads) - 1; i >= 0; i-- {
+					a.downloadItem(c.Key(a.downloads[i]), a.downloads[i])
+				}
+				for i, j := range a.jobs {
+					a.jobItem(c.Key(i), j)
+				}
+			})
 		})
+	})
+}
+
+// downloadItem is the JobItem component for a book coming from a source.
+func (a *App) downloadItem(c *ui.Context, d *download) {
+	src := d.plugin.Manifest.ID
+	ui.Row(c).Padding(theme.Space10, theme.Space12).Gap(theme.Space12).Radius(theme.RadiusMD).AlignItems(ui.Center).Children(func() {
+		coverOf(c, &calibre.Book{Title: d.result.Title, Authors: d.result.Authors}, a.resultCover(src, d.result), 28, 40, true)
+		ui.Column(c).Grow(1).MinWidth(0).Gap(theme.Space6).AlignItems(ui.Stretch).Children(func() {
+			ui.Row(c).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, d.result.Title).FontSize(13).FontWeight(500).Grow(1).SingleLine()
+				ui.Text(c, d.format).Font(theme.FontMono).FontSize(11).TextColor(pal().TextTertiary)
+			})
+			if !d.finished {
+				ui.Progress(c, d.fraction()).Height(4)
+			}
+			ui.Row(c).Gap(theme.Space4).AlignItems(ui.Center).Children(func() {
+				ic, col, msg := icons.Loader, pal().TextAccent, "Downloading · "+d.progressText()
+				switch {
+				case d.finished && d.err == nil:
+					ic, col, msg = icons.CheckCircle, pal().Success.FG, "Added to library"
+				case d.finished && isCanceled(d.err):
+					ic, col, msg = icons.X, pal().IconMuted, "Canceled"
+				case d.finished:
+					ic, col, msg = icons.Alert, pal().Danger.FG, pluginErrorText(a, d.result.Title, d.err)
+				}
+				ui.Icon(c, ic).FontSize(12).TextColor(col)
+				t := ui.Text(c, msg).FontSize(12).TextColor(pal().TextSecondary).MaxLines(2)
+				if d.finished && d.err != nil && !isCanceled(d.err) {
+					t.TextColor(pal().Danger.FG)
+				}
+			})
+		})
+		switch {
+		case !d.finished:
+			if widgets.IconButton(c, icons.X, "Cancel", false).Clicked() {
+				d.cancel()
+			}
+		case d.err != nil:
+			if widgets.IconButton(c, icons.Refresh, "Try again", false).Clicked() {
+				a.downloads = slices.DeleteFunc(a.downloads, func(x *download) bool { return x == d })
+				a.downloadBook(d.plugin, d.result, d.format)
+			}
+		case d.bookID != 0:
+			if widgets.IconButton(c, icons.Library, "Show in library", false).Clicked() {
+				a.jobsOpen = false
+				a.showInLibrary(d.bookID)
+			}
+		}
 	})
 }
 

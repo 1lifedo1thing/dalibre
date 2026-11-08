@@ -23,6 +23,8 @@ func (a *App) dialogs(c *ui.Context) {
 	a.editDialog(c)
 	a.convertDialog(c)
 	a.deleteDialog(c)
+	a.settingsDialog(c)
+	a.consentDialog(c)
 	if a.createAsk {
 		switch ui.AlertDialog(c, &a.createAsk, "Create a new library here?",
 			a.createAskPath+" has no calibre library. Dalibre can create an empty one, which calibre opens too.", "Cancel", "Create library") {

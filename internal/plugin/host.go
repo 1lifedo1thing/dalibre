@@ -8,12 +8,15 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"net/netip"
 	"net/url"
 	"os"
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/net/publicsuffix"
 )
 
 // Limits on what a plugin's script may do.
@@ -116,13 +119,17 @@ func (p *Plugin) redact(s string) string {
 
 // httpClient makes the plugin's requests: to the hosts it may reach,
 // following redirects only to those, and dialing only public addresses
-// unless it may reach the local network.
+// unless it may reach the local network. It keeps cookies as a browser
+// does, for this plugin alone and in memory, so a plugin can sign in
+// once with a form and stay signed in until it is loaded again.
 func (p *Plugin) httpClient(t http.RoundTripper) *http.Client {
 	if t == nil {
 		t = sandboxTransport(p.Manifest.Permissions.LocalNetwork)
 	}
+	jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	return &http.Client{
 		Transport: t,
+		Jar:       jar,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= MaxRedirects {
 				return errors.New("too many redirects")
@@ -206,6 +213,9 @@ func (p *Plugin) request(ctx context.Context, method, rawURL string, headers map
 	req.Header.Set("User-Agent", UserAgent+" "+p.Manifest.ID+"/"+p.Manifest.Version)
 	for k, v := range headers {
 		req.Header.Set(k, v)
+	}
+	if p.authorize != nil {
+		p.authorize(req)
 	}
 	return req, nil
 }

@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
+	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -13,7 +16,16 @@ import (
 	"dalibre/internal/catalog"
 	"dalibre/internal/plugin"
 	"dalibre/internal/settings"
+	builtin "dalibre/plugins"
 )
+
+// knownPlugin is a plugin Dalibre found, loaded or not, for the Plugins
+// dialog.
+type knownPlugin struct {
+	manifest *plugin.Manifest
+	builtin  bool
+	linked   string // the folder it loads from, when linked
+}
 
 // download is a book coming from a source plugin into the library.
 type download struct {
@@ -23,7 +35,24 @@ type download struct {
 	done, total int64 // bytes; total is -1 when unknown
 	err         error
 	finished    bool
+	bookID      int64 // the book it became
 	cancel      context.CancelFunc
+}
+
+// fraction is how far the download is, -1 while its size is unknown.
+func (d *download) fraction() float64 {
+	if d.total <= 0 {
+		return -1
+	}
+	return float64(d.done) / float64(d.total)
+}
+
+// progressText is "1.4 of 3.2 MB", or what has come so far.
+func (d *download) progressText() string {
+	if d.total <= 0 {
+		return humanSize(d.done)
+	}
+	return strings.TrimSuffix(humanSize(d.done), " MB") + " of " + humanSize(d.total)
 }
 
 // consentAsk is a plugin waiting for the user to grant its permissions:
@@ -32,6 +61,8 @@ type download struct {
 type consentAsk struct {
 	manifest *plugin.Manifest
 	archive  string
+	// source is the GitHub repository an update comes from.
+	source *settings.PluginSource
 }
 
 // granted reports whether the user granted m everything it asks for.
@@ -42,32 +73,121 @@ func granted(st *settings.PluginState, m *plugin.Manifest) bool {
 	return plugin.Permissions{Hosts: st.Granted.Hosts, LocalNetwork: st.Granted.LocalNetwork}.Covers(m.Permissions)
 }
 
-// loadPlugins loads the enabled plugins in the plugins folder whose
-// permissions the user granted, in the background. The others wait for
-// the user in pluginsPending.
+// loadPlugins loads the built-in plugins and the enabled ones in the
+// plugins folder whose permissions the user granted, in the background.
+// The others wait for the user in pluginsPending.
 func (a *App) loadPlugins() {
-	dir := a.pluginDir
-	if dir == "" {
+	dir, builtins, transport, store := a.pluginDir, a.builtins, a.pluginTransport, a.secrets
+	if dir == "" && !builtins {
 		return
 	}
 	states := map[string]settings.PluginState{}
 	for id, st := range a.settings.Plugins {
 		states[id] = *st
 	}
+	a.pluginsLoading = true
 	a.run(func() {
+		var plugins []*plugin.Plugin
 		var pending []*plugin.Manifest
-		plugins, errs := plugin.Discover(dir, func(m *plugin.Manifest) (plugin.Options, bool) {
-			st := states[m.ID]
+		var known []knownPlugin
+		var errs []error
+		secrets := map[string]map[string]string{}
+		var moved []*plugin.Manifest
+		// options are what m loads with: its values, secrets included.
+		options := func(m *plugin.Manifest, st settings.PluginState) plugin.Options {
+			values, sec, mv := pluginValues(store, m, st.Values)
+			if sec != nil {
+				secrets[m.ID] = sec
+			}
+			if mv {
+				moved = append(moved, m)
+			}
+			return plugin.Options{Settings: values, Transport: transport}
+		}
+		if builtins {
+			// Dalibre vouches for its own plugins: they have what they ask.
+			for _, fsys := range builtin.Builtin() {
+				data, err := fs.ReadFile(fsys, "plugin.json")
+				var m *plugin.Manifest
+				if err == nil {
+					m, err = plugin.ParseManifest(data)
+				}
+				if err != nil {
+					errs = append(errs, err)
+					continue
+				}
+				known = append(known, knownPlugin{manifest: m, builtin: true})
+				st := states[m.ID]
+				if st.Disabled {
+					continue
+				}
+				p, err := plugin.LoadBuiltin(fsys, options(m, st))
+				if err != nil {
+					errs = append(errs, err)
+					continue
+				}
+				plugins = append(plugins, p)
+			}
+		}
+		if dir != "" {
+			found, ferrs := plugin.Discover(dir, func(m *plugin.Manifest) (plugin.Options, bool) {
+				st := states[m.ID]
+				if st.Path != "" {
+					return plugin.Options{}, false // linked: loaded from its folder below
+				}
+				known = append(known, knownPlugin{manifest: m})
+				if st.Disabled {
+					return plugin.Options{}, false
+				}
+				if !granted(&st, m) {
+					pending = append(pending, m)
+					return plugin.Options{}, false
+				}
+				return options(m, st), true
+			})
+			plugins = append(plugins, found...)
+			errs = append(errs, ferrs...)
+		}
+		// Linked plugins load from their folders, as they are.
+		var linked []string
+		for _, id := range slices.Sorted(maps.Keys(states)) {
+			st := states[id]
+			if st.Path == "" {
+				continue
+			}
+			linked = append(linked, st.Path)
+			m, err := plugin.ReadManifest(st.Path)
+			switch {
+			case err != nil:
+				errs = append(errs, fmt.Errorf("%s: %w", st.Path, err))
+				continue
+			case m.ID != id:
+				errs = append(errs, fmt.Errorf("%s: its plugin.json says id %q, linked as %q; add the folder again", st.Path, m.ID, id))
+				continue
+			case plugin.Reserved(m.ID):
+				errs = append(errs, fmt.Errorf("%s: id %q is kept for plugins that ship with Dalibre", st.Path, m.ID))
+				continue
+			}
+			known = append(known, knownPlugin{manifest: m, linked: st.Path})
 			if st.Disabled {
-				return plugin.Options{}, false
+				continue
 			}
 			if !granted(&st, m) {
 				pending = append(pending, m)
-				return plugin.Options{}, false
+				continue
 			}
-			return plugin.Options{Settings: st.Values}, true
-		})
+			p, err := plugin.Load(st.Path, options(m, st))
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			plugins = append(plugins, p)
+		}
+		watch := newFolderWatch(linked)
 		a.post(func() {
+			a.pluginSecrets = secrets
+			a.dropMovedSecrets(moved)
+			a.watchLinked(watch)
 			old := a.plugins
 			for _, d := range a.downloads {
 				if slices.Contains(old, d.plugin) && !d.finished {
@@ -81,7 +201,9 @@ func (a *App) loadPlugins() {
 					p.Close()
 				}
 			})
-			a.plugins, a.pluginErrs, a.pluginsPending = plugins, errs, pending
+			a.pluginsLoading = false
+			a.pluginErrs, a.pluginsPending, a.pluginsKnown = errs, pending, known
+			a.setPlugins(plugins)
 			for _, err := range errs {
 				a.toastError(fmt.Errorf("Plugin %w", err))
 			}
@@ -89,12 +211,32 @@ func (a *App) loadPlugins() {
 	})
 }
 
-// sources are the loaded plugins that search for books.
+// setPlugins makes plugins the loaded ones. What the Get books page holds
+// from the ones before is dropped: a plugin's settings may have changed.
+func (a *App) setPlugins(plugins []*plugin.Plugin) {
+	a.plugins = plugins
+	src, text, query, coll, filters, lang := a.gb.source, a.gb.text, a.gb.query, a.gb.collection, a.gb.filters, a.gb.language
+	a.gb = newGetBooks()
+	a.gb.source, a.gb.text, a.gb.query, a.gb.collection, a.gb.filters, a.gb.language = src, text, query, coll, filters, lang
+	if a.page == pageGetBooks {
+		a.openGetBooks()
+	}
+}
+
+// sources are the loaded plugins that search for books, and the OPDS
+// catalogs that can search, unless the user keeps them out.
 func (a *App) sources() []*plugin.Plugin {
 	var out []*plugin.Plugin
 	for _, p := range a.plugins {
-		if p.Manifest.Has(plugin.CapSource) {
+		if p.Manifest.IsBookSource() {
 			out = append(out, p)
+		}
+	}
+	if !a.settings.OPDS.NotInGetBooks {
+		for _, p := range a.catalogs {
+			if st := a.catalogStatus[strings.TrimPrefix(p.Manifest.ID, catalogPrefix)]; st != nil && st.searchable {
+				out = append(out, p)
+			}
 		}
 	}
 	return out
@@ -131,7 +273,7 @@ func (a *App) grantConsent() {
 	st.Granted = &settings.Grant{Hosts: slices.Clone(c.manifest.Permissions.Hosts), LocalNetwork: c.manifest.Permissions.LocalNetwork}
 	a.saveSettings()
 	if c.archive != "" {
-		a.finishInstall(c.archive)
+		a.finishInstallFrom(c.archive, c.source)
 		return
 	}
 	a.loadPlugins()
@@ -145,15 +287,35 @@ func (a *App) askConsent(id string) {
 	}
 }
 
-func (a *App) finishInstall(archive string) {
+func (a *App) finishInstall(archive string) { a.finishInstallFrom(archive, nil) }
+
+// finishInstallFrom installs a package; src, when set, is the GitHub
+// repository it came from, whose download is removed afterwards.
+func (a *App) finishInstallFrom(archive string, src *settings.PluginSource) {
+	if info, err := os.Stat(archive); err == nil && info.IsDir() {
+		a.linkPlugin(archive)
+		return
+	}
 	dir := a.pluginDir
 	a.run(func() {
 		m, err := plugin.Install(archive, dir)
+		if src != nil {
+			os.Remove(archive)
+		}
 		a.post(func() {
 			if err != nil {
 				a.toastError(fmt.Errorf("Couldn’t install the plugin: %w", err))
 				return
 			}
+			st := a.settings.Plugin(m.ID)
+			st.Path = "" // installed now, no longer linked
+			if src != nil {
+				st.Source = src
+			} else {
+				st.Source = nil // a file: nothing to update from
+			}
+			delete(a.updates, m.ID)
+			a.saveSettings()
 			a.toast("Installed %s %s", m.Name, m.Version)
 			a.loadPlugins()
 		})
@@ -169,13 +331,62 @@ func (a *App) setPluginEnabled(id string, on bool) {
 
 // setPluginValues saves a plugin's settings and reloads it with them.
 func (a *App) setPluginValues(id string, values map[string]string) {
-	a.settings.Plugin(id).Values = values
-	a.saveSettings()
-	a.loadPlugins()
+	m := a.knownManifest(id)
+	if m == nil {
+		a.settings.Plugin(id).Values = values
+		a.saveSettings()
+		a.loadPlugins()
+		return
+	}
+	a.savePluginValues(m, values, a.loadPlugins)
+}
+
+// knownManifest is the manifest of plugin id, if Dalibre found it.
+func (a *App) knownManifest(id string) *plugin.Manifest {
+	for _, k := range a.pluginsKnown {
+		if k.manifest.ID == id {
+			return k.manifest
+		}
+	}
+	return nil
+}
+
+// linkPlugin links the plugin in folder: it loads from there, and
+// reloads when the folder's files change.
+func (a *App) linkPlugin(folder string) {
+	a.run(func() {
+		abs, err := filepath.Abs(folder)
+		var m *plugin.Manifest
+		if err == nil {
+			m, err = plugin.Inspect(abs)
+		}
+		a.post(func() {
+			if err != nil {
+				a.toastError(fmt.Errorf("Couldn’t add the plugin: %w", err))
+				return
+			}
+			st := a.settings.Plugin(m.ID)
+			st.Path, st.Source = abs, nil
+			delete(a.updates, m.ID)
+			a.saveSettings()
+			a.toast("Added %s from %s", m.Name, filepath.Base(abs))
+			a.loadPlugins()
+		})
+	})
 }
 
 // uninstallPlugin removes plugin id and what the user decided about it.
+// A linked plugin's folder stays as it is.
 func (a *App) uninstallPlugin(id string) {
+	if m := a.knownManifest(id); m != nil {
+		a.forgetPluginSecrets(m)
+	}
+	if st := a.settings.Plugins[id]; st != nil && st.Path != "" {
+		delete(a.settings.Plugins, id)
+		a.saveSettings()
+		a.loadPlugins()
+		return
+	}
 	dir := a.pluginDir
 	a.run(func() {
 		err := plugin.Uninstall(dir, id)
@@ -223,9 +434,11 @@ func (a *App) downloadBook(p *plugin.Plugin, r plugin.Result, format string) {
 			return lib.ImportWith(file, resultMetadata(r), cover)
 		}()
 		a.post(func() {
-			d.finished, d.err = true, err
+			d.finished, d.err, d.bookID = true, err, id
 			if err != nil {
-				a.toastError(errors.New(pluginErrorText(r.Title, err)))
+				if !errors.Is(err, context.Canceled) && !isCanceled(err) {
+					a.toastError(errors.New(pluginErrorText(a, r.Title, err)))
+				}
 				return
 			}
 			a.reload(func() {
@@ -238,12 +451,32 @@ func (a *App) downloadBook(p *plugin.Plugin, r plugin.Result, format string) {
 	})
 }
 
+// isCanceled reports whether a download failed because it was canceled.
+func isCanceled(err error) bool {
+	var pe *plugin.Error
+	return errors.As(err, &pe) && pe.Kind == plugin.KindTimeout && errors.Is(pe.Err, context.Canceled)
+}
+
+// pluginName is the name of plugin id, as users know it.
+func (a *App) pluginName(id string) string {
+	for _, k := range a.pluginsKnown {
+		if k.manifest.ID == id {
+			return k.manifest.Name
+		}
+	}
+	if p := a.pluginByID(id); p != nil {
+		return p.Manifest.Name
+	}
+	return id
+}
+
 // pluginErrorText says what went wrong with a download, and what to do.
-func pluginErrorText(title string, err error) string {
+func pluginErrorText(a *App, title string, err error) string {
 	var pe *plugin.Error
 	if !errors.As(err, &pe) {
 		return fmt.Sprintf("Couldn’t add %s: %v", title, err)
 	}
+	pe = &plugin.Error{Plugin: a.pluginName(pe.Plugin), Call: pe.Call, Kind: pe.Kind, Msg: pe.Msg, Err: pe.Err}
 	switch pe.Kind {
 	case plugin.KindAuth, plugin.KindSettings:
 		return fmt.Sprintf("%s needs you to sign in or check its settings: %s", pe.Plugin, pe.Msg)

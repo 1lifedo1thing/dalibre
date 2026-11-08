@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -83,14 +85,58 @@ type App struct {
 	jobs        []*convert.Job
 
 	// plugins
-	pluginDir  string // "" loads none, as tests do
+	pluginDir string // "" loads none, as tests do
+	// watchEvery is how often linked plugins' folders are looked at for
+	// changes; 0, as in tests, doesn't watch. linkGen ends the watch of
+	// plugins loaded before.
+	watchEvery time.Duration
+	linkGen    atomic.Int64
 	plugins    []*plugin.Plugin
-	pluginErrs []error
+	// pluginSecrets are the loaded plugins' secret settings, as kept in
+	// the credential store, by plugin id and key.
+	pluginSecrets map[string]map[string]string
+	pluginErrs    []error
 	// pluginsPending are installed plugins waiting for the user to grant
 	// their permissions; consent is the one the user is being asked about.
 	pluginsPending []*plugin.Manifest
+	pluginsKnown   []knownPlugin
 	consent        *consentAsk
 	downloads      []*download
+	pluginsLoading bool
+	pl             pluginsState
+	// updates are newer versions of plugins installed from GitHub, by id.
+	updates         map[string]*pluginUpdate
+	updatesChecking bool
+	github          *plugin.GitHub // nil is github.com
+	ghi             ghInstall      // the Install from GitHub sheet
+
+	// settingsOpen shows the Settings window, on section.
+	settingsOpen bool
+	section      settingsSection
+	catEdit      catalogEdit // the Add or Edit catalog sheet
+	shareEdit    shareEdit   // Settings › OPDS's sharing fields
+
+	// OPDS: the catalogs' sources, what checking each found (by catalog
+	// id), the catalog page, and the server sharing the library.
+	catalogs      []*plugin.Plugin
+	catalogStatus map[string]*catalogStatus
+	cp            catalogPage
+	share         *shareState
+	libShared     atomic.Pointer[calibre.Library]
+	// secrets keeps passwords: the system's credential store; nil in tests
+	// until they set one.
+	secrets secretStore
+
+	// page is what the main column shows: the library or Get books.
+	page page
+	gb   getBooksState
+	// idIndex maps the library's identifiers, "type:value", to books.
+	idIndex map[string]int64
+	// builtins loads the plugins that ship inside Dalibre; tests leave
+	// it off and set plugins themselves.
+	builtins bool
+	// pluginTransport makes plugins' requests in tests; nil is the network.
+	pluginTransport http.RoundTripper
 
 	busy        string // a long action in progress, as an import
 	busyDone    int
@@ -121,6 +167,7 @@ func New(settingsPath string) *App {
 		sectionsOn: map[string]bool{"formats": true},
 		covers:     newCoverCache(),
 		settings:   settings.Load(settingsPath),
+		gb:         newGetBooks(),
 	}
 	a.post = func(fn func()) { fn() }
 	a.run = func(fn func()) { go fn() }
@@ -137,8 +184,14 @@ func (a *App) Attach(win *mygo.Window) {
 	a.win = win
 	a.post = win.Update
 	a.pluginDir = plugin.DefaultDir()
+	a.watchEvery = defaultWatchEvery
+	a.builtins = true
+	a.secrets = systemSecrets{}
 	a.loadPlugins()
+	a.loadCatalogs()
 	a.openLibrary(a.startupLibrary())
+	a.applyShare()
+	a.checkUpdates(false)
 }
 
 // View builds the window from the state, every frame.
@@ -203,8 +256,12 @@ func (a *App) openLibrary(root string) {
 	a.run(func() {
 		lib, err := a.open(root)
 		var books []*calibre.Book
+		var ids map[string]int64
 		if err == nil {
 			books, err = lib.Books()
+		}
+		if err == nil {
+			ids, _ = lib.Identifiers()
 		}
 		a.post(func() {
 			a.loading = false
@@ -223,6 +280,8 @@ func (a *App) openLibrary(root string) {
 				a.lib.Close()
 			}
 			a.lib = lib
+			a.libShared.Store(lib)
+			a.idIndex = ids
 			a.details, a.detailsReq = map[int64]*calibre.Details{}, map[int64]bool{}
 			a.curID, a.chosen = 0, ui.Selection[int64]{}
 			a.grid, a.table = ui.GridState{}, ui.ListState{}
@@ -272,6 +331,7 @@ func (a *App) reload(after func()) {
 	}
 	a.run(func() {
 		books, err := lib.Books()
+		ids, _ := lib.Identifiers()
 		a.post(func() {
 			if lib != a.lib {
 				return
@@ -281,6 +341,7 @@ func (a *App) reload(after func()) {
 				return
 			}
 			a.details, a.detailsReq = map[int64]*calibre.Details{}, map[int64]bool{}
+			a.idIndex = ids
 			a.setBooks(books)
 			if after != nil {
 				after()

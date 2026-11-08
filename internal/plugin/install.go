@@ -21,9 +21,26 @@ const (
 // PackageExt is the extension of a packaged plugin: a zip of its folder.
 const PackageExt = ".dalibre-plugin"
 
-// Inspect reads the manifest in a plugin package without installing it,
-// so the user can be asked to grant its permissions first.
+// isDir reports whether path is a folder: a plugin's, unpacked.
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+// Inspect reads the manifest in a plugin package, or a plugin's folder,
+// without installing it, so the user can be asked to grant its
+// permissions first.
 func Inspect(archive string) (*Manifest, error) {
+	if isDir(archive) {
+		m, err := ReadManifest(archive)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, errors.New("the folder has no plugin.json")
+		}
+		if err == nil && Reserved(m.ID) {
+			return nil, fmt.Errorf("plugin.json: id %q is kept for plugins that ship with Dalibre", m.ID)
+		}
+		return m, err
+	}
 	zr, err := zip.OpenReader(archive)
 	if err != nil {
 		return nil, err
@@ -42,13 +59,32 @@ func Inspect(archive string) (*Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ParseManifest(data)
+	m, err := ParseManifest(data)
+	if err == nil && Reserved(m.ID) {
+		return nil, fmt.Errorf("plugin.json: id %q is kept for plugins that ship with Dalibre", m.ID)
+	}
+	return m, err
 }
 
 // Install unpacks a plugin package into root/<id>, replacing the version
-// there, and returns its manifest. Granting its permissions is the
-// caller's business, before or after.
+// there, and returns its manifest. archive may be a plugin's folder: it
+// is packed as Pack does (hidden files and node_modules left out) and
+// installed as that package, so later edits to the folder need another
+// install. Granting its permissions is the caller's business, before or
+// after.
 func Install(archive, root string) (*Manifest, error) {
+	if isDir(archive) {
+		tmp, err := os.MkdirTemp("", "dalibre-plugin-")
+		if err != nil {
+			return nil, err
+		}
+		defer os.RemoveAll(tmp)
+		pkg, err := Pack(archive, tmp)
+		if err != nil {
+			return nil, err
+		}
+		return Install(pkg, root)
+	}
 	zr, err := zip.OpenReader(archive)
 	if err != nil {
 		return nil, err
@@ -93,6 +129,9 @@ func Install(archive, root string) (*Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
+	if Reserved(m.ID) {
+		return nil, fmt.Errorf("plugin.json: id %q is kept for plugins that ship with Dalibre", m.ID)
+	}
 	if _, err := os.Stat(filepath.Join(tmp, filepath.FromSlash(m.Main))); err != nil {
 		return nil, fmt.Errorf("the package has no %s", m.Main)
 	}
@@ -120,12 +159,25 @@ func packageRoot(zr *zip.Reader) (string, error) {
 		return "", fmt.Errorf("the package has over %d files", MaxPackageFiles)
 	}
 	var total uint64
-	roots := map[string]bool{}
+	// plugin.json is at the package's root or in its one top folder; in a
+	// repository downloaded from GitHub, possibly in that folder's plugin
+	// folder.
+	roots, nested := map[string]bool{}, map[string]bool{}
 	for _, f := range zr.File {
 		total += f.UncompressedSize64
-		if path.Base(f.Name) == "plugin.json" && strings.Count(f.Name, "/") <= 1 {
-			roots[strings.TrimSuffix(f.Name, "plugin.json")] = true
+		if path.Base(f.Name) != "plugin.json" {
+			continue
 		}
+		dir := strings.TrimSuffix(f.Name, "plugin.json")
+		switch n := strings.Count(f.Name, "/"); {
+		case n <= 1:
+			roots[dir] = true
+		case n == 2 && strings.HasSuffix(dir, "/plugin/"):
+			nested[dir] = true
+		}
+	}
+	if len(roots) == 0 {
+		roots = nested
 	}
 	switch {
 	case total > MaxPackageSize:

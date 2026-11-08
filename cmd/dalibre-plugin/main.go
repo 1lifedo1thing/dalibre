@@ -17,6 +17,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/egoist/mygo"
+
 	"dalibre/internal/plugin"
 	"dalibre/internal/settings"
 	"dalibre/sdk"
@@ -26,14 +28,18 @@ const usage = `dalibre-plugin is for writing Dalibre plugins.
 
   dalibre-plugin init <dir> [--id ID] [--name NAME]   start a plugin from the template
   dalibre-plugin check <dir>                          validate plugin.json and load main.js
-  dalibre-plugin search <dir> <text> [--page N] [--cursor C] [--json]
+  dalibre-plugin search <dir> <text> [--filter key=value] [--page N] [--cursor C] [--json]
+  dalibre-plugin collections <dir>                    list what the source offers to browse
+  dalibre-plugin list <dir> <collection> [--filter key=value] [--page N] [--json]
+  dalibre-plugin get <dir> <text> [--item N] [--json]  the detail panel's view of a result
   dalibre-plugin download <dir> <text> [--item N] [--format EPUB] [-o DIR]
   dalibre-plugin pack <dir> [-o DIR]                  make <id>-<version>.dalibre-plugin
   dalibre-plugin install <package> [--yes]            install into Dalibre's plugins folder
   dalibre-plugin uninstall <id>
-  dalibre-plugin list
+  dalibre-plugin installed                            list installed plugins
 
-search and download take --set key=value for the plugin's settings; the
+search, list, get and download take --set key=value for the plugin's
+settings, and --filter key=value for its filters; the
 values saved in Dalibre are used otherwise. The plugins folder is
 $DALIBRE_PLUGINS, or Dalibre's in your configuration folder.
 `
@@ -47,7 +53,8 @@ func main() {
 	defer stop()
 	cmds := map[string]func(context.Context, []string) error{
 		"init": cmdInit, "check": cmdCheck, "search": cmdSearch, "download": cmdDownload,
-		"pack": cmdPack, "install": cmdInstall, "uninstall": cmdUninstall, "list": cmdList,
+		"collections": cmdCollections, "list": cmdListCollection, "get": cmdGet,
+		"pack": cmdPack, "install": cmdInstall, "uninstall": cmdUninstall, "installed": cmdList,
 	}
 	cmd, ok := cmds[os.Args[1]]
 	if !ok {
@@ -117,6 +124,16 @@ func load(dir string, set setFlags) (*plugin.Plugin, error) {
 	if st := settings.Load(settings.DefaultPath()).Plugins[m.ID]; st != nil {
 		for k, v := range st.Values {
 			values[k] = v
+		}
+	}
+	// Secret settings are in the system's credential store, where the
+	// app keeps them; --set is used instead when given.
+	for _, st := range m.Settings {
+		if _, given := set[st.Key]; st.Type != "secret" || given || values[st.Key] != "" {
+			continue
+		}
+		if v, err := mygo.Secrets.Service(plugin.SecretService).Get(plugin.SecretKey(m.ID, st.Key)); err == nil {
+			values[st.Key] = string(v)
 		}
 	}
 	for k, v := range set {
@@ -191,8 +208,18 @@ func cmdCheck(_ context.Context, args []string) error {
 	}
 	m := p.Manifest
 	fmt.Printf("%s %s (%s), plugin API %d\n", m.Name, m.Version, m.ID, m.API)
-	fmt.Printf("capabilities: %s\n", strings.Join(m.Capabilities, ", "))
-	for _, fn := range []string{"search", "resolve"} {
+	fmt.Printf("capabilities: %s\n", strings.Join(m.Capabilities.Names(), ", "))
+	for _, f := range m.Filters() {
+		var vals []string
+		for _, o := range f.Options {
+			vals = append(vals, fmt.Sprintf("%q", o.Value))
+		}
+		fmt.Printf("filter %s (%s): %s, default %q\n", f.Key, f.Type, strings.Join(vals, " "), f.Value(""))
+	}
+	if plugin.Reserved(m.ID) {
+		fmt.Println("note: a reserved id; only a plugin shipped inside Dalibre may use it")
+	}
+	for _, fn := range []string{"search", "collections", "list", "get", "resolve"} {
 		if p.Defines(fn) {
 			fmt.Printf("exports %s\n", fn)
 		}
@@ -216,14 +243,18 @@ func cmdSearch(ctx context.Context, args []string) error {
 	page := fs.Int("page", 1, "the page")
 	cursor := fs.String("cursor", "", "the cursor a previous page returned")
 	asJSON := fs.Bool("json", false, "print the results as JSON")
-	set := setFlags{}
+	set, filters := setFlags{}, setFlags{}
 	fs.Var(set, "set", "a setting, as key=value (repeatable)")
+	fs.Var(filters, "filter", "a filter's value, as key=value (repeatable)")
 	pos := parse(fs, args, "dir", "text")
 	p, err := load(pos[0], set)
 	if err != nil {
 		return err
 	}
-	res, err := p.Search(ctx, plugin.Query{Text: pos[1], Page: *page, Cursor: *cursor})
+	if err := checkFilters(p, filters); err != nil {
+		return err
+	}
+	res, err := p.Search(ctx, plugin.Query{Text: pos[1], Page: *page, Cursor: *cursor, Filters: filters})
 	if err != nil {
 		return err
 	}
@@ -233,6 +264,114 @@ func cmdSearch(ctx context.Context, args []string) error {
 		return enc.Encode(res)
 	}
 	printPage(res)
+	return nil
+}
+
+// checkFilters checks --filter values against the plugin's filters.
+func checkFilters(p *plugin.Plugin, filters map[string]string) error {
+	for k, v := range filters {
+		i := slices.IndexFunc(p.Manifest.Filters(), func(f plugin.Filter) bool { return f.Key == k })
+		if i < 0 {
+			return fmt.Errorf("--filter %s: plugin.json declares no filter %q", k, k)
+		}
+		if f := p.Manifest.Filters()[i]; f.Value(v) != v {
+			return fmt.Errorf("--filter %s=%s: not one of the filter's options", k, v)
+		}
+	}
+	return nil
+}
+
+func cmdCollections(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("collections", flag.ExitOnError)
+	set := setFlags{}
+	fs.Var(set, "set", "a setting, as key=value (repeatable)")
+	p, err := load(parse(fs, args, "dir")[0], set)
+	if err != nil {
+		return err
+	}
+	if !p.Manifest.HasCollections() {
+		return errors.New("plugin.json doesn’t declare collections")
+	}
+	cs, err := p.Collections(ctx)
+	if err != nil {
+		return err
+	}
+	for _, c := range cs {
+		fmt.Printf("%s\t%s\n", c.ID, c.Title)
+	}
+	return nil
+}
+
+func cmdListCollection(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	page := fs.Int("page", 1, "the page")
+	cursor := fs.String("cursor", "", "the cursor a previous page returned")
+	asJSON := fs.Bool("json", false, "print the results as JSON")
+	set, filters := setFlags{}, setFlags{}
+	fs.Var(set, "set", "a setting, as key=value (repeatable)")
+	fs.Var(filters, "filter", "a filter's value, as key=value (repeatable)")
+	pos := parse(fs, args, "dir", "collection")
+	p, err := load(pos[0], set)
+	if err != nil {
+		return err
+	}
+	if err := checkFilters(p, filters); err != nil {
+		return err
+	}
+	res, err := p.List(ctx, plugin.Query{Collection: pos[1], Page: *page, Cursor: *cursor, Filters: filters})
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(res)
+	}
+	printPage(res)
+	return nil
+}
+
+func cmdGet(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	item := fs.Int("item", 1, "which result, from 1")
+	asJSON := fs.Bool("json", false, "print the result as JSON")
+	set, filters := setFlags{}, setFlags{}
+	fs.Var(set, "set", "a setting, as key=value (repeatable)")
+	fs.Var(filters, "filter", "a filter's value, as key=value (repeatable)")
+	pos := parse(fs, args, "dir", "text")
+	p, err := load(pos[0], set)
+	if err != nil {
+		return err
+	}
+	res, err := p.Search(ctx, plugin.Query{Text: pos[1], Filters: filters})
+	if err != nil {
+		return err
+	}
+	if *item < 1 || *item > len(res.Items) {
+		return fmt.Errorf("--item %d: search returned %d results", *item, len(res.Items))
+	}
+	r, err := p.Get(ctx, res.Items[*item-1])
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(r)
+	}
+	printPage(plugin.Page{Items: []plugin.Result{r}})
+	if r.URL != "" {
+		fmt.Println("    page", r.URL)
+	}
+	for _, f := range r.Fields {
+		fmt.Printf("    %s: %s\n", f.Label, f.Value)
+	}
+	if len(r.Tags) > 0 {
+		fmt.Println("    tags:", strings.Join(r.Tags, "; "))
+	}
+	if r.Description != "" {
+		fmt.Println("    " + r.Description)
+	}
 	return nil
 }
 

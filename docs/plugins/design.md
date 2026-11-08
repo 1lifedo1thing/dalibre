@@ -3,9 +3,10 @@
 For Dalibre's developers. Plugin authors read [README.md](README.md),
 which is the contract.
 
-Status: plugin API 1, source plugins. Engine, consent, packaging, author
-CLI and library import are done and tested; the app's UI for plugins is
-next, designed in Figma first.
+Status: plugin API 1, book sources. Engine, consent, packaging, author
+CLI, library import, the Get books page, the Plugins dialog and the
+built-in Project Gutenberg plugin are done and tested. What comes next is
+in [capabilities.md](capabilities.md).
 
 ## Goals
 
@@ -183,32 +184,40 @@ Every failure is a `*plugin.Error` with a `Kind` the UI acts on:
 | `internal/plugin/plugin.go` | the interpreter: load, discover, modules, calls, recovery, error mapping |
 | `internal/plugin/prelude.js` | the script side of the host boundary: `dalibre`, `console`, calling exports |
 | `internal/plugin/host.go` | host functions, `fetch`, network sandbox, error kinds |
-| `internal/plugin/source.go` | the source contract: search, checking, resolve, download, cover |
+| `internal/plugin/source.go` | the book source contract: search, list, collections, get, checking, resolve, download, cover |
 | `internal/plugin/install.go` | inspect, install, uninstall, pack |
-| `internal/app/plugins.go` | loading, consent, enable/disable, settings, `downloadBook` |
+| `internal/app/plugins.go` | loading (built-in and installed), consent, enable/disable, settings, `downloadBook` |
+| `internal/app/getbooks.go`, `view_getbooks.go`, `view_plugins.go` | the Get books page, the Plugins and permission dialogs |
 | `internal/settings` | per-plugin state |
 | `internal/calibre/importer.go` | `ImportWith` |
 | `cmd/dalibre-plugin` | the author CLI |
 | `sdk/` | `dalibre.d.ts`, `plugin.schema.json`, the `init` template (embedded) |
-| `plugins/gutenberg` | reference plugin |
+| `plugins/` | built-in plugins, embedded in the app: `gutenberg` (`dalibre.gutenberg`) |
 
-## Next: UI (Figma first)
+## UI
 
-Get books as one fixed page with a source picker, and plugins with
-several capabilities: see [capabilities.md](capabilities.md) and Figma
-Screens › 07 · Get books.
+Designed in Figma first (Screens › 05–07), built in `internal/app`:
 
-1. **Get books**: source picker, search, results (cover, title, authors,
-   language, formats with sizes), load more, download per format.
+1. **Get books** (sidebar): one page with a source picker (each book
+   source, and All sources), search, the source's filters, browse
+   shelves from its collections, results with covers and formats, the
+   detail panel filled by `get`, download per format. "In library" by
+   identifier.
 2. **Downloads** in the jobs popover beside conversions: progress,
-   cancel, retry; error kinds turned into actions ("Open settings").
-3. **Plugins** in settings: installed list (version, author, state:
-   on / off / waiting for permission / failed to load), settings forms
-   with masked secrets, enable/disable, uninstall, "Install from file…",
-   "Open plugins folder", "Reload".
-4. **Consent dialog**: name, author, homepage, description, and the
-   permissions in plain words (`Permissions.Describe`), with the local
-   network called out; for an update, only what's new.
+   cancel, retry, show in library; error kinds turned into what to do.
+3. **Plugins** dialog (from the picker's "Get more sources…" and the
+   source's settings button): every plugin found (built in, on, off,
+   waiting for permission), its switch, settings form with masked
+   secrets, what it adds and can reach, uninstall, "Install from file…",
+   "Open plugins folder", "Reload plugins".
+4. **Permission dialog**: name, author, description, and the
+   permissions in plain words, the local network called out; for an
+   update, only what is new.
+
+Built-in plugins (`plugins/`, `dalibre.*` ids) load from the binary and
+have what they ask for: Dalibre vouches for them. They can be turned off
+but not uninstalled; a package or a folder using a `dalibre.` id is
+refused.
 
 ## Later
 
@@ -221,7 +230,7 @@ Screens › 07 · Get books.
 - `dalibre.html` (parse + CSS selectors) for sites without an API;
   `URL`/`URLSearchParams`.
 - Login flows (open the browser, receive a callback) for OAuth sources.
-- Duplicate check before downloading, by identifier and title/author.
+- Duplicate check by title and author too, not only by identifier.
 - More capabilities: `metadata` (fetch metadata and covers for existing
   books, as calibre's metadata sources), `opds` (expose a source as OPDS),
   event hooks.

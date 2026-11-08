@@ -1,6 +1,7 @@
 // @ts-check
-// A Dalibre source plugin. Try it without the app:
-//   dalibre-plugin search . "some title"
+// A Dalibre book source. Try it without the app:
+//   dalibre-plugin search . "some title" --filter language=en
+//   dalibre-plugin get . "some title"
 //   dalibre-plugin download . "some title" --format EPUB
 // The API is described in dalibre.d.ts.
 
@@ -11,8 +12,10 @@ const API = "https://api.example.com";
  * @param {Dalibre.Query} query
  * @returns {Promise<Dalibre.Page>}
  */
-export async function search({ text, page }) {
-  const res = await dalibre.fetch(`${API}/search?q=${encodeURIComponent(text)}&page=${page}`, {
+export async function search({ text, page, filters }) {
+  let url = `${API}/search?q=${encodeURIComponent(text)}&page=${page}`;
+  if (filters.language) url += `&lang=${filters.language}`;
+  const res = await dalibre.fetch(url, {
     headers: { Authorization: `Bearer ${dalibre.settings.apiKey}` },
   });
   if (res.status === 401) throw dalibre.error("auth", "The API key was refused");
@@ -33,6 +36,27 @@ export async function search({ text, page }) {
     hasMore: Boolean(data.next),
   };
 }
+
+// Optional: everything you know about a result, for the detail panel when
+// the user opens it (a description, subjects, file sizes, url, fields).
+//
+// /**
+//  * @param {Dalibre.Result} item
+//  * @returns {Promise<Dalibre.Result>}
+//  */
+// export async function get(item) {
+//   const b = (await dalibre.fetch(`${API}/books/${item.id}`)).json();
+//   return { ...item, description: b.summary, tags: b.subjects, url: b.page_url,
+//            fields: [{ label: "Rights", value: b.rights }] };
+// }
+
+// Optional: lists to browse while the search box is empty. Add
+// "collections": true to capabilities.bookSource in plugin.json.
+//
+// export function collections() {
+//   return [{ id: "popular", title: "Most popular" }];
+// }
+// export async function list({ collection, page, filters }) { … }
 
 // Optional: for download links that expire or need a second request.
 // Without it, the host downloads format.url.

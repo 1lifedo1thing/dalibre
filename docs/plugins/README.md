@@ -1,9 +1,15 @@
 # Writing Dalibre plugins
 
 A Dalibre plugin is a folder with a `plugin.json` and a JavaScript file.
-Plugin API 1 has one kind of plugin, a **source**: it searches a catalogue
-and says where each book's file is; Dalibre downloads the file and adds
-the book to the user's library, with the metadata the plugin gave.
+Plugin API 1 has one capability, a **book source**: it searches and
+browses a catalogue and says where each book's file is. Dalibre shows
+every book source in its **Get books** page, with the same controls for
+all; your plugin gives data and never draws UI. Dalibre downloads the
+file and adds the book to the user's library, with the metadata the
+plugin gave.
+
+The [Project Gutenberg plugin](../../plugins/gutenberg) ships inside
+Dalibre and uses everything below; read it as a worked example.
 
 No build step and nothing to install besides the `dalibre-plugin` tool:
 plugins are plain JavaScript modules (ES2023), run sandboxed by the
@@ -11,7 +17,7 @@ QuickJS interpreter built into Dalibre.
 
 - [Quick start](#quick-start)
 - [plugin.json](#pluginjson)
-- [main.js](#mainjs): [`search`](#search), [`resolve`](#resolve), [the `dalibre` object](#the-dalibre-object), [errors](#errors)
+- [main.js](#mainjs): [`search`](#search), [filters](#filters), [`collections` and `list`](#collections-and-list), [`get`](#get), [`resolve`](#resolve), [the `dalibre` object](#the-dalibre-object), [errors](#errors)
 - [Permissions and limits](#permissions-and-limits)
 - [Testing](#testing)
 - [Publishing](#publishing)
@@ -28,6 +34,7 @@ cd my-source
 # edit plugin.json and main.js
 dalibre-plugin check .
 dalibre-plugin search . "dune" --set apiKey=…
+dalibre-plugin get . "dune"
 dalibre-plugin download . "dune" --format EPUB
 dalibre-plugin pack .                            # com.example.books-0.1.0.dalibre-plugin
 ```
@@ -50,12 +57,23 @@ Node's built-ins or the browser's.
   "name": "Example Books",
   "version": "1.2.0",
   "api": 1,
-  "description": "Search and download books from example.com.",
+  "description": "Books from example.com",
   "author": "Ann Author",
   "homepage": "https://github.com/ann/dalibre-example-books",
   "license": "MIT",
   "main": "main.js",
-  "capabilities": ["source"],
+  "icon": "globe",
+  "capabilities": {
+    "bookSource": {
+      "collections": true,
+      "filters": [
+        { "key": "language", "title": "Language", "type": "language",
+          "options": [{ "value": "", "title": "Any language" }, { "value": "en" }, { "value": "fr" }] },
+        { "key": "sort", "title": "Sort", "type": "select", "default": "popular",
+          "options": [{ "value": "popular", "title": "Most popular" }, { "value": "new", "title": "Newest" }] }
+      ]
+    }
+  },
   "permissions": {
     "hosts": ["api.example.com", "*.cdn.example.com"],
     "localNetwork": false
@@ -69,16 +87,18 @@ Node's built-ins or the browser's.
 
 | Field | |
 |---|---|
-| `id` | **Required.** Permanent and unique: lowercase letters, digits and `-`, in dot-separated parts. Use a domain you control, reversed (`com.example.books`), or your GitHub name (`io.github.ann.books`). Ids starting with `dalibre` are reserved. Changing it makes a different plugin. |
+| `id` | **Required.** Permanent and unique: lowercase letters, digits and `-`, in dot-separated parts. Use a domain you control, reversed (`com.example.books`), or your GitHub name (`io.github.ann.books`). Ids starting with `dalibre` are kept for plugins that ship inside Dalibre; a package using one isn't installed. Changing it makes a different plugin. |
 | `name` | **Required.** Shown to users; up to 64 characters. |
 | `version` | **Required.** [Semantic version](https://semver.org) of your plugin. |
 | `api` | **Required.** The plugin API you wrote for: `1`. |
-| `description`, `author`, `homepage`, `license` | Shown when the user installs. `license` is an SPDX id. |
+| `description` | One line, shown under your name in the Get books source picker and when the user installs: what the catalogue holds ("Over 70,000 free public-domain ebooks"). |
+| `author`, `homepage`, `license` | Shown when the user installs. `license` is an SPDX id. The page's Open site button opens `homepage`. |
+| `icon` | One of Dalibre's icons: `globe` (default), `library`, `book-open`, `database`, `network`, `building`, `bookmark`, `layers`. Never an image, so a plugin can't dress up as another app. |
 | `main` | The script, relative to `plugin.json`. Default `main.js`. |
-| `capabilities` | **Required.** `["source"]`. |
+| `capabilities` | **Required.** `{"bookSource": {…}}`: `collections` (`true` when you export `collections` and `list`) and up to 4 `filters` ([below](#filters)). `["source"]`, the form API 1 began with, still means a book source with no filters or collections. |
 | `permissions.hosts` | **Required for a source.** Every host your plugin reaches, through `fetch`, file downloads, covers **and redirects**. `*.example.com` matches any subdomain, not `example.com` itself. |
 | `permissions.localNetwork` | Reach this computer and the local network: a home OPDS or Calibre server. Users are warned. Default `false`. |
-| `settings` | Values the user enters: up to 32. `type` is `text` (default) or `secret` (masked, and hidden in logs). `required` settings must be filled before your plugin is called. |
+| `settings` | Values the user enters: up to 32. `type` is `text` (default) or `secret` (masked, hidden in logs, and kept in the system's keychain rather than Dalibre's settings file). `required` settings must be filled before your plugin is called. |
 
 Unknown fields are errors, so a misspelt one is caught by `check`, not
 silently ignored.
@@ -116,10 +136,13 @@ export async function resolve(item, format) { … }   // optional
 ### search
 
 `search(query) → Page` is called when the user searches with your
-source, and again with `page + 1` when they ask for more.
+source, and again with `page + 1` when they ask for more. With **All
+sources** picked, every enabled source is searched at once and each
+shows its first 3 results under its name.
 
 ```ts
-query: { text: string, page: number /* from 1 */, cursor: string /* "" at first */ }
+query: { text: string, page: number /* from 1 */, cursor: string /* "" at first */,
+         filters: { [key: string]: string } /* every declared filter's value */ }
 
 Page:  { items: Result[], hasMore?: boolean, cursor?: string }
 ```
@@ -141,7 +164,9 @@ A **Result** is one book:
 | `language` | | ISO 639: `"en"`, `"eng"`, `"zh-CN"`. |
 | `pubdate` | | `"2006"`, `"2006-01"`, `"2006-01-02"` or an RFC 3339 time. |
 | `identifiers` | | `{ isbn: "…", goodreads: "…" }`, as calibre keeps them. Add your own id under your plugin's name, so users can find the book's page later. |
-| `cover` | | An image URL on one of your hosts; Dalibre fetches it if the file has no cover. |
+| `cover` | | An image URL on one of your hosts. Dalibre shows it in the results and uses it if the file has no cover. |
+| `url` | | The book's page on your site; the detail panel links to it. |
+| `fields` | | Up to 12 more lines for the detail panel: `[{ label: "Rights", value: "Public domain" }]`. |
 | `extra` | | Anything JSON. Dalibre hands it back unchanged to `resolve`. |
 
 A format is `{ format, url?, size? }`: `format` is one of `EPUB`, `KEPUB`,
@@ -154,6 +179,51 @@ with an unknown format, is dropped; an invalid `cover` or `pubdate` is
 ignored; an unknown field (`author` for `authors`) is ignored. Each gives a
 warning, which `dalibre-plugin search` prints and Dalibre logs. Users never
 see warnings, so check your plugin's output with the CLI.
+
+Dalibre marks a result **In library** when one of its `identifiers`
+matches a book the user has, so give your own id and the ISBN.
+
+### Filters
+
+Filters are drop-downs under the search box. Declare them in
+`capabilities.bookSource.filters`; Dalibre draws them and passes their
+values in `query.filters`, every declared filter always with one of its
+options' values (the `default`, else the first, until the user picks).
+
+| Field | |
+|---|---|
+| `key` | The name in `query.filters`. |
+| `title` | Shown on the drop-down. |
+| `type` | `"select"`: options with titles. `"language"`: options are ISO 639 codes and Dalibre names them; `""` with a title is "any". In All sources, only a language filter shows, shared by every source that has one. |
+| `options` | 1 to 64 `{ value, title? }`. |
+| `default` | The option chosen at first. |
+
+### collections and list
+
+With `"collections": true`, the page shows your collections as shelves
+of covers while the search box is empty, each with See all.
+
+```js
+export function collections() {
+  return [{ id: "popular", title: "Most popular" }, { id: "new", title: "Recently added" }];
+}
+
+export async function list({ collection, page, cursor, filters }) {
+  // a Page of that collection, as search returns
+}
+```
+
+`collections()` is called once per session; return at most 12.
+`list(query)` gets the same query as `search`, with `collection` set and
+`text` empty.
+
+### get
+
+`get(item) → Result` is optional, and called when the user opens a
+result in the detail panel. Return everything you know: description,
+subjects, language, file sizes, `url`, `fields`. It costs a request per
+book opened, so `search` can return only what its listing has. `id` is
+kept; formats and `extra` you leave out are kept from `item`.
 
 ### resolve
 
@@ -186,7 +256,7 @@ HTTP 401/403/404/429 into the errors below.
 
 | | |
 |---|---|
-| `dalibre.fetch(url, init?)` | The web's `fetch`, cut down. `init` is `{ method?, headers?, body? }` with string values. It resolves to `{ status, statusText, ok, url, headers, text(), json() }`; `url` is the final URL after redirects, `headers` has lowercase names. It rejects for a host outside your permissions, a network failure or a response over 16 MB. Requests run one at a time; `Promise.all` doesn't make them parallel. |
+| `dalibre.fetch(url, init?)` | The web's `fetch`, cut down. `init` is `{ method?, headers?, body? }` with string values. It resolves to `{ status, statusText, ok, url, headers, text(), json() }`; `url` is the final URL after redirects, `headers` has lowercase names. It rejects for a host outside your permissions, a network failure or a response over 16 MB. Cookies are kept as a browser keeps them, for your plugin alone and in memory, and sent with later requests and downloads: sign in by posting a form once, and stay signed in until the plugin is loaded again. Requests run one at a time; `Promise.all` doesn't make them parallel. |
 | `dalibre.settings` | The user's values for your settings, by key (defaults where unset). Read-only. |
 | `dalibre.error(kind, message?)` | An `Error` Dalibre understands; see below. |
 | `dalibre.log(...)`, `console.log/info/warn/error/debug(...)` | To Dalibre's log and the CLI's stderr. Secret settings are masked. |
@@ -235,7 +305,7 @@ declare:
 
 | Limit | |
 |---|---|
-| One call (`search`, `resolve`) | 60 seconds; then the script is stopped |
+| One call (`search`, `list`, `get`, `resolve`…) | 60 seconds; then the script is stopped |
 | Memory | 64 MB for your plugin's interpreter; then the call fails |
 | Requests per call | 50 |
 | One `fetch` response | 16 MB (files go through the download) |
@@ -259,16 +329,23 @@ interpreter, checks, permissions and limits.
 ```sh
 dalibre-plugin check .                        # manifest, script loads, exports, what it asks for
 dalibre-plugin search . "dune"                # results, warnings, and how to get the next page
-dalibre-plugin search . "dune" --page 2
+dalibre-plugin search . "dune" --page 2 --filter language=fr
 dalibre-plugin search . "dune" --json         # exactly what Dalibre gets
+dalibre-plugin collections .                  # what the browse page shows
+dalibre-plugin list . popular --page 2
+dalibre-plugin get . "dune" --item 2          # what the detail panel shows
 dalibre-plugin download . "dune" --item 3 --format PDF -o /tmp
 ```
 
 `--set key=value` gives a setting; otherwise the values saved in Dalibre
 for your plugin's id are used. Logs and warnings go to stderr.
 
-To try it in the app, `pack` it and `dalibre-plugin install` the package,
-then restart Dalibre.
+To try it in the app, use Settings › Plugins › Add plugin › From a
+folder… and pick your plugin's folder. Dalibre loads the plugin from
+that folder, not a copy, and reloads it a moment after you save a change
+(hidden files and `node_modules` aside). Remove takes it out of Dalibre
+and leaves the folder alone. `dalibre-plugin install` takes a folder or
+a package and installs a copy; restart Dalibre after it.
 
 ## Publishing
 
@@ -276,6 +353,21 @@ then restart Dalibre.
 your folder, leaving out hidden files and `node_modules`. Users install
 the file. Publish it as a GitHub release asset, with your source next to
 it.
+
+Users can install straight from your repository: Settings › Plugins ›
+Install from GitHub, with `owner/repo` or a github.com link. They pick
+one of your releases (the latest by default) or a branch:
+
+- A release installs its `.dalibre-plugin` asset; a release without one
+  installs the repository as tagged.
+- A branch installs the repository at the branch's latest commit, so
+  keep `plugin.json` at the repository's root, or in a `plugin` folder.
+  There is no build step: commit what `main.js` imports.
+
+Dalibre checks for updates at launch and once a day: a newer release
+that isn't a pre-release, or a new commit on the branch followed. An
+update that asks for no new permissions can install by itself; one that
+asks for more waits for the user. Bump `version` in each release.
 
 Users see your name, author, description and what you ask for before
 they install. A plugin that asks for little, says what it does and links

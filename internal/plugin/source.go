@@ -19,9 +19,11 @@ import (
 
 // Limits on what a source returns and downloads.
 const (
-	MaxResults  = 100     // per page
-	MaxDownload = 2 << 30 // bytes
-	MaxCover    = 10 << 20
+	MaxResults     = 100 // per page
+	MaxCollections = 12
+	MaxFields      = 12
+	MaxDownload    = 2 << 30 // bytes
+	MaxCover       = 10 << 20
 )
 
 // KnownFormats are the formats a source may offer.
@@ -30,13 +32,32 @@ var KnownFormats = []string{
 	"TXT", "RTF", "DOCX", "ODT", "HTMLZ", "LIT", "PRC", "PDB", "LRF", "SNB", "TCR",
 }
 
-// Query is what a source searches for.
+// Query is what a source searches for, or which page of a collection
+// list asks for.
 type Query struct {
 	Text string `json:"text"`
 	Page int    `json:"page"` // from 1
 	// Cursor is what the previous page returned as cursor, for APIs that
 	// page by token rather than by number; "" on the first page.
 	Cursor string `json:"cursor"`
+	// Filters are the values of the source's declared filters, by key;
+	// every declared filter has one.
+	Filters map[string]string `json:"filters"`
+	// Collection is the collection list asks for; "" for search.
+	Collection string `json:"collection,omitempty"`
+}
+
+// Collection is a list of books a source offers to browse.
+type Collection struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// Field is a line of the result's details the source adds: "Rights",
+// "Downloads".
+type Field struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
 }
 
 // Page is a page of search results.
@@ -64,7 +85,10 @@ type Result struct {
 	Tags        []string          `json:"tags,omitempty"`
 	Identifiers map[string]string `json:"identifiers,omitempty"` // "isbn": "…"
 	Cover       string            `json:"cover,omitempty"`       // an image URL
-	Formats     []Format          `json:"formats"`
+	// URL is the book's page on the source's site.
+	URL     string   `json:"url,omitempty"`
+	Fields  []Field  `json:"fields,omitempty"`
+	Formats []Format `json:"formats"`
 	// Extra is the plugin's own, handed back to it unchanged by resolve.
 	Extra json.RawMessage `json:"extra,omitempty"`
 }
@@ -87,22 +111,131 @@ type Request struct {
 
 // Search asks a source plugin for a page of books.
 func (p *Plugin) Search(ctx context.Context, q Query) (Page, error) {
+	q.Collection = ""
+	return p.page(ctx, "search", q)
+}
+
+// List asks a source plugin for a page of one of its collections.
+func (p *Plugin) List(ctx context.Context, q Query) (Page, error) {
+	if q.Collection == "" {
+		return Page{}, &Error{Plugin: p.Manifest.ID, Call: "list", Kind: KindInvalid, Msg: "no collection asked for"}
+	}
+	return p.page(ctx, "list", q)
+}
+
+func (p *Plugin) page(ctx context.Context, call string, q Query) (Page, error) {
 	q.Text = strings.TrimSpace(q.Text)
 	if q.Page < 1 {
 		q.Page = 1
 	}
-	raw, err := p.call(ctx, "search", q)
+	q.Filters = p.FilterValues(q.Filters)
+	if p.native != nil {
+		return p.nativePage(ctx, call, q)
+	}
+	raw, err := p.call(ctx, call, q)
 	if err != nil {
 		return Page{}, err
 	}
 	page, err := p.parsePage(raw)
 	if err != nil {
-		return Page{}, &Error{Plugin: p.Manifest.ID, Call: "search", Kind: KindInvalid, Msg: err.Error()}
+		return Page{}, &Error{Plugin: p.Manifest.ID, Call: call, Kind: KindInvalid, Msg: err.Error()}
 	}
 	for _, w := range page.Warnings {
-		p.logf("[%s] warning: search returned %s", p.Manifest.ID, w)
+		p.logf("[%s] warning: %s returned %s", p.Manifest.ID, call, w)
 	}
 	return page, nil
+}
+
+// FilterValues gives every declared filter a value: the one in values
+// when it is one of the filter's options, else the filter's default.
+// Keys that aren't declared are dropped.
+func (p *Plugin) FilterValues(values map[string]string) map[string]string {
+	out := map[string]string{}
+	for _, f := range p.Manifest.Filters() {
+		out[f.Key] = f.Value(values[f.Key])
+	}
+	return out
+}
+
+// Collections asks a source plugin for the collections it offers.
+func (p *Plugin) Collections(ctx context.Context) ([]Collection, error) {
+	if p.native != nil {
+		cs, err := p.native.Collections(ctx, p.getter())
+		if err != nil {
+			return nil, p.nativeError("collections", err)
+		}
+		return cs, nil
+	}
+	raw, err := p.call(ctx, "collections")
+	if err != nil {
+		return nil, err
+	}
+	var cs []Collection
+	if err := strictJSON(raw, &cs); err != nil {
+		var uf *unknownFieldError
+		if !errors.As(err, &uf) {
+			return nil, &Error{Plugin: p.Manifest.ID, Call: "collections", Kind: KindInvalid, Msg: "returned " + jsonProblem(err) + "; want [{id, title}]"}
+		}
+		p.logf("[%s] warning: collections returned %s; ignored", p.Manifest.ID, jsonProblem(err))
+	}
+	var out []Collection
+	seen := map[string]bool{}
+	for i, c := range cs {
+		c.ID, c.Title = strings.TrimSpace(c.ID), strings.TrimSpace(c.Title)
+		if c.ID == "" || c.Title == "" || seen[c.ID] {
+			p.logf("[%s] warning: collections[%d] needs a unique id and a title; dropped", p.Manifest.ID, i)
+			continue
+		}
+		seen[c.ID] = true
+		out = append(out, c)
+	}
+	if len(out) > MaxCollections {
+		p.logf("[%s] warning: %d collections; only the first %d are kept", p.Manifest.ID, len(out), MaxCollections)
+		out = out[:MaxCollections]
+	}
+	return out, nil
+}
+
+// Get asks a source plugin for everything it knows about r, for the
+// detail panel. Without a get export, r is returned as it is. What get
+// returns keeps r's id, and r's formats and extra when it leaves them out.
+func (p *Plugin) Get(ctx context.Context, r Result) (Result, error) {
+	if !p.Defines("get") {
+		return r, nil
+	}
+	raw, err := p.call(ctx, "get", r)
+	if err != nil {
+		return r, err
+	}
+	var full Result
+	if err := strictJSON(raw, &full); err != nil {
+		var uf *unknownFieldError
+		if !errors.As(err, &uf) {
+			return r, &Error{Plugin: p.Manifest.ID, Call: "get", Kind: KindInvalid, Msg: "returned " + jsonProblem(err) + "; want a result"}
+		}
+		p.logf("[%s] warning: get returned %s; ignored", p.Manifest.ID, jsonProblem(err))
+	}
+	if full.ID != "" && full.ID != r.ID {
+		p.logf("[%s] warning: get returned id %q for %q; kept %q", p.Manifest.ID, full.ID, r.ID, r.ID)
+	}
+	full.ID = r.ID
+	if strings.TrimSpace(full.Title) == "" {
+		full.Title = r.Title
+	}
+	if len(full.Formats) == 0 {
+		full.Formats = r.Formats
+	}
+	if len(full.Extra) == 0 {
+		full.Extra = r.Extra
+	}
+	warn, err := full.check()
+	for _, w := range warn {
+		p.logf("[%s] warning: get returned %s", p.Manifest.ID, w)
+	}
+	if err != nil {
+		return r, &Error{Plugin: p.Manifest.ID, Call: "get", Kind: KindInvalid, Msg: "returned " + err.Error()}
+	}
+	return full, nil
 }
 
 // parsePage reads what search returned. A malformed result is dropped
@@ -192,6 +325,17 @@ func (r *Result) check() (warnings []string, err error) {
 	}
 	if r.SeriesIndex < 0 {
 		r.SeriesIndex = 0
+	}
+	if r.URL != "" && !isWebURL(r.URL) {
+		warnings = append(warnings, fmt.Sprintf("url: %q isn’t an absolute http(s) URL; ignored", r.URL))
+		r.URL = ""
+	}
+	r.Fields = slices.DeleteFunc(r.Fields, func(f Field) bool {
+		return strings.TrimSpace(f.Label) == "" || strings.TrimSpace(f.Value) == ""
+	})
+	if len(r.Fields) > MaxFields {
+		warnings = append(warnings, fmt.Sprintf("fields: %d; only the first %d are kept", len(r.Fields), MaxFields))
+		r.Fields = r.Fields[:MaxFields]
 	}
 	return warnings, nil
 }
