@@ -194,6 +194,10 @@ Every failure is a `*plugin.Error` with a `Kind` the UI acts on:
 
 ## Next: UI (Figma first)
 
+Get books as one fixed page with a source picker, and plugins with
+several capabilities: see [capabilities.md](capabilities.md) and Figma
+Screens › 07 · Get books.
+
 1. **Get books**: source picker, search, results (cover, title, authors,
    language, formats with sizes), load more, download per format.
 2. **Downloads** in the jobs popover beside conversions: progress,
