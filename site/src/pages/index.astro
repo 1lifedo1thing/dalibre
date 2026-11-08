@@ -6,6 +6,7 @@ import AppWindow from "../components/AppWindow.astro";
 import SendToDevice from "../components/SendToDevice.astro";
 import Seo from "../components/Seo.astro";
 import { dalibreMB } from "../lib/app-size";
+import { release } from "../lib/release";
 
 // calibre 9.18 as installed on macOS (du -sm calibre.app).
 const calibreMB = 1397;
@@ -135,9 +136,7 @@ export async function search({ text, page }) {
         <div class="flex items-center gap-1 text-sm text-sand-11 sm:gap-6">
           <a href="#plugins" class="hidden hover:text-ink sm:inline">Plugins</a>
           <a href="/docs/" class="px-2 hover:text-ink sm:px-0">Docs</a>
-          <span class="rounded-full border border-sand-6 px-3 py-1 text-xs font-medium text-ink">
-            Coming soon
-          </span>
+          <a href="/#download" class="rounded-full border border-sand-6 px-3 py-1 text-xs font-medium text-ink transition hover:border-sand-9">Download</a>
         </div>
       </nav>
     </header>
@@ -170,19 +169,45 @@ export async function search({ text, page }) {
             native app for macOS, Windows and Linux, and grows with
             plugins anyone can write.
           </p>
-          <div class="rise mt-9 flex flex-wrap items-center gap-3" style="animation-delay:.24s">
-            <a
-              href="#light"
-              class="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-black"
-            >
-              See how light →
-            </a>
-            <a
-              href="/docs/plugins/#quick-start"
-              class="rounded-full border border-sand-6 bg-paper px-5 py-2.5 text-sm font-medium transition hover:border-sand-9"
-            >
-              Write a plugin
-            </a>
+          <div class="rise relative z-20 mt-9 flex flex-wrap items-center gap-3" style="animation-delay:.24s">
+            <div class="flex items-stretch rounded-full bg-ink text-sm font-medium text-paper">
+              <a
+                id="download"
+                href={release.downloads[0].url}
+                class="rounded-l-full py-2.5 pr-4 pl-5 transition hover:bg-black"
+              >
+                Download for <span data-download-label>{release.downloads[0].os}</span>
+              </a>
+              <details class="download-menu relative">
+                <summary
+                  aria-label="Other platforms"
+                  class="flex h-full cursor-pointer list-none items-center rounded-r-full border-l border-white/20 pr-4 pl-3 transition hover:bg-black"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                </summary>
+                <div class="absolute top-full left-0 mt-2 w-64 rounded-2xl border border-sand-6 bg-paper p-1.5 text-ink shadow-lg">
+                  {release.downloads.map((d) => (
+                    <a
+                      href={d.url}
+                      data-download={d.id}
+                      data-os={d.os}
+                      data-size={d.size}
+                      class="flex items-center justify-between rounded-xl px-3 py-2 hover:bg-sand-3"
+                    >
+                      <span>{d.label}</span>
+                      <span class="font-mono text-xs text-sand-11">{d.size}</span>
+                    </a>
+                  ))}
+                  <div class="mx-3 my-1 h-px bg-sand-5" aria-hidden="true"></div>
+                  <a href={release.page} class="block rounded-xl px-3 py-2 text-sand-11 hover:bg-sand-3 hover:text-ink">
+                    All downloads →
+                  </a>
+                </div>
+              </details>
+            </div>
+            <span class="font-mono text-xs text-sand-11">
+              <span data-download-size>{release.downloads[0].size}</span> · v{release.version}
+            </span>
           </div>
 
           <!-- App window, redrawn from the Figma file -->
@@ -458,6 +483,26 @@ export async function search({ text, page }) {
     <Footer />
 
     <script>
+      // Point the download button at the installer for the visitor's OS.
+      {
+        const ua = navigator.userAgent;
+        const id = /Windows/.test(ua) ? "win-amd64" : /Linux|X11/.test(ua) && !/Android/.test(ua) ? "linux-amd64" : null;
+        const link = id && document.querySelector<HTMLAnchorElement>(`[data-download="${id}"]`);
+        const button = document.querySelector<HTMLAnchorElement>("#download");
+        if (link && button) {
+          button.href = link.href;
+          button.querySelector("[data-download-label]")!.textContent = link.dataset.os!;
+          document.querySelector("[data-download-size]")!.textContent = link.dataset.size!;
+        }
+        const menu = document.querySelector<HTMLDetailsElement>(".download-menu");
+        document.addEventListener("click", (e) => {
+          if (menu?.open && !menu.contains(e.target as Node)) menu.open = false;
+        });
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && menu) menu.open = false;
+        });
+      }
+
       const chart = document.querySelector(".size-chart");
       if (chart) {
         new IntersectionObserver(
