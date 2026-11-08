@@ -16,6 +16,7 @@ import (
 	"dalibre/internal/calibre"
 	"dalibre/internal/catalog"
 	"dalibre/internal/convert"
+	"dalibre/internal/plugin"
 	"dalibre/internal/settings"
 )
 
@@ -75,6 +76,16 @@ type App struct {
 	jobsOpen      bool
 	jobs          []*convert.Job
 
+	// plugins
+	pluginDir  string // "" loads none, as tests do
+	plugins    []*plugin.Plugin
+	pluginErrs []error
+	// pluginsPending are installed plugins waiting for the user to grant
+	// their permissions; consent is the one the user is being asked about.
+	pluginsPending []*plugin.Manifest
+	consent        *consentAsk
+	downloads      []*download
+
 	busy        string // a long action in progress, as an import
 	busyDone    int
 	busyTotal   int
@@ -119,6 +130,8 @@ func New(settingsPath string) *App {
 func (a *App) Attach(win *mygo.Window) {
 	a.win = win
 	a.post = win.Update
+	a.pluginDir = plugin.DefaultDir()
+	a.loadPlugins()
 	a.openLibrary(a.startupLibrary())
 }
 

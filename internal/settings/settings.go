@@ -17,8 +17,37 @@ type Settings struct {
 	HideDetail bool     `json:"hideDetail"`
 	Sort       int      `json:"sort"`
 	Descending bool     `json:"descending"`
+	// Plugins are what the user decided about each plugin, by id.
+	Plugins map[string]*PluginState `json:"plugins,omitempty"`
 
 	path string
+}
+
+// PluginState is what the user decided about a plugin.
+type PluginState struct {
+	Disabled bool `json:"disabled,omitempty"`
+	// Granted are the permissions the user granted; nil until they do.
+	// A plugin asking for more than was granted isn't loaded until the
+	// user grants it again.
+	Granted *Grant            `json:"granted,omitempty"`
+	Values  map[string]string `json:"values,omitempty"` // the plugin's settings
+}
+
+// Grant is the permissions granted to a plugin, as its manifest has them.
+type Grant struct {
+	Hosts        []string `json:"hosts"`
+	LocalNetwork bool     `json:"localNetwork,omitempty"`
+}
+
+// Plugin returns the state of plugin id, creating it.
+func (s *Settings) Plugin(id string) *PluginState {
+	if s.Plugins == nil {
+		s.Plugins = map[string]*PluginState{}
+	}
+	if s.Plugins[id] == nil {
+		s.Plugins[id] = &PluginState{}
+	}
+	return s.Plugins[id]
 }
 
 // MaxRecent is how many libraries Recent keeps.

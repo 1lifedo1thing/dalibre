@@ -1,0 +1,17 @@
+{
+  "$schema": "./plugin.schema.json",
+  "id": "{{ID}}",
+  "name": "{{NAME}}",
+  "version": "0.1.0",
+  "api": 1,
+  "description": "Search and download books from example.com.",
+  "author": "",
+  "license": "MIT",
+  "capabilities": ["source"],
+  "permissions": {
+    "hosts": ["api.example.com"]
+  },
+  "settings": [
+    { "key": "apiKey", "title": "API key", "type": "secret", "description": "From your account page on example.com." }
+  ]
+}

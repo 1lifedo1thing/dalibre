@@ -32,12 +32,17 @@ go tool mygo build ./cmd/dalibre
 cmd/
   dalibre/            the app: main.go, mygo.json, resources/icon.png
   seed/               creates a sample calibre library for development
+  dalibre-plugin/     CLI for plugin authors: init, check, search, download, pack, install
+plugins/
+  gutenberg/          reference source plugin
+sdk/                  for plugin authors: dalibre.d.ts, plugin.schema.json, template
 internal/
   calibre/            calibre library access: schema, SQL functions its
                       triggers need, naming rules, CRUD, OPF
   ebookmeta/          title/authors/cover from EPUB, MOBI/AZW3 and file names
   catalog/            search, filters, sorting and sidebar counts (no UI)
   convert/            conversion model and engine detection (UI only in v1)
+  plugin/             plugins: manifest, sandboxed JS runtime, consent, packages
   settings/           user settings persisted as JSON
   thumbs/             on-disk cover thumbnails
   app/                state, actions and views of the window
@@ -45,6 +50,13 @@ internal/
     icons/            Lucide icons
     widgets/          the Figma library's components
 ```
+
+## Plugins
+
+Anyone can add a book source as a plugin: a `plugin.json` and a
+JavaScript file, run sandboxed inside Dalibre. See
+[Writing Dalibre plugins](docs/plugins/README.md) and the
+[design](docs/plugins/design.md).
 
 ## Compatibility with calibre
 

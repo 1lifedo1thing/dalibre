@@ -1,0 +1,22 @@
+{
+  "$schema": "../../sdk/plugin.schema.json",
+  "id": "gutenberg",
+  "name": "Project Gutenberg",
+  "version": "0.2.0",
+  "api": 1,
+  "description": "Search and download over 70,000 public-domain books from Project Gutenberg, through the Gutendex API.",
+  "author": "Dalibre",
+  "homepage": "https://www.gutenberg.org",
+  "license": "MIT",
+  "capabilities": ["source"],
+  "permissions": {
+    "hosts": ["gutendex.com", "www.gutenberg.org", "gutenberg.org"]
+  },
+  "settings": [
+    {
+      "key": "languages",
+      "title": "Languages",
+      "description": "Two-letter codes, comma separated, as \"en,zh\". Empty searches every language."
+    }
+  ]
+}
