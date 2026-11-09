@@ -3981,6 +3981,46 @@ func (msgs Messages) SettingsChangesApplyNote() string {
 	return Catalog.Format(msgs.locale, "settingsChangesApplyNote", nil)
 }
 
+// SettingsAppearance says "Appearance"
+// in the language the app shows.
+func SettingsAppearance() string { return In(i18n.Locale()).SettingsAppearance() }
+
+// SettingsAppearance says "Appearance"
+// in the language of msgs.
+func (msgs Messages) SettingsAppearance() string {
+	return Catalog.Format(msgs.locale, "settingsAppearance", nil)
+}
+
+// SettingsAppearanceSystem says "System"
+// in the language the app shows.
+func SettingsAppearanceSystem() string { return In(i18n.Locale()).SettingsAppearanceSystem() }
+
+// SettingsAppearanceSystem says "System"
+// in the language of msgs.
+func (msgs Messages) SettingsAppearanceSystem() string {
+	return Catalog.Format(msgs.locale, "settingsAppearanceSystem", nil)
+}
+
+// SettingsAppearanceLight says "Light"
+// in the language the app shows.
+func SettingsAppearanceLight() string { return In(i18n.Locale()).SettingsAppearanceLight() }
+
+// SettingsAppearanceLight says "Light"
+// in the language of msgs.
+func (msgs Messages) SettingsAppearanceLight() string {
+	return Catalog.Format(msgs.locale, "settingsAppearanceLight", nil)
+}
+
+// SettingsAppearanceDark says "Dark"
+// in the language the app shows.
+func SettingsAppearanceDark() string { return In(i18n.Locale()).SettingsAppearanceDark() }
+
+// SettingsAppearanceDark says "Dark"
+// in the language of msgs.
+func (msgs Messages) SettingsAppearanceDark() string {
+	return Catalog.Format(msgs.locale, "settingsAppearanceDark", nil)
+}
+
 // SettingsShowListTitle says "Show books as a list"
 // in the language the app shows.
 func SettingsShowListTitle() string { return In(i18n.Locale()).SettingsShowListTitle() }

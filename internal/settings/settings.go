@@ -24,6 +24,9 @@ type Settings struct {
 	// Language is the language the user chose Dalibre to show, a tag of
 	// its catalogs; "" follows the system's.
 	Language string `json:"language,omitempty"`
+	// Appearance is "light" or "dark" when the user chose one; "" follows
+	// the system's.
+	Appearance string `json:"appearance,omitempty"`
 	// GetBooksSource is the source Get books searched last: a plugin id,
 	// or "*" for all.
 	GetBooksSource string `json:"getBooksSource,omitempty"`
