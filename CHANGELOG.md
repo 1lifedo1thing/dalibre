@@ -6,12 +6,8 @@ shows, so write them for readers of the app. `mygo build` needs a
 
 ## 0.3.0
 
-- Wireless devices: KOReader, and other reading apps that connect to
-  calibre over Wi‑Fi, connect to Dalibre the same way. Turn on Wireless
-  devices in the toolbar's Sharing button, then choose Calibre › Connect
-  in KOReader. Send books to the reader, or remove them, from the book
-  menu; books whose metadata you change reach it too. Settings › Wireless
-  devices has its port and an optional password.
+- Send books to KOReader over Wi‑Fi: turn on Wireless devices in the
+  Sharing button, then choose Calibre › Connect in KOReader.
 
 ## 0.2.0
 
