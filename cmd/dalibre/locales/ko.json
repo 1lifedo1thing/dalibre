@@ -733,5 +733,9 @@
   "appUpdatesDownloadFromGitHub": "GitHub에서 다운로드",
   "appUpdatesSkip": "이 버전 건너뛰기",
   "appUpdatesYouHave": "현재 버전 {version}",
-  "appUpdatesYouHaveReleased": "현재 버전 {version} · {date} 출시"
+  "appUpdatesYouHaveReleased": "현재 버전 {version} · {date} 출시",
+  "mainFeedback": "피드백",
+  "mainFeedbackReportBug": "버그 신고…",
+  "mainFeedbackRequestFeature": "기능 요청…",
+  "mainFeedbackViewIssues": "GitHub에서 이슈 보기"
 }

@@ -733,5 +733,9 @@
   "appUpdatesDownloadFromGitHub": "Télécharger depuis GitHub",
   "appUpdatesSkip": "Ignorer cette version",
   "appUpdatesYouHave": "Vous avez la {version}",
-  "appUpdatesYouHaveReleased": "Vous avez la {version} · publiée le {date}"
+  "appUpdatesYouHaveReleased": "Vous avez la {version} · publiée le {date}",
+  "mainFeedback": "Commentaires",
+  "mainFeedbackReportBug": "Signaler un bug…",
+  "mainFeedbackRequestFeature": "Suggérer une fonctionnalité…",
+  "mainFeedbackViewIssues": "Voir les tickets sur GitHub"
 }

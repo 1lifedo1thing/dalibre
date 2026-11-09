@@ -725,5 +725,9 @@
   "appUpdatesDownloadFromGitHub": "Download from GitHub",
   "appUpdatesSkip": "Skip this version",
   "appUpdatesYouHave": "You have {version}",
-  "appUpdatesYouHaveReleased": "You have {version} · released {date}"
+  "appUpdatesYouHaveReleased": "You have {version} · released {date}",
+  "mainFeedback": "Feedback",
+  "mainFeedbackReportBug": "Report a bug…",
+  "mainFeedbackRequestFeature": "Request a feature…",
+  "mainFeedbackViewIssues": "View issues on GitHub"
 }

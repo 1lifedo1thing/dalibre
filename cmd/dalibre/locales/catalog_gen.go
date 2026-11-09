@@ -5650,3 +5650,43 @@ func AppUpdatesYouHaveReleased(version string, date string) string {
 func (msgs Messages) AppUpdatesYouHaveReleased(version string, date string) string {
 	return Catalog.Format(msgs.locale, "appUpdatesYouHaveReleased", map[string]any{"version": version, "date": date})
 }
+
+// MainFeedback says "Feedback"
+// in the language the app shows.
+func MainFeedback() string { return In(i18n.Locale()).MainFeedback() }
+
+// MainFeedback says "Feedback"
+// in the language of msgs.
+func (msgs Messages) MainFeedback() string {
+	return Catalog.Format(msgs.locale, "mainFeedback", nil)
+}
+
+// MainFeedbackReportBug says "Report a bug…"
+// in the language the app shows.
+func MainFeedbackReportBug() string { return In(i18n.Locale()).MainFeedbackReportBug() }
+
+// MainFeedbackReportBug says "Report a bug…"
+// in the language of msgs.
+func (msgs Messages) MainFeedbackReportBug() string {
+	return Catalog.Format(msgs.locale, "mainFeedbackReportBug", nil)
+}
+
+// MainFeedbackRequestFeature says "Request a feature…"
+// in the language the app shows.
+func MainFeedbackRequestFeature() string { return In(i18n.Locale()).MainFeedbackRequestFeature() }
+
+// MainFeedbackRequestFeature says "Request a feature…"
+// in the language of msgs.
+func (msgs Messages) MainFeedbackRequestFeature() string {
+	return Catalog.Format(msgs.locale, "mainFeedbackRequestFeature", nil)
+}
+
+// MainFeedbackViewIssues says "View issues on GitHub"
+// in the language the app shows.
+func MainFeedbackViewIssues() string { return In(i18n.Locale()).MainFeedbackViewIssues() }
+
+// MainFeedbackViewIssues says "View issues on GitHub"
+// in the language of msgs.
+func (msgs Messages) MainFeedbackViewIssues() string {
+	return Catalog.Format(msgs.locale, "mainFeedbackViewIssues", nil)
+}

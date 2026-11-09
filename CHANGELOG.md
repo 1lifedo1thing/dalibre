@@ -4,6 +4,12 @@ Each version's section is the release notes that Dalibre's update window
 shows, so write them for readers of the app. `mygo build` needs a
 `## <version>` section for the version in `cmd/dalibre/mygo.json`.
 
+## 0.1.1
+
+- Feedback, above Settings in the sidebar, reports a bug or requests a
+  feature on GitHub, with Dalibre's version and your system filled in for
+  bug reports, or shows the issues already open.
+
 ## 0.1.0
 
 The first release of Dalibre, a desktop library for e-books that reads and

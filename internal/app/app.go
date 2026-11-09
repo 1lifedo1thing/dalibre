@@ -115,6 +115,8 @@ type App struct {
 	ghi             ghInstall      // the Install from GitHub sheet
 	// au is updating Dalibre itself.
 	au appUpdateState
+	// feedbackOpen is whether the sidebar's Feedback menu shows.
+	feedbackOpen bool
 
 	// settingsOpen shows the Settings window, on section.
 	settingsOpen bool

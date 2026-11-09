@@ -543,5 +543,9 @@
   "appUpdatesDownloadFromGitHub": "從 GitHub 下載",
   "appUpdatesSkip": "略過這個版本",
   "appUpdatesYouHave": "目前版本 {version}",
-  "appUpdatesYouHaveReleased": "目前版本 {version} · 發佈於 {date}"
+  "appUpdatesYouHaveReleased": "目前版本 {version} · 發佈於 {date}",
+  "mainFeedback": "意見回饋",
+  "mainFeedbackReportBug": "回報問題…",
+  "mainFeedbackRequestFeature": "建議新功能…",
+  "mainFeedbackViewIssues": "在 GitHub 上查看問題"
 }

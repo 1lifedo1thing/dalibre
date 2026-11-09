@@ -543,5 +543,9 @@
   "appUpdatesDownloadFromGitHub": "GitHub からダウンロード",
   "appUpdatesSkip": "このバージョンをスキップ",
   "appUpdatesYouHave": "現在のバージョン: {version}",
-  "appUpdatesYouHaveReleased": "現在のバージョン: {version} · {date} リリース"
+  "appUpdatesYouHaveReleased": "現在のバージョン: {version} · {date} リリース",
+  "mainFeedback": "フィードバック",
+  "mainFeedbackReportBug": "不具合を報告…",
+  "mainFeedbackRequestFeature": "機能をリクエスト…",
+  "mainFeedbackViewIssues": "GitHub で Issue を見る"
 }
