@@ -212,6 +212,21 @@ export async function search({ text, page }) {
               <span data-download-size>{release.downloads[0].size}</span> · v{release.version}
             </span>
           </div>
+          <div class="rise mt-8" style="animation-delay:.28s">
+            <p class="font-mono text-[10px] tracking-widest text-sand-9 uppercase">Sponsored by</p>
+            <a
+              href="https://nowdex.app/?utm_source=dalibre&utm_medium=referral&utm_campaign=sponsor"
+              target="_blank"
+              rel="noopener"
+              class="group mt-2.5 inline-flex items-center gap-3 grayscale transition hover:grayscale-0"
+            >
+              <img src="/sponsors/nowdex.png" alt="" width="32" height="32" class="size-8 rounded-[8px] opacity-70 transition group-hover:opacity-100" />
+              <span class="text-sm leading-tight">
+                <span class="block font-medium text-sand-11 transition group-hover:text-ink">nowdex.app</span>
+                <span class="block text-sand-9">Display AI agent quota on your phone</span>
+              </span>
+            </a>
+          </div>
 
           <!-- App window, redrawn from the Figma file -->
           <div class="rise mt-16 sm:mt-20" style="animation-delay:.32s">
