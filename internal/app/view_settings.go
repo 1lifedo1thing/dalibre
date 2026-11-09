@@ -91,11 +91,7 @@ func (a *App) settingsDialog(c *ui.Context) {
 			}
 		})
 	}, func() {
-		note := locales.SettingsChangesApplyNote()
-		if a.section == sectionPlugins {
-			note = locales.SettingsPluginsSandboxNote(int(plugin.MaxMemory>>20), int(plugin.CallTimeout.Seconds()))
-		}
-		ui.Text(c, note).FontSize(12).TextColor(pal().TextTertiary).Grow(1)
+		ui.Text(c, locales.SettingsChangesApplyNote()).FontSize(12).TextColor(pal().TextTertiary).Grow(1)
 		if widgets.ButtonSized(c, widgets.Primary, nil, locales.CommonDone(), theme.ControlS).Clicked() {
 			a.settingsOpen = false
 		}

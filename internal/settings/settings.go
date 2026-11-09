@@ -18,6 +18,9 @@ type Settings struct {
 	HideDetail bool     `json:"hideDetail"`
 	Sort       int      `json:"sort"`
 	Descending bool     `json:"descending"`
+	// EditorSidebar is the width of the book editor's sidebar the user
+	// dragged it to; 0 is the default.
+	EditorSidebar float32 `json:"editorSidebar,omitempty"`
 	// Language is the language the user chose Dalibre to show, a tag of
 	// its catalogs; "" follows the system's.
 	Language string `json:"language,omitempty"`
