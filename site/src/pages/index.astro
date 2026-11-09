@@ -18,6 +18,24 @@ const title = "Dalibre — a lightweight calibre alternative for your e-books";
 const description = `Dalibre is a lightweight calibre alternative: a fast, native e-book manager for macOS, Windows and Linux that opens your existing calibre library.`;
 
 // Shown in the FAQ section and given to search engines as FAQPage.
+const builtins = [
+  {
+    name: "Project Gutenberg",
+    kind: "Book source",
+    does: "Search and browse over 70,000 free public-domain ebooks, by language. Most popular and Recently added lists.",
+  },
+  {
+    name: "NeoDB",
+    kind: "Metadata",
+    does: "Title, authors, series, tags, publisher, date, ISBN, cover and description from an open catalogue linked to Douban, Goodreads and more. No account needed.",
+  },
+  {
+    name: "Google Books",
+    kind: "Metadata",
+    does: "Title, authors, tags, publisher, date, ISBN, cover and description from Google Books. Add your own API key for a quota of your own.",
+  },
+];
+
 const faq = [
   {
     q: "Is Dalibre a calibre alternative?",
@@ -340,31 +358,20 @@ export async function search({ text, page }) {
             </p>
           </div>
 
-          <div class="mt-14 grid gap-5 md:grid-cols-2">
-            <article class="rounded-2xl border border-sand-6 bg-paper p-7">
-              <div class="flex size-10 items-center justify-center rounded-lg bg-accent-soft text-accent">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
-              </div>
-              <h3 class="mt-5 text-lg font-medium">Book sources</h3>
-              <p class="mt-2 leading-relaxed text-sand-11">
-                Search and browse a catalogue from <b class="font-medium text-ink">Get books</b>.
-                Dalibre downloads the file and adds it to your library with
-                the metadata the plugin gave. OPDS catalogs work too.
-              </p>
-              <p class="mt-5 font-mono text-xs text-sand-9">Built in: Project Gutenberg</p>
-            </article>
-            <article class="rounded-2xl border border-sand-6 bg-paper p-7">
-              <div class="flex size-10 items-center justify-center rounded-lg bg-[#f4f0fe] text-violet">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
-              </div>
-              <h3 class="mt-5 text-lg font-medium">Metadata sources</h3>
-              <p class="mt-2 leading-relaxed text-sand-11">
-                Look a book up by title, authors and identifiers. Candidates
-                show up in <b class="font-medium text-ink">Fetch metadata</b>, next to your own
-                values; you pick which fields to take.
-              </p>
-              <p class="mt-5 font-mono text-xs text-sand-9">Built in: NeoDB (Douban, Goodreads and more)</p>
-            </article>
+          <!-- Built in -->
+          <div class="mt-14">
+            <h3 class="font-mono text-xs tracking-widest text-sand-9 uppercase">Built in</h3>
+            <ul class="mt-4 divide-y divide-sand-4 border-y border-sand-4">
+              {builtins.map((p) => (
+                <li class="grid gap-x-8 gap-y-1 py-5 sm:grid-cols-[14rem_1fr]">
+                  <div class="flex items-baseline gap-3">
+                    <p class="font-medium">{p.name}</p>
+                    <span class:list={["font-mono text-[11px]", p.kind === "Book source" ? "text-accent" : "text-violet"]}>{p.kind}</span>
+                  </div>
+                  <p class="leading-relaxed text-sand-11">{p.does}</p>
+                </li>
+              ))}
+            </ul>
           </div>
 
           <!-- Writing one -->
