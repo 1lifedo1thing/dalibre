@@ -4,6 +4,8 @@ A calm, fast desktop library for e-books that reads and writes **calibre
 libraries**. Written in Go with [MyGo](https://github.com/egoist/mygo)'s native
 UI: no webview, no cgo, one binary.
 
+<img width="3038" height="2176" alt="CleanShot 2026-11-09 at 19 18 34@2x" src="https://github.com/user-attachments/assets/6439498c-3d99-4ac8-b446-7c3b2a39d0c1" />
+
 Design: [Figma — Dalibre](https://www.figma.com/design/tZg6AMrNXoz9VYoa1xZoCo/Dalibre)
 
 ## Develop
