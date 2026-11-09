@@ -35,6 +35,9 @@ type Settings struct {
 	AppUpdates AppUpdates `json:"appUpdates,omitzero"`
 	// MCP is serving the library to the user's agents.
 	MCP MCP `json:"mcp,omitzero"`
+	// Wireless is letting readers connect as they connect to calibre,
+	// to be sent books.
+	Wireless Wireless `json:"wireless,omitzero"`
 
 	path string
 }
@@ -129,6 +132,18 @@ func (m MCP) ServerPort() int {
 		return DefaultMCPPort
 	}
 	return m.Port
+}
+
+// Wireless is calibre's wireless device connection, served for readers
+// such as KOReader's calibre plugin.
+type Wireless struct {
+	On bool `json:"on,omitempty"`
+	// Port is the port readers connect to; 0 is calibre's, 9090, or any
+	// free one when it is taken.
+	Port int `json:"port,omitempty"`
+	// Password asks readers for the password, which is kept in the
+	// system's credential store.
+	Password bool `json:"password,omitempty"`
 }
 
 // PluginState is what the user decided about a plugin.

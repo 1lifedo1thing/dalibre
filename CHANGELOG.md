@@ -4,6 +4,15 @@ Each version's section is the release notes that Dalibre's update window
 shows, so write them for readers of the app. `mygo build` needs a
 `## <version>` section for the version in `cmd/dalibre/mygo.json`.
 
+## 0.3.0
+
+- Wireless devices: KOReader, and other reading apps that connect to
+  calibre over Wi‑Fi, connect to Dalibre the same way. Turn on Wireless
+  devices in the toolbar's Sharing button, then choose Calibre › Connect
+  in KOReader. Send books to the reader, or remove them, from the book
+  menu; books whose metadata you change reach it too. Settings › Wireless
+  devices has its port and an optional password.
+
 ## 0.2.0
 
 - Your own AI agents, such as Claude Code, Claude Desktop and Cursor, can
