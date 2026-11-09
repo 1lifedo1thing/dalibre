@@ -201,8 +201,11 @@ func dialogFrame(c *ui.Context, open *bool, width float32, compact bool, header 
 		headPad = [4]float32{theme.Space6, theme.Space8, theme.Space6, theme.Space16}
 		footV, footH = theme.Space8, theme.Space16
 	}
+	// The panel stays below the window's caption buttons: in a short window
+	// it would otherwise grow up under them (Windows' sit on the right).
+	bar := c.TitleBar()
 	ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
-		backdrop.Background(pal().Scrim)
+		backdrop.Background(pal().Scrim).Padding(bar.Height, 0)
 		panel.Width(width).MaxHeight(ui.Auto).Background(pal().SurfaceRaised).Border(1, pal().BorderSubtle).Radius(theme.RadiusXL).Clip().
 			Shadow(0, 2, 6, 0, ui.RGBA(26, 23, 18, 0.08)).Shadow(0, 24, 48, -8, ui.RGBA(26, 23, 18, 0.24)).AlignItems(ui.Stretch)
 		panel.Children(func() {
