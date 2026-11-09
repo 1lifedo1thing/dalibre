@@ -63,6 +63,7 @@ internal/
   ebookmeta/          title/authors/cover from EPUB, MOBI/AZW3 and file names
   catalog/            search, filters, sorting and sidebar counts (no UI)
   plugin/             plugins: manifest, sandboxed JS runtime, consent, packages
+  mcp/                the MCP server: tools, call log, stdio bridge
   settings/           user settings persisted as JSON
   thumbs/             on-disk cover thumbnails
   app/                state, actions and views of the window
@@ -79,6 +80,14 @@ add a source as a plugin: a `plugin.json` and a JavaScript file, run
 sandboxed inside Dalibre. See
 [Writing Dalibre plugins](docs/plugins/README.md) and the
 [design](docs/plugins/design.md).
+
+## MCP
+
+Your own agents (Claude Code, Claude Desktop, Cursor…) can use the open
+library over MCP: search it, edit metadata, add books, and convert
+formats with their own tools. See
+[Using Dalibre with your agents](docs/mcp/README.md) and the
+[design](docs/mcp/design.md).
 
 ## Compatibility with calibre
 
