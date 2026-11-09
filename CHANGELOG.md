@@ -4,10 +4,12 @@ Each version's section is the release notes that Dalibre's update window
 shows, so write them for readers of the app. `mygo build` needs a
 `## <version>` section for the version in `cmd/dalibre/mygo.json`.
 
-## 0.3.0
+## 0.2.1
 
 - Send books to KOReader over Wi‑Fi: turn on Wireless devices in the
   Sharing button, then choose Calibre › Connect in KOReader.
+- On macOS, closing the window keeps Dalibre running; click its Dock icon
+  to bring it back.
 
 ## 0.2.0
 

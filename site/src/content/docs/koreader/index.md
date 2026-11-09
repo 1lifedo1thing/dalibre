@@ -13,7 +13,7 @@ device connection, so other reading apps that connect to calibre over
 Wi‑Fi can connect too. KOReader is the one this guide, and Dalibre, are
 checked with.
 
-Wireless devices are in Dalibre 0.3.0 and later.
+Wireless devices are in Dalibre 0.2.1 and later.
 
 ## Turn it on
 
