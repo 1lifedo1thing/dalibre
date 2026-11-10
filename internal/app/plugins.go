@@ -103,7 +103,11 @@ func (a *App) loadPlugins() {
 			if mv {
 				moved = append(moved, m)
 			}
-			return plugin.Options{Settings: values, Transport: transport}
+			o := plugin.Options{Settings: values, Transport: transport}
+			if dir != "" {
+				o.DataDir = plugin.DataDir(dir, m.ID)
+			}
+			return o
 		}
 		if builtins {
 			// Dalibre vouches for its own plugins: they have what they ask.
@@ -195,8 +199,8 @@ func (a *App) loadPlugins() {
 					d.cancel()
 				}
 			}
-			// Each plugin holds an interpreter whose memory Go doesn't
-			// collect. Close waits for a call in progress.
+			// Close ends what each old plugin has in flight (timers,
+			// requests) and waits for a call in progress.
 			a.run(func() {
 				for _, p := range old {
 					p.Close()

@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -292,8 +293,8 @@ func (m *Manifest) check() error {
 		m.Main = "main.js"
 	}
 	if main := filepath.ToSlash(m.Main); filepath.IsAbs(m.Main) || strings.HasPrefix(main, "/") ||
-		slices.Contains(strings.Split(main, "/"), "..") || !strings.HasSuffix(main, ".js") {
-		return fmt.Errorf("main %q must be a .js file inside the plugin's folder", m.Main)
+		slices.Contains(strings.Split(main, "/"), "..") || !slices.Contains([]string{".js", ".mjs", ".ts", ".mts"}, path.Ext(main)) {
+		return fmt.Errorf("main %q must be a .js or .ts file inside the plugin's folder", m.Main)
 	}
 	if m.IsBookSource() {
 		if len(m.Permissions.Hosts) == 0 {

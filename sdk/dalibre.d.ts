@@ -1,13 +1,16 @@
 // Type declarations for Dalibre plugins, plugin API 1.
 //
-// A plugin is an ES module (ES2023); CommonJS (module.exports) works too.
-// A book source exports search and, optionally, collections and list
-// (with "collections": true in plugin.json), get and resolve. A metadata
-// source exports identify. In plain JavaScript, put
-// this file next to main.js with the template's jsconfig.json and add
-// `// @ts-check` to main.js: editors then check your code and complete
-// the API. In TypeScript, compile to one module, for example with
-// `esbuild main.ts --bundle --format=esm --target=es2023 --outfile=main.js`.
+// A plugin is an ES module (ES2023), in JavaScript or TypeScript;
+// CommonJS (module.exports) works too. A book source exports search and,
+// optionally, collections and list (with "collections": true in
+// plugin.json), get and resolve. A metadata source exports identify.
+//
+// Put this file next to main.js (or main.ts) with the template's
+// jsconfig.json (or a tsconfig.json with the same options). In JavaScript,
+// add `// @ts-check` to main.js: editors then check your code and complete
+// the API. The standard globals (fetch, URL, setTimeout, TextEncoder…)
+// come from TypeScript's "WebWorker" library; for node:fs and Buffer, add
+// @types/node (npm i -D @types/node).
 
 declare namespace Dalibre {
   /** What search is asked for. */
@@ -96,24 +99,6 @@ declare namespace Dalibre {
     filename?: string;
   }
 
-  interface FetchInit {
-    method?: string;
-    headers?: Record<string, string>;
-    body?: string;
-  }
-
-  interface Response {
-    status: number;
-    statusText: string;
-    ok: boolean;
-    /** The final URL, after redirects. */
-    url: string;
-    /** Lowercase names. */
-    headers: Record<string, string>;
-    text(): string;
-    json(): any;
-  }
-
   /** Kinds the app tells the user about differently. */
   type ErrorKind =
     | "auth"        // credentials missing or refused: the app offers the plugin's settings
@@ -178,23 +163,8 @@ declare const dalibre: {
   readonly plugin: { readonly id: string; readonly version: string };
   /** The user's values for the settings in plugin.json, by key; defaults when not set. */
   readonly settings: Readonly<Record<string, string>>;
-  /**
-   * The web's fetch, cut down. Only hosts in permissions.hosts, redirects
-   * included; at most 50 requests per call and 16 MB per response. Requests
-   * run one at a time, so Promise.all doesn't make them parallel.
-   */
-  fetch(url: string, init?: Dalibre.FetchInit): Promise<Dalibre.Response>;
   /** An Error the app understands: `throw dalibre.error("auth", "The API key was refused")`. */
   error(kind: Dalibre.ErrorKind, message?: string): Error;
-  log(...args: unknown[]): void;
-};
-
-declare const console: {
-  log(...args: unknown[]): void;
-  info(...args: unknown[]): void;
-  warn(...args: unknown[]): void;
-  error(...args: unknown[]): void;
-  debug(...args: unknown[]): void;
 };
 
 /** For CommonJS plugins; ES modules export their functions instead. */

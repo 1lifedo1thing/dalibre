@@ -116,7 +116,7 @@ const manifest = `{
 
 const code = `// @ts-check
 export async function search({ text, page }) {
-  const res = await dalibre.fetch(
+  const res = await fetch(
     \`https://books.example.com/api?q=\${text}&p=\${page}\`
   );
   const { books, next } = await res.json();
@@ -398,7 +398,7 @@ export async function search({ text, page }) {
           <ul class="mt-10 grid gap-x-10 gap-y-6 text-sm sm:grid-cols-3">
             <li>
               <p class="font-medium">Sandboxed</p>
-              <p class="mt-1 leading-relaxed text-sand-11">Runs in QuickJS inside Dalibre, with only the hosts and library access it asks you for.</p>
+              <p class="mt-1 leading-relaxed text-sand-11">Runs sandboxed inside Dalibre, with only the hosts and library access it asks you for.</p>
             </li>
             <li>
               <p class="font-medium">Typed</p>

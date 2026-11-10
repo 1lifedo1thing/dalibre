@@ -22,7 +22,7 @@
     "author": { "type": "string" },
     "homepage": { "type": "string", "format": "uri" },
     "license": { "description": "An SPDX identifier, as \"MIT\".", "type": "string" },
-    "main": { "description": "The script, relative to plugin.json. Default main.js.", "type": "string", "pattern": "\\.js$" },
+    "main": { "description": "The main module, a .js, .mjs, .ts or .mts file relative to plugin.json. Default main.js.", "type": "string", "pattern": "\\.m?[jt]s$" },
     "icon": {
       "description": "The plugin's icon, from Dalibre's set.",
       "enum": ["globe", "library", "book-open", "database", "network", "building", "bookmark", "layers"]

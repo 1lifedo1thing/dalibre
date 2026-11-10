@@ -3,7 +3,8 @@ title: Plugins
 description: Everything about writing Dalibre plugins on one page, from a first book source to the full API reference. Also available as plain Markdown at /docs/plugins.md.
 ---
 
-A Dalibre plugin is a folder with a `plugin.json` and a JavaScript file.
+A Dalibre plugin is a folder with a `plugin.json` and a JavaScript (or
+TypeScript) module.
 Plugin API 1 offers two **capabilities**, and one plugin may have either
 or both:
 
@@ -47,14 +48,15 @@ That's a deliberate trade:
 
 ### How a plugin runs
 
-Plugins are plain JavaScript modules (ES2023), run by the
-[QuickJS](https://bellard.org/quickjs/) interpreter built into Dalibre.
-There is no Node, no browser and no build step.
+Plugins are JavaScript or TypeScript modules (ES2023), run by the
+JavaScript engine built into Dalibre ([moejs](https://github.com/MoeForge/moejs)).
+They use the standard APIs you know: `fetch`, `URL`, `setTimeout`,
+`TextEncoder`, `node:fs`. There is no build step.
 
 ```text
 my-source/
 ├── plugin.json        what the plugin is, adds and asks for
-├── main.js            the functions Dalibre calls
+├── main.js            the functions Dalibre calls (or main.ts)
 ├── lib/…              more modules, imported by relative path (optional)
 ├── dalibre.d.ts       types for your editor (optional)
 └── jsconfig.json
@@ -67,8 +69,9 @@ my-source/
 3. Dalibre calls your exports (`search`, `identify`, …) with plain
    objects, and checks what you return. Bad results are dropped with a
    warning; the rest are shown.
-4. Network access goes through `dalibre.fetch`, limited to the hosts you
-   declared. Files are downloaded by Dalibre, not by your script.
+4. Your script reaches the network with `fetch`, limited to the hosts
+   you declared, and keeps files in its own data folder. Books are
+   downloaded by Dalibre, not by your script.
 
 Calls into one plugin run one at a time; different plugins run in
 parallel. A plugin that throws, runs out of time or out of memory only
@@ -90,10 +93,10 @@ fails that one call.
 ```js
 // @ts-check
 export async function search({ text, page }) {
-  const res = await dalibre.fetch(
+  const res = await fetch(
     `https://books.example.com/api?q=${encodeURIComponent(text)}&p=${page}`
   );
-  const { books, next } = res.json();
+  const { books, next } = await res.json();
   return {
     items: books.map((b) => ({
       id: b.id,
@@ -134,7 +137,7 @@ In this guide you'll write a book source for Project Gutenberg's
 will search, filter by language, show covers, offer shelves to browse
 and download EPUBs into your library.
 
-You need Dalibre and a text editor. No Node, no npm, no build step.
+You need Dalibre and a text editor. You don’t need Node or npm, and there is no build step.
 
 ### 1. Make a folder
 
@@ -250,10 +253,10 @@ async function feed(text, language, sort, page) {
   let url = `${SITE}/ebooks/search.opds/?sort_order=${sort}&start_index=${(page - 1) * PER_PAGE + 1}`;
   if (query) url += `&query=${encodeURIComponent(query)}`;
 
-  const res = await dalibre.fetch(url);
+  const res = await fetch(url);
   if (res.status === 429) throw dalibre.error("rateLimited");
   if (!res.ok) throw dalibre.error("unavailable", `Project Gutenberg answered ${res.status}.`);
-  const xml = res.text();
+  const xml = await res.text();
 
   /** @type {Dalibre.Result[]} */
   const items = [];
@@ -418,7 +421,7 @@ validates and completes the file as you type.
 | `description` | One line, shown under your name in the source picker and when the user installs. Say what the catalogue holds: "Over 70,000 free public-domain ebooks". |
 | `author`, `homepage`, `license` | Shown when the user installs. `license` is an SPDX id (`MIT`, `Apache-2.0`). The Get books page's *Open site* button opens `homepage`. |
 | `icon` | One of Dalibre's icons: `globe` (default), `library`, `book-open`, `database`, `network`, `building`, `bookmark`, `layers`. Never an image, so a plugin can't dress up as another app. |
-| `main` | The script, relative to `plugin.json`. Default `main.js`. |
+| `main` | The main module, relative to `plugin.json`: a `.js`, `.mjs`, `.ts` or `.mts` file. Default `main.js`. |
 
 > Ids starting with `dalibre` are kept for the plugins that ship inside
 > Dalibre. A package using one isn't installed.
@@ -685,7 +688,7 @@ listing has, and `get` fills in the rest. The `id` is kept; formats and
 
 ```js
 export async function get(item) {
-  const b = (await dalibre.fetch(`${API}/books/${item.id}`)).json();
+  const b = await (await fetch(`${API}/books/${item.id}`)).json();
   return {
     ...item,
     description: b.summary,
@@ -712,12 +715,12 @@ links expire, need a second request, or need headers:
 ```js
 export async function resolve(item, format) {
   const auth = { Authorization: `Bearer ${dalibre.settings.apiKey}` };
-  const res = await dalibre.fetch(
+  const res = await fetch(
     `https://api.example.com/books/${item.id}/download?format=${format}`,
     { headers: auth },
   );
   if (res.status === 404) throw dalibre.error("notFound");
-  return { url: res.json().url, headers: auth };
+  return { url: (await res.json()).url, headers: auth };
 }
 ```
 
@@ -812,13 +815,14 @@ the library is sent.**
 export async function identify({ title, authors, identifiers }) {
   const q = identifiers.isbn || [title, authors[0]].filter(Boolean).join(" ");
   if (!q) return [];
-  const res = await dalibre.fetch(
+  const res = await fetch(
     `https://api.example.com/books?q=${encodeURIComponent(q)}`
   );
   if (res.status === 429) throw dalibre.error("rateLimited");
   if (!res.ok) throw dalibre.error("unavailable");
 
-  return res.json().books.map((b) => ({
+  const { books } = await res.json();
+  return books.map((b) => ({
     id: b.key,
     title: b.title,
     authors: b.authors,
@@ -873,14 +877,16 @@ rank.
 
 ## Runtime and errors
 
-Plugins run in [QuickJS](https://bellard.org/quickjs/), an ES2023
-interpreter built into Dalibre. It's a small, strict sandbox: no Node, no
-browser, and nothing but what the `dalibre` object hands you.
+Plugins run in [moejs](https://github.com/MoeForge/moejs), an ES2023
+JavaScript engine written in Go and built into Dalibre. A plugin gets the
+standard APIs of the web and a part of Node's, and Dalibre's rules on top:
+the hosts it may reach, its own data folder, time and memory limits.
 
 ### Modules
 
-`main.js` is an ES module, run once when Dalibre loads the plugin. It
-exports the functions Dalibre calls:
+`main.js` (or `main.ts`, set with `"main"` in `plugin.json`) is an ES
+module, run once when Dalibre loads the plugin. It exports the functions
+Dalibre calls:
 
 ```js
 // @ts-check
@@ -896,8 +902,14 @@ export async function resolve(item, format) { … }   // optional
 `export default { search, resolve }` and CommonJS
 (`module.exports = { search }`, `exports.search = …`) work too.
 
-- **Imports** are relative paths to `.js` files in your plugin's folder.
-  Package names (`"lodash"`) can't be imported; bundle them in.
+- **Imports** are relative paths to `.js`, `.mjs`, `.ts` or `.mts` files
+  in your plugin's folder. As in TypeScript, `"./lib.js"` finds `lib.ts`
+  when there is no `lib.js`, and `"./lib"` finds `lib.ts` or `lib.js`.
+- **Node's modules** `node:fs`, `node:fs/promises` and `node:buffer`
+  (or `fs`, `fs/promises`, `buffer`) can be imported. See
+  [the data folder](#the-data-folder).
+- Package names (`"lodash"`) can't be imported; bundle them in (see
+  [npm packages](#typescript-and-npm-packages)).
 - Modules are **strict mode**: writing to a read-only property (anything
   in `dalibre`) throws, as in browsers.
 - Your functions may be `async`.
@@ -910,72 +922,151 @@ Keep state across calls in module variables: a token, a cache.
 let token = "";
 async function signIn() {
   if (token) return token;
-  const res = await dalibre.fetch("https://api.example.com/token", { method: "POST", … });
-  return (token = res.json().token);
+  const res = await fetch("https://api.example.com/token", { method: "POST", … });
+  return (token = (await res.json()).token);
 }
 ```
 
 It lasts until Dalibre quits or reloads plugins, **or until a call runs
-out of time or memory**, after which your module is loaded afresh. Don't
-rely on it for anything that must survive.
+out of time or memory**, after which your module is loaded afresh. What
+must survive goes in [the data folder](#the-data-folder).
 
-### The dalibre object
+### What you can use
 
 | | |
 |---|---|
-| `dalibre.fetch(url, init?)` | The web's `fetch`, cut down. [Below](#dalibrefetch). |
+| Network | `fetch`, `Request`, `Response`, `Headers`, `AbortController`, `AbortSignal` |
+| Streams | `ReadableStream`, `WritableStream`, `TransformStream`, `TextDecoderStream`, `TextEncoderStream` |
+| Text and data | `URL`, `URLSearchParams`, `TextEncoder`, `TextDecoder`, `atob`, `btoa`, `structuredClone`, typed arrays, `Buffer` |
+| Time | `setTimeout`, `setInterval`, `setImmediate` and their `clear…`, `queueMicrotask`, `performance.now()` |
+| Files | `node:fs`, `node:fs/promises` over [your data folder](#the-data-folder) |
+| Formatting | `Intl` (dates and numbers in English, Chinese, Japanese, Korean, German, French, Spanish, Portuguese, Russian and Italian) |
+| Logging | `console.log`, `info`, `warn`, `error`, `debug`: to Dalibre's log and the CLI's stderr, with secret settings masked |
+| Dalibre | [the `dalibre` object](#the-dalibre-object) |
+
+They behave as in browsers and Node. What differs is below.
+
+#### fetch
+
+```js
+const res = await fetch("https://api.example.com/search?q=dune", {
+  headers: { Accept: "application/json" },
+});
+if (!res.ok) throw dalibre.error("unavailable", `example.com answered ${res.status}.`);
+const data = await res.json();
+```
+
+- Only hosts in [`permissions.hosts`](#hosts), redirects included, and
+  not [the local network](#local-network) unless you ask for it.
+- At most **50 requests per call**, 10 redirects per request, and
+  **16 MB per response**. Books are downloaded by Dalibre (return their
+  URL, or a [`resolve`](#resolve) request), not fetched.
+- **Cookies** are kept as a browser keeps them, for your plugin alone and
+  in memory, and sent with later requests and with Dalibre's downloads.
+  Sign in by posting a form once, and stay signed in until the plugin is
+  loaded again.
+- Dalibre sets the `User-Agent` (`Dalibre <id>/<version>`).
+- Requests run in parallel: `Promise.all` over several fetches works.
+- A refused request, a network failure or a response over the limit
+  rejects with a `TypeError` (`"fetch failed"`) whose `cause` says why. If
+  you don't catch it, Dalibre counts it as a `permission` error (your
+  plugin asked for a host it didn't declare) or `unavailable` (the
+  network).
+- Requests a call leaves running end with the call.
+
+#### Timers
+
+Timers work as in Node. A call ends when the promise your export returns
+settles; until then, Dalibre runs your timers, fetches and file
+operations. So you can wait:
+
+```js
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+for (let attempt = 0; ; attempt++) {
+  const res = await fetch(url);
+  if (res.status !== 429 || attempt === 2) return res;
+  await sleep(1000 * 2 ** attempt);   // back off, then try again
+}
+```
+
+- The call's **60 seconds** include the time spent waiting.
+- A timer you leave running after the call settles waits, and fires
+  during your plugin's next call. Clear what you don't need.
+- An exception thrown in a timer's callback fails the call in progress.
+- A promise that nothing can settle any more (no timer, fetch or file
+  operation left) ends the call with "never settled".
+
+#### The data folder
+
+Your plugin has a folder of its own, which it sees at `/data` through
+`node:fs`. Keep there what must survive restarts: a sign-in token, a
+cache, a downloaded word list.
+
+```js
+import { readFile, writeFile, mkdir } from "node:fs/promises";
+
+async function cachedToken() {
+  try {
+    return await readFile("/data/token", "utf8");
+  } catch {
+    const token = await signIn();
+    await writeFile("/data/token", token);
+    return token;
+  }
+}
+```
+
+- Relative paths are relative to `/data`. Nothing outside it can be
+  reached: `..` and links that lead out fail with `EACCES`.
+- **64 MB** in all; a write once it's full fails with `ENOSPC`.
+- Only your plugin sees it. Uninstalling the plugin deletes it.
+- It is a hidden `.data/<id>` folder in Dalibre's plugins folder. With
+  `dalibre-plugin`, it is `.data` in your plugin's folder, which `pack`
+  leaves out.
+- Not there: streams (`createReadStream`), file handles (`fs.open`,
+  `FileHandle`), `watch`.
+- What you read counts against your memory limit.
+
+#### What's not there
+
+- `process`, `require`, and Node's other modules (`path`, `crypto`,
+  `child_process`, `net`…).
+- The DOM: no `document`, `window`, `DOMParser`. Parse HTML or XML with
+  regular expressions or a small bundled parser; the built-in Project
+  Gutenberg plugin reads OPDS (Atom XML) with a few regular expressions.
+- `crypto` (WebCrypto), `Blob`, `FormData`, `CompressionStream`,
+  `WebAssembly`, `Temporal`. Bundle a pure-JavaScript library when you
+  need hashing, ciphers or zip.
+
+### The dalibre object
+
+What only Dalibre can give you:
+
+| | |
+|---|---|
 | `dalibre.settings` | The user's values for your [settings](#settings), by key; defaults where unset. Read-only strings. |
 | `dalibre.error(kind, message?)` | An `Error` Dalibre understands. See [errors](#errors). |
-| `dalibre.log(...)` | To Dalibre's log. Secret settings are masked. |
-| `console.log/info/warn/error/debug(...)` | Same as `dalibre.log`. |
 | `dalibre.plugin` | `{ id, version }` from your manifest. |
 | `dalibre.api` | The plugin API version of the running Dalibre. |
 
 Everything in the `dalibre` object is frozen.
 
-#### dalibre.fetch
-
-```js
-const res = await dalibre.fetch("https://api.example.com/search?q=dune", {
-  method: "GET",
-  headers: { Accept: "application/json" },
-});
-if (!res.ok) throw dalibre.error("unavailable", `example.com answered ${res.status}.`);
-const data = res.json();
-```
-
-- `init` is `{ method?, headers?, body? }`, all strings. To post JSON,
-  `JSON.stringify` the body and set `Content-Type`.
-- It resolves to `{ status, statusText, ok, url, headers, text(), json() }`.
-  `url` is the final URL after redirects; `headers` has lowercase names.
-  `text()` and `json()` are synchronous.
-- It **rejects** for a host outside your permissions, a network failure,
-  or a response over 16 MB.
-- **Cookies** are kept as a browser keeps them, for your plugin alone and
-  in memory, and sent with later requests and downloads. Sign in by
-  posting a form once, and stay signed in until the plugin is loaded
-  again.
-- Requests run **one at a time**; `Promise.all` doesn't make them
-  parallel.
-- At most 50 requests per call, and 10 redirects per request.
-
-#### What's not there
-
-There is no `require`, file system, timers (`setTimeout`), `URL`,
-`URLSearchParams`, `TextEncoder` or `Intl`.
-
-- Build query strings with `encodeURIComponent`.
-- Parse XML or HTML with regular expressions, or a small bundled parser.
-  The built-in Project Gutenberg plugin reads OPDS (Atom XML) with a few
-  regular expressions.
-- Need `URL` or a date library? Bundle a small one.
-
 ### TypeScript and npm packages
 
-Put [`dalibre.d.ts`](/sdk/dalibre.d.ts) and
-[`jsconfig.json`](/sdk/jsconfig.json) next to `main.js`. With
-`// @ts-check` at the top of `main.js`, your editor type-checks plain
-JavaScript and completes the API, using JSDoc types:
+Write `main.ts` and set `"main": "main.ts"` in `plugin.json`: Dalibre
+runs TypeScript as it is, dropping the types, so error messages and stack
+traces point into your `.ts` files. TypeScript that changes what the code
+does at run time can't be used: `enum`, namespaces with values,
+constructor parameter properties (`constructor(private x: T)`),
+`import x = require()`, decorators. Types aren't checked when the plugin
+runs; check them in your editor.
+
+For types, put [`dalibre.d.ts`](/sdk/dalibre.d.ts) and
+[`jsconfig.json`](/sdk/jsconfig.json) (or a `tsconfig.json` with the same
+options) next to your main module. It uses TypeScript's `WebWorker`
+library for `fetch`, `URL` and the timers; for `node:fs` and `Buffer`, add
+`@types/node` (`npm i -D @types/node`). In plain JavaScript, `// @ts-check`
+at the top of `main.js` has your editor check JSDoc types:
 
 ```js
 // @ts-check
@@ -983,15 +1074,15 @@ JavaScript and completes the API, using JSDoc types:
 export async function search(query) { … }
 ```
 
-Prefer TypeScript? Write `main.ts` and compile it to one module:
+npm packages are bundled in, as long as they need nothing from the list
+[above](#whats-not-there):
 
 ```sh
 esbuild main.ts --bundle --format=esm --target=es2023 --outfile=main.js
 ```
 
-Bundling is also how you use npm packages, as long as they don't need
-Node's built-ins or the browser's. Commit the bundled `main.js`: Dalibre
-has no build step.
+Then set `"main"` back to `main.js` and ship the bundle: Dalibre has no
+build step.
 
 ### Errors
 
@@ -1014,7 +1105,8 @@ if (text.length < 3) throw dalibre.error("invalid", "Type at least 3 letters.");
 
 - Anything else thrown (a `TypeError`, a plain `Error`) is reported as a
   **bug in the plugin**, with your message; the stack goes to the log.
-- A network failure you don't catch counts as `unavailable`.
+- A `fetch` you don't catch counts as `unavailable` (the network) or
+  `permission` (a host you didn't declare).
 - Messages are shown to users: write them for readers, in a sentence.
 
 ## Permissions and limits
@@ -1078,10 +1170,11 @@ CDN node.
 | Limit | |
 |---|---|
 | One call (`search`, `list`, `get`, `resolve`, `identify`…) | 60 seconds; then the script is stopped |
-| Memory | 64 MB for your plugin's interpreter; then the call fails |
+| Memory | 64 MB for your plugin; then the call fails. An allocation whose size is known up front (`"x".repeat(n)`, `new ArrayBuffer(n)`) and too big for what is left throws a `RangeError` instead, which you can catch |
 | Requests per call | 50 |
 | One `fetch` response | 16 MB (files go through the download) |
 | Redirects per request | 10 |
+| Data folder | 64 MB |
 | Results per page | 100 |
 | Metadata candidates | 20 |
 | Collections | 12 |
@@ -1157,6 +1250,12 @@ Plugin API 1 is a promise:
   with API 1 plugins kept running alongside it for a transition period.
 - A plugin declaring a newer `api` than the user's Dalibre isn't loaded,
   and the user is told to update Dalibre.
+
+**Moving from `dalibre.fetch`.** Earlier versions of API 1 had
+`dalibre.fetch` and `dalibre.log`; they are gone, for the standard
+`fetch` and `console`. Replace `dalibre.fetch(` with `fetch(`, and await
+the body: `res.json()` and `res.text()` now return promises
+(`await res.json()`).
 
 ### Guidelines
 
@@ -1359,30 +1458,9 @@ declare const dalibre: {
   readonly plugin: { readonly id: string; readonly version: string };
   /** The user's values for the settings in plugin.json; defaults when not set. */
   readonly settings: Readonly<Record<string, string>>;
-  /** The web's fetch, cut down. Only hosts in permissions.hosts. */
-  fetch(url: string, init?: FetchInit): Promise<Response>;
   /** throw dalibre.error("auth", "The API key was refused") */
   error(kind: ErrorKind, message?: string): Error;
-  log(...args: unknown[]): void;
 };
-
-interface FetchInit {
-  method?: string;
-  headers?: Record<string, string>;
-  body?: string;
-}
-
-interface Response {
-  status: number;
-  statusText: string;
-  ok: boolean;
-  /** The final URL, after redirects. */
-  url: string;
-  /** Lowercase names. */
-  headers: Record<string, string>;
-  text(): string;
-  json(): any;
-}
 
 type ErrorKind =
   | "auth"         // credentials missing or refused: Dalibre offers the plugin's settings
@@ -1392,5 +1470,5 @@ type ErrorKind =
   | "invalid";     // the query can't be searched
 ```
 
-`console.log`, `info`, `warn`, `error` and `debug` are there too, and
-write to the same log as `dalibre.log`.
+Everything else (`fetch`, `URL`, the timers, `console`) is the standard
+API: see [what you can use](#what-you-can-use).

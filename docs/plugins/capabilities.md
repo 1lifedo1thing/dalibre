@@ -27,7 +27,7 @@ the app draws natively, so:
 | `manifest.json` + `main.js` | `plugin.json` + `main.js` (as now) |
 | `class extends Plugin { onload() { this.addCommand(…) } }`: capabilities registered in code | Capabilities **declared** in `plugin.json`, implemented by exports. Dalibre knows what a plugin adds, and asks the right permissions, before running any of its code |
 | Plugins draw views, modals, settings tabs | Plugins **never draw**. They return data; Dalibre's own screens show it (the Get books page, the detail panel, menus, the settings form) |
-| `loadData` / `saveData` | `dalibre.storage` (small key–value, per plugin) |
+| `loadData` / `saveData` | `node:fs` over the plugin's own data folder (`/data`) |
 | Full access to the vault and the network | Hosts and library access granted per plugin, at install |
 | Restricted mode; community list in a GitHub repo | Same: plugins off until the user turns them on; an index repo; install from file always works |
 | `minAppVersion` | `api` (as now) |
@@ -189,9 +189,9 @@ confirmation per book.
 
 - Setting types add `select`, `toggle`, `number`, `url` to `text` and
   `secret`. Still a form Dalibre draws.
-- `dalibre.storage.get/set/delete(key)`: up to 1 MB per plugin, for
-  tokens and caches that survive restarts. Secrets move to the OS
-  keychain together with `secret` settings.
+- ✅ A data folder per plugin, through the standard `node:fs` at `/data`
+  (64 MB), for tokens and caches that survive restarts. Secrets move to
+  the OS keychain together with `secret` settings.
 - Sign-in flows (open the browser, receive a callback) stay in Later.
 
 ## Permissions and consent
@@ -239,7 +239,7 @@ enforce it.
    object form of `capabilities`; `icon` and one-line `description`.
    All sources. Project Gutenberg rewritten on gutenberg.org's own OPDS
    catalog and built into Dalibre as `dalibre.gutenberg`.
-3. `dalibre.storage`, new setting types, keychain.
+3. ✅ A data folder per plugin (`node:fs` at `/data`, 64 MB). Still to do: new setting types, keychain.
 4. ✅ Metadata capability with `permissions.library`; Fetch metadata in
    Edit metadata; NeoDB built in as `dalibre.neodb`.
 5. Index, restricted mode, updates.

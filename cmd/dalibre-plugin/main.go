@@ -145,7 +145,9 @@ func load(dir string, set setFlags) (*plugin.Plugin, error) {
 		}
 		values[k] = v
 	}
-	return plugin.Load(dir, plugin.Options{Settings: values, Logf: func(f string, a ...any) {
+	// The plugin's data folder is .data in its own folder, which pack
+	// leaves out.
+	return plugin.Load(dir, plugin.Options{Settings: values, DataDir: filepath.Join(dir, ".data"), Logf: func(f string, a ...any) {
 		fmt.Fprintf(os.Stderr, f+"\n", a...)
 	}})
 }
@@ -205,7 +207,7 @@ func templateFiles() ([]string, error) {
 func cmdCheck(_ context.Context, args []string) error {
 	fs := flag.NewFlagSet("check", flag.ExitOnError)
 	dir := parse(fs, args, "dir")[0]
-	p, err := plugin.Load(dir, plugin.Options{Logf: func(string, ...any) {}})
+	p, err := plugin.Load(dir, plugin.Options{DataDir: filepath.Join(dir, ".data"), Logf: func(string, ...any) {}})
 	if err != nil {
 		return err
 	}
