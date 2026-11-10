@@ -19,7 +19,7 @@ import (
 // download for its listed version.
 
 // MarketplaceURL is where Dalibre reads the Marketplace's index.
-const MarketplaceURL = "https://raw.githubusercontent.com/djyde/dalibre/marketplace/marketplace.json"
+const MarketplaceURL = "https://raw.githubusercontent.com/djyde/dalibre/refs/heads/marketplace/marketplace.json"
 
 // MarketplaceRepo is the repository the Marketplace's own plugins are in.
 const MarketplaceRepo = "djyde/dalibre"

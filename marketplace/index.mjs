@@ -18,7 +18,7 @@ import { unzipSync, strFromU8 } from "fflate";
 
 const REPO = "djyde/dalibre";
 // Where the marketplace branch is served from.
-const PACKAGES = "https://raw.githubusercontent.com/djyde/dalibre/marketplace/packages";
+const PACKAGES = "https://raw.githubusercontent.com/djyde/dalibre/refs/heads/marketplace/packages";
 const outIndex = process.argv.indexOf("--out");
 const out = outIndex > 0 ? process.argv[outIndex + 1] : "marketplace.json";
 const checkOnly = process.argv.includes("--check");
