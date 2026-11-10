@@ -65,6 +65,11 @@ This guide comes with the tool, for the API of its version:
 `dalibre-plugin docs` lists its topics, `dalibre-plugin docs fetch` prints
 one, and `dalibre-plugin types Result` prints a type of `dalibre.d.ts`.
 
+Or start on GitHub from
+[dalibre-plugin-template](https://github.com/djyde/dalibre-plugin-template)
+(**Use this template**), which is what `init` makes, then give it your own
+`id` and `name` in `plugin.json`.
+
 `init` makes a repository ready for GitHub: `.gitignore`, and a workflow
 that checks the plugin on each push and publishes a release when you push
 a tag (see [Publishing](#publishing)). It also writes `dalibre.d.ts`,
