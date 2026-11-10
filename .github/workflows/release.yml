@@ -17,9 +17,9 @@
 #
 # It also builds dalibre-plugin, the plugin authors' tool, for every
 # platform, uploads it to the release, and publishes it to npm as
-# dalibre-plugin when this secret is set:
-#   NPM_TOKEN                    an npm automation token that may publish
-#                                dalibre-plugin and dalibre-plugin-*
+# dalibre-plugin with Trusted Publishing: each of dalibre-plugin and
+# dalibre-plugin-<os>-<cpu> on npmjs.com trusts this repository's
+# release.yml, so no token is kept here.
 name: Release
 
 on:
@@ -117,6 +117,9 @@ jobs:
   plugin-tool:
     needs: draft-release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write # npm Trusted Publishing
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -124,7 +127,7 @@ jobs:
           go-version-file: go.mod
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24 # npm 11.5 or later, for Trusted Publishing
           registry-url: https://registry.npmjs.org
       - name: Build dalibre-plugin
         run: |
@@ -148,11 +151,15 @@ jobs:
             esac
           done
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: env.NODE_AUTH_TOKEN != ''
         run: |
-          node sdk/npm/build.mjs "${GITHUB_REF_NAME#v}" dist npm-out
+          version="${GITHUB_REF_NAME#v}"
+          node sdk/npm/build.mjs "$version" dist npm-out
+          # The platforms' first; a package already published (a re-run) is skipped.
           for d in npm-out/dalibre-plugin-*/ npm-out/dalibre-plugin/; do
-            (cd "$d" && npm publish --access public)
+            name="$(node -p "require('./$d/package.json').name")"
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name@$version is published already"
+              continue
+            fi
+            (cd "$d" && npm publish --access public --provenance)
           done
