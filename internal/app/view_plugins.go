@@ -371,6 +371,13 @@ func libraryPermission(c *ui.Context, m *plugin.Manifest, consent bool, had *plu
 	if !m.IsMetadataSource() && len(m.Hooks()) > 0 {
 		detail = locales.PluginsLibraryReadHooksDetail()
 	}
+	if len(m.Capabilities.Actions) > 0 {
+		// An action sees the books it runs on: every one, for a tool.
+		label, detail = locales.PluginsLibraryActions(), locales.PluginsLibraryActionsDetail()
+		if m.HasLibraryAction() {
+			detail = locales.PluginsLibraryAllDetail()
+		}
+	}
 	permissionItem(c, icons.Library, label, detail, false)
 }
 

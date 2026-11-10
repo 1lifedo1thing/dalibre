@@ -970,5 +970,21 @@
   "pluginsLibraryWriteDetail": "Título, autores, etiquetas y otros datos de los libros en los que se ejecuta, sin preguntar cada vez.",
   "pluginsLibraryReadHooksDetail": "Título, autores, etiquetas y otros datos de los libros en los que se ejecuta",
   "pluginsBookFilesHooksNote": "También se ejecuta después de añadir libros y quitar formatos.",
-  "pluginsBookFilesHooksOnlyNote": "Archivos de libros: {name} se ejecuta después de añadir libros y quitar formatos."
+  "pluginsBookFilesHooksOnlyNote": "Archivos de libros: {name} se ejecuta después de añadir libros y quitar formatos.",
+  "mainNavTools": "Herramientas",
+  "actionFailed": "{action} ha fallado: {reason}",
+  "actionAdded": "{action} · {count, plural, one {# libro añadido} many {# libros añadidos} other {# libros añadidos}}",
+  "actionShow": "Mostrar",
+  "actionGroups": "{count, plural, one {# grupo} many {# grupos} other {# grupos}}",
+  "actionRunAgain": "Ejecutar de nuevo",
+  "actionReviewNote": "{books, plural, one {# libro} many {# libros} other {# libros}} · {fields, plural, one {# cambio} many {# cambios} other {# cambios}}",
+  "actionApply": "Aplicar cambios",
+  "actionStop": "Detener {action}",
+  "pluginsLibraryActions": "Los detalles de tus libros",
+  "pluginsLibraryActionsDetail": "Título, autores, etiquetas y otros detalles de los libros sobre los que lo ejecutas",
+  "pluginsLibraryAllDetail": "Título, autores, etiquetas y otros detalles de todos los libros de tu biblioteca, cuando ejecutas sus herramientas",
+  "mcpToolListActions": "Listar lo que los plugins pueden hacer con los libros y la biblioteca.",
+  "mcpToolRunAction": "Ejecutar una acción de un plugin, como desde el menú del libro y Herramientas.",
+  "mcpListedActions": "Acciones de los plugins listadas",
+  "mcpRanAction": "{action} ejecutada"
 }

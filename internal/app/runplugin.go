@@ -30,19 +30,36 @@ const maxMenuActions = 2
 // run on books ids.
 func (a *App) pluginActions(m *ui.Menu, ids []int64) {
 	ps := a.fileTypePlugins()
+	results, others := a.bookActions()
+	// What the plugin whose results show does with them comes first.
+	for _, pa := range results {
+		a.actionItem(m, pa, ids)
+	}
 	add := func(m *ui.Menu) {
 		for _, p := range ps {
 			if m.Item(p.Manifest.ActionTitle()).ID("run:" + p.Manifest.ID).Icon(icons.Menu(icons.Sparkle)).Disabled(a.busy != "").Chosen() {
 				a.runPlugin(p, ids)
 			}
 		}
+		for _, pa := range others {
+			a.actionItem(m, pa, ids)
+		}
 	}
-	switch {
-	case len(ps) == 0:
-	case len(ps) <= maxMenuActions:
+	switch n := len(ps) + len(others); {
+	case n == 0:
+	case n <= maxMenuActions:
 		add(m)
 	default:
 		m.Submenu(locales.BooksMenuPlugins(), add).Icon(icons.Menu(icons.Puzzle))
+	}
+}
+
+// actionItem is a plugin's action in a menu, to run on books ids: greyed
+// when it doesn't take them.
+func (a *App) actionItem(m *ui.Menu, pa pluginAction, ids []int64) {
+	if m.Item(pa.act.Title).ID("act:" + pa.p.Manifest.ID + ":" + pa.act.ID).Icon(icons.Menu(actionIcon(pa.act))).
+		Disabled(a.busy != "" || !a.takes(pa.act, ids)).Chosen() {
+		a.runAction(pa.p, pa.act, ids)
 	}
 }
 

@@ -145,7 +145,7 @@ func bookInfo(b *calibre.Book, d *calibre.Details) plugin.BookInfo {
 	info := plugin.BookInfo{
 		ID: b.ID, Title: b.Title, Authors: nonNilStrings(b.Authors), Series: b.Series, SeriesIndex: b.SeriesIndex,
 		Tags: nonNilStrings(b.Tags), Publisher: b.Publisher, Languages: b.Languages, Rating: b.Rating,
-		Identifiers: d.Identifiers, Comments: d.Comments, Formats: nonNilStrings(b.Formats),
+		Identifiers: d.Identifiers, Comments: d.Comments, Formats: nonNilStrings(b.Formats), Size: b.Size,
 	}
 	if info.Identifiers == nil {
 		info.Identifiers = map[string]string{}

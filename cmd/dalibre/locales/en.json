@@ -1000,5 +1000,21 @@
   "pluginsLibraryWriteDetail": "Title, authors, tags and other details of the books it runs for, without asking each time.",
   "pluginsLibraryReadHooksDetail": "Title, authors, tags and other details of the books it runs for",
   "pluginsBookFilesHooksNote": "It also runs after books are added and formats removed.",
-  "pluginsBookFilesHooksOnlyNote": "Book files: {name} runs after books are added and formats removed."
+  "pluginsBookFilesHooksOnlyNote": "Book files: {name} runs after books are added and formats removed.",
+  "mainNavTools": "Tools",
+  "actionFailed": "{action} failed: {reason}",
+  "actionAdded": "{action} · {count, plural, one {# book} other {# books}} added",
+  "actionShow": "Show",
+  "actionGroups": "{count, plural, one {# group} other {# groups}}",
+  "actionRunAgain": "Run again",
+  "actionReviewNote": "{books, plural, one {# book} other {# books}} · {fields, plural, one {# change} other {# changes}}",
+  "actionApply": "Apply changes",
+  "actionStop": "Stop {action}",
+  "pluginsLibraryActions": "Your books’ details",
+  "pluginsLibraryActionsDetail": "Title, authors, tags and other details of the books you run it on",
+  "pluginsLibraryAllDetail": "Title, authors, tags and other details of every book in your library, when you run its tools",
+  "mcpToolListActions": "List what plugins can do with books and the library.",
+  "mcpToolRunAction": "Run a plugin’s action, as the book menu and Tools do.",
+  "mcpListedActions": "Listed the plugins’ actions",
+  "mcpRanAction": "Ran {action}"
 }

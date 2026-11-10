@@ -27,6 +27,8 @@ type BookInfo struct {
 	Rating      int               `json:"rating,omitempty"` // 0–10, as calibre keeps it
 	Comments    string            `json:"comments,omitempty"`
 	Formats     []string          `json:"formats"`
+	// Size is the size of the book's largest file, in bytes.
+	Size int64 `json:"size,omitempty"`
 }
 
 // HookFile is a book's file a hook is handed: a copy in /work.
@@ -136,16 +138,24 @@ func hookResult(raw json.RawMessage) (*Changes, error) {
 	if ch == nil {
 		return nil, nil
 	}
-	if ch.Title != nil && strings.TrimSpace(*ch.Title) == "" {
-		return nil, fmt.Errorf("metadata.title: empty")
-	}
-	if ch.Pubdate != nil && *ch.Pubdate != "" && ParseDate(*ch.Pubdate).IsZero() {
-		return nil, fmt.Errorf("metadata.pubdate: %q isn’t a date like 2006, 2006-01 or 2006-01-02", *ch.Pubdate)
-	}
-	if ch.Rating != nil && (*ch.Rating < 0 || *ch.Rating > 10) {
-		return nil, fmt.Errorf("metadata.rating: %d isn’t from 0 to 10", *ch.Rating)
+	if err := checkChanges(ch); err != nil {
+		return nil, err
 	}
 	return ch, nil
+}
+
+// checkChanges checks the changes a plugin asks for.
+func checkChanges(ch *Changes) error {
+	if ch.Title != nil && strings.TrimSpace(*ch.Title) == "" {
+		return fmt.Errorf("metadata.title: empty")
+	}
+	if ch.Pubdate != nil && *ch.Pubdate != "" && ParseDate(*ch.Pubdate).IsZero() {
+		return fmt.Errorf("metadata.pubdate: %q isn’t a date like 2006, 2006-01 or 2006-01-02", *ch.Pubdate)
+	}
+	if ch.Rating != nil && (*ch.Rating < 0 || *ch.Rating > 10) {
+		return fmt.Errorf("metadata.rating: %d isn’t from 0 to 10", *ch.Rating)
+	}
+	return nil
 }
 
 func mapKeys(m map[string]string) func(func(string) bool) {

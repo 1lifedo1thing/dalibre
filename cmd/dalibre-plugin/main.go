@@ -5,6 +5,7 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/egoist/mygo"
 
+	"dalibre/internal/calibre"
 	"dalibre/internal/plugin"
 	"dalibre/internal/settings"
 	"dalibre/sdk"
@@ -37,6 +39,9 @@ const usage = `dalibre-plugin is for writing Dalibre plugins.
   dalibre-plugin identify <dir> [title] [--author A] [--isbn N] [--id type:value] [--language L] [--json]
                                                       what Fetch metadata shows for a book
   dalibre-plugin process <dir> <file> [--manual] [-o DIR]  run a file type plugin on a book's file
+  dalibre-plugin run <dir> <action> [file…] [--library DIR] [--answer key=value] [-o DIR] [--json]
+                                                      run an action: on the files, as books, or on a
+                                                      calibre library's books
   dalibre-plugin pack <dir> [-o DIR]                  make <id>-<version>.dalibre-plugin
   dalibre-plugin install <package> [--yes]            install into Dalibre's plugins folder
   dalibre-plugin uninstall <id>
@@ -58,7 +63,7 @@ func main() {
 	defer stop()
 	cmds := map[string]func(context.Context, []string) error{
 		"init": cmdInit, "check": cmdCheck, "search": cmdSearch, "download": cmdDownload,
-		"collections": cmdCollections, "list": cmdListCollection, "get": cmdGet, "identify": cmdIdentify, "process": cmdProcess,
+		"collections": cmdCollections, "list": cmdListCollection, "get": cmdGet, "identify": cmdIdentify, "process": cmdProcess, "run": cmdRun,
 		"pack": cmdPack, "install": cmdInstall, "uninstall": cmdUninstall, "installed": cmdList,
 	}
 	cmd, ok := cmds[os.Args[1]]
@@ -210,7 +215,7 @@ func cmdCheck(_ context.Context, args []string) error {
 		}
 	}
 	fmt.Println("asks to:")
-	for _, d := range m.Permissions.Describe() {
+	for _, d := range m.Asks() {
 		fmt.Println("  " + d)
 	}
 	if m.Description == "" {
@@ -535,6 +540,167 @@ func cmdProcess(ctx context.Context, args []string) error {
 	return nil
 }
 
+// cmdRun runs an action as the app does, without its window: the forms
+// it asks are answered with --answer, the books it runs on are the files
+// given, and the library it reads is the one at --library.
+func cmdRun(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("run", flag.ExitOnError)
+	out := fs.String("o", ".", "the folder to save the files it makes in")
+	libDir := fs.String("library", "", "a calibre library, for an action that reads the library")
+	asJSON := fs.Bool("json", false, "print what it returned as JSON")
+	set, answer := setFlags{}, setFlags{}
+	fs.Var(set, "set", "a setting, as key=value (repeatable)")
+	fs.Var(answer, "answer", "an answer to a form's field, as key=value: true, a text, or a JSON list (repeatable)")
+	var pos []string
+	for rest := args; ; {
+		if err := fs.Parse(rest); err != nil {
+			os.Exit(2)
+		}
+		if fs.NArg() == 0 {
+			break
+		}
+		pos = append(pos, fs.Arg(0))
+		rest = fs.Args()[1:]
+	}
+	if len(pos) < 2 {
+		fmt.Fprintln(os.Stderr, "usage: dalibre-plugin run <dir> <action> [file…] [--library DIR] [--answer key=value] [-o DIR] [--json]")
+		os.Exit(2)
+	}
+	p, err := load(pos[0], set)
+	if err != nil {
+		return err
+	}
+	defer p.Close()
+	host := &plugin.ActionHost{Answers: map[string]any{}, Progress: func(done, total int) {
+		if total > 0 {
+			fmt.Fprintf(os.Stderr, "· %d of %d\n", done, total)
+		}
+	}}
+	for k, v := range answer {
+		// true, false and lists are given as JSON; anything else is text.
+		var val any
+		if json.Unmarshal([]byte(v), &val) != nil {
+			val = v
+		} else if _, num := val.(float64); num || val == nil {
+			val = v
+		}
+		host.Answers[k] = val
+	}
+	// Each file is a book: its name the title, its extension the format.
+	var books []plugin.BookInfo
+	files := map[int64]string{}
+	for i, f := range pos[2:] {
+		if _, err := os.Stat(f); err != nil {
+			return err
+		}
+		id := int64(i + 1)
+		ext := filepath.Ext(f)
+		books = append(books, plugin.BookInfo{ID: id, Title: strings.TrimSuffix(filepath.Base(f), ext),
+			Formats: []string{strings.ToUpper(strings.TrimPrefix(ext, "."))}})
+		files[id] = f
+	}
+	if *libDir != "" {
+		lib, err := calibre.Open(*libDir)
+		if err != nil {
+			return err
+		}
+		defer lib.Close()
+		all, err := lib.Books()
+		if err != nil {
+			return err
+		}
+		slices.SortFunc(all, func(a, b *calibre.Book) int { return cmp.Compare(a.ID, b.ID) })
+		host.Books = func(after int64, limit int) ([]plugin.BookInfo, error) {
+			var page []plugin.BookInfo
+			for _, b := range all {
+				if b.ID <= after {
+					continue
+				}
+				if len(page) == limit {
+					break
+				}
+				info := plugin.BookInfo{ID: b.ID, Title: b.Title, Authors: b.Authors, Series: b.Series, SeriesIndex: b.SeriesIndex,
+					Tags: b.Tags, Publisher: b.Publisher, Languages: b.Languages, Rating: b.Rating, Formats: b.Formats, Size: b.Size}
+				if !b.Pubdate.IsZero() {
+					info.Pubdate = b.Pubdate.Format("2006-01-02")
+				}
+				if d, err := lib.Details(b); err == nil {
+					info.Identifiers = d.Identifiers
+				}
+				page = append(page, info)
+			}
+			return page, nil
+		}
+	}
+	start := time.Now()
+	res, err := p.RunAction(ctx, pos[1], books, files, host)
+	if err != nil {
+		return err
+	}
+	defer res.Done()
+	save := func(src string) (string, error) {
+		data, err := os.ReadFile(src)
+		if err != nil {
+			return "", err
+		}
+		dst := filepath.Join(*out, filepath.Base(src))
+		return dst, os.WriteFile(dst, data, 0o644)
+	}
+	type saved struct {
+		Book     int64           `json:"book,omitempty"`
+		Path     string          `json:"path"`
+		Metadata *plugin.Changes `json:"metadata,omitempty"`
+	}
+	var added, formats []saved
+	for _, nb := range res.Add {
+		dst, err := save(nb.File)
+		if err != nil {
+			return err
+		}
+		added = append(added, saved{Path: dst, Metadata: nb.Metadata})
+	}
+	for _, f := range res.Formats {
+		dst, err := save(f.File)
+		if err != nil {
+			return err
+		}
+		formats = append(formats, saved{Book: f.Book, Path: dst})
+	}
+	if *asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(map[string]any{"message": res.Message, "groups": res.Groups, "changes": res.Changes,
+			"add": added, "formats": formats, "open": res.Open})
+	}
+	if res.Message != "" {
+		fmt.Println(res.Message)
+	}
+	for _, g := range res.Groups {
+		fmt.Printf("%s (%d)\n", g.Title, len(g.Books))
+		for _, b := range g.Books {
+			fmt.Printf("  book %d  %s\n", b.ID, b.Note)
+		}
+	}
+	for _, c := range res.Changes {
+		data, _ := json.Marshal(c.Metadata)
+		fmt.Printf("change book %d: %s\n", c.Book, data)
+	}
+	for _, s := range added {
+		fmt.Printf("new book: %s\n", s.Path)
+	}
+	for _, s := range formats {
+		fmt.Printf("new format of book %d: %s\n", s.Book, s.Path)
+	}
+	if res.Open != "" {
+		fmt.Printf("open: %s\n", res.Open)
+	}
+	if res.Empty() {
+		fmt.Println("returned nothing")
+	}
+	fmt.Fprintf(os.Stderr, "(%s)\n", time.Since(start).Round(time.Millisecond))
+	return nil
+}
+
 // same reports whether a and b are the same file's path.
 func same(a, b string) bool {
 	x, err1 := filepath.Abs(a)
@@ -623,7 +789,7 @@ func cmdInstall(_ context.Context, args []string) error {
 			fmt.Printf(" by %s", m.Author)
 		}
 		fmt.Printf(" (%s) asks to:\n", m.ID)
-		for _, d := range m.Permissions.Describe() {
+		for _, d := range m.Asks() {
 			fmt.Println("  " + d)
 		}
 		if !*yes {

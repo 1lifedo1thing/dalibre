@@ -780,5 +780,21 @@
   "pluginsLibraryWriteDetail": "実行の対象になった本のタイトル、著者、タグなど。毎回は確認しません。",
   "pluginsLibraryReadHooksDetail": "実行の対象になった本のタイトル、著者、タグなど",
   "pluginsBookFilesHooksNote": "本の追加や形式の削除の後にも実行されます。",
-  "pluginsBookFilesHooksOnlyNote": "本のファイル：{name} は本の追加や形式の削除の後に実行されます。"
+  "pluginsBookFilesHooksOnlyNote": "本のファイル：{name} は本の追加や形式の削除の後に実行されます。",
+  "mainNavTools": "ツール",
+  "actionFailed": "{action} に失敗しました：{reason}",
+  "actionAdded": "{action} · {count, plural, other {# 冊}}を追加しました",
+  "actionShow": "表示",
+  "actionGroups": "{count, plural, other {# グループ}}",
+  "actionRunAgain": "もう一度実行",
+  "actionReviewNote": "{books, plural, other {# 冊}} · {fields, plural, other {# 件の変更}}",
+  "actionApply": "変更を適用",
+  "actionStop": "{action} を停止",
+  "pluginsLibraryActions": "本の詳細",
+  "pluginsLibraryActionsDetail": "実行対象の本のタイトル、著者、タグなどの詳細",
+  "pluginsLibraryAllDetail": "ツールの実行時に、ライブラリ内のすべての本のタイトル、著者、タグなどの詳細",
+  "mcpToolListActions": "プラグインが本とライブラリに対して行える操作を一覧します。",
+  "mcpToolRunAction": "本のメニューやツールと同じように、プラグインの操作を実行します。",
+  "mcpListedActions": "プラグインの操作を一覧しました",
+  "mcpRanAction": "{action} を実行しました"
 }

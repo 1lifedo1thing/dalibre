@@ -780,5 +780,21 @@
   "pluginsLibraryWriteDetail": "它執行時涉及的書的標題、作者、標籤等資訊，不會每次詢問。",
   "pluginsLibraryReadHooksDetail": "它執行時涉及的書的標題、作者、標籤等資訊",
   "pluginsBookFilesHooksNote": "它也會在加入書籍和刪除格式之後執行。",
-  "pluginsBookFilesHooksOnlyNote": "書籍檔案：{name} 會在加入書籍和刪除格式之後執行。"
+  "pluginsBookFilesHooksOnlyNote": "書籍檔案：{name} 會在加入書籍和刪除格式之後執行。",
+  "mainNavTools": "工具",
+  "actionFailed": "{action} 失敗：{reason}",
+  "actionAdded": "{action} · 已加入 {count, plural, other {# 本書}}",
+  "actionShow": "顯示",
+  "actionGroups": "{count, plural, other {# 組}}",
+  "actionRunAgain": "重新執行",
+  "actionReviewNote": "{books, plural, other {# 本書}} · {fields, plural, other {# 處變更}}",
+  "actionApply": "套用變更",
+  "actionStop": "停止 {action}",
+  "pluginsLibraryActions": "書籍的詳細資訊",
+  "pluginsLibraryActionsDetail": "你對其執行的書籍的標題、作者、標籤等資訊",
+  "pluginsLibraryAllDetail": "執行它的工具時，書庫中每本書的標題、作者、標籤等資訊",
+  "mcpToolListActions": "列出外掛能對書籍和書庫執行的動作。",
+  "mcpToolRunAction": "執行外掛的動作，與書籍選單和工具中的相同。",
+  "mcpListedActions": "列出了外掛的動作",
+  "mcpRanAction": "執行了 {action}"
 }

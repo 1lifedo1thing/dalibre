@@ -156,6 +156,9 @@ type App struct {
 	// until they set one.
 	secrets secretStore
 
+	// act is the plugins' actions: the one running, what it asks and found.
+	act actionState
+
 	// page is what the main column shows: the library or Get books.
 	page page
 	gb   getBooksState
@@ -362,6 +365,7 @@ func (a *App) openLibrary(root string) {
 			a.curID, a.chosen = 0, ui.Selection[int64]{}
 			a.grid, a.table = ui.GridState{}, ui.ListState{}
 			a.query.Filter, a.query.Search, a.query.Shelf = catalog.Filter{}, "", catalog.AllBooks
+			a.act.results, a.act.review = nil, nil
 			a.setBooks(books)
 			a.settings.Opened(root)
 			a.saveSettings()
@@ -437,6 +441,11 @@ func (a *App) reload(after func()) {
 // visible returns the books the query selects, recomputed only when the
 // query or the books change.
 func (a *App) visible() []*calibre.Book {
+	if r := a.act.results; r != nil {
+		// An action's results are the list, in the action's groups.
+		r.build(a.byID, a.version)
+		return r.shown
+	}
 	k := shownKey{a.query, a.version}
 	if k != a.shownKey || a.shown == nil {
 		a.shown = catalog.Apply(a.books, a.query, a.booksTime)

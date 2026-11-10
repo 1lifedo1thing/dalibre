@@ -30,6 +30,8 @@ func (a *App) dialogs(c *ui.Context) {
 	a.createLibrarySheet(c)
 	a.importReviewSheet(c)
 	a.appUpdateDialog(c)
+	a.formDialog(c)
+	a.reviewDialog(c)
 }
 
 // ---- Edit metadata

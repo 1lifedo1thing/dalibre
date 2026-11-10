@@ -780,5 +780,21 @@
   "pluginsLibraryWriteDetail": "它运行时涉及的书的标题、作者、标签等信息，不会每次询问。",
   "pluginsLibraryReadHooksDetail": "它运行时涉及的书的标题、作者、标签等信息",
   "pluginsBookFilesHooksNote": "它也会在添加书籍和删除格式之后运行。",
-  "pluginsBookFilesHooksOnlyNote": "书籍文件：{name} 会在添加书籍和删除格式之后运行。"
+  "pluginsBookFilesHooksOnlyNote": "书籍文件：{name} 会在添加书籍和删除格式之后运行。",
+  "mainNavTools": "工具",
+  "actionFailed": "{action} 失败：{reason}",
+  "actionAdded": "{action} · 已添加 {count, plural, other {# 本书}}",
+  "actionShow": "显示",
+  "actionGroups": "{count, plural, other {# 组}}",
+  "actionRunAgain": "重新运行",
+  "actionReviewNote": "{books, plural, other {# 本书}} · {fields, plural, other {# 处改动}}",
+  "actionApply": "应用改动",
+  "actionStop": "停止 {action}",
+  "pluginsLibraryActions": "书籍的详细信息",
+  "pluginsLibraryActionsDetail": "你对其运行的书籍的标题、作者、标签等信息",
+  "pluginsLibraryAllDetail": "运行它的工具时，书库中每本书的标题、作者、标签等信息",
+  "mcpToolListActions": "列出插件能对书籍和书库执行的操作。",
+  "mcpToolRunAction": "运行插件的操作，与书籍菜单和工具中的相同。",
+  "mcpListedActions": "列出了插件的操作",
+  "mcpRanAction": "运行了 {action}"
 }

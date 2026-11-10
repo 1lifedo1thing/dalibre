@@ -970,5 +970,21 @@
   "pluginsLibraryWriteDetail": "Titel, Autoren, Schlagwörter und weitere Angaben der Bücher, für die es läuft, ohne jedes Mal zu fragen.",
   "pluginsLibraryReadHooksDetail": "Titel, Autoren, Schlagwörter und weitere Angaben der Bücher, für die es läuft",
   "pluginsBookFilesHooksNote": "Es läuft auch, nachdem Bücher hinzugefügt und Formate entfernt wurden.",
-  "pluginsBookFilesHooksOnlyNote": "Buchdateien: {name} läuft, nachdem Bücher hinzugefügt und Formate entfernt wurden."
+  "pluginsBookFilesHooksOnlyNote": "Buchdateien: {name} läuft, nachdem Bücher hinzugefügt und Formate entfernt wurden.",
+  "mainNavTools": "Werkzeuge",
+  "actionFailed": "{action} fehlgeschlagen: {reason}",
+  "actionAdded": "{action} · {count, plural, one {# Buch} other {# Bücher}} hinzugefügt",
+  "actionShow": "Anzeigen",
+  "actionGroups": "{count, plural, one {# Gruppe} other {# Gruppen}}",
+  "actionRunAgain": "Erneut ausführen",
+  "actionReviewNote": "{books, plural, one {# Buch} other {# Bücher}} · {fields, plural, one {# Änderung} other {# Änderungen}}",
+  "actionApply": "Änderungen übernehmen",
+  "actionStop": "{action} anhalten",
+  "pluginsLibraryActions": "Details deiner Bücher",
+  "pluginsLibraryActionsDetail": "Titel, Autoren, Schlagwörter und weitere Details der Bücher, auf die du es anwendest",
+  "pluginsLibraryAllDetail": "Titel, Autoren, Schlagwörter und weitere Details aller Bücher deiner Bibliothek, wenn du seine Werkzeuge ausführst",
+  "mcpToolListActions": "Auflisten, was Plugins mit Büchern und der Bibliothek tun können.",
+  "mcpToolRunAction": "Eine Aktion eines Plugins ausführen, wie im Buchmenü und unter Werkzeuge.",
+  "mcpListedActions": "Aktionen der Plugins aufgelistet",
+  "mcpRanAction": "{action} ausgeführt"
 }

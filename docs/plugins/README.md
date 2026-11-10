@@ -2,7 +2,7 @@
 
 A Dalibre plugin is a folder with a `plugin.json` and a JavaScript (or
 TypeScript) module.
-Plugin API 1 has three capabilities; a plugin may have any of them:
+Plugin API 1 has four capabilities; a plugin may have any of them:
 
 - A **book source** searches and browses a catalogue and says where each
   book's file is. Dalibre shows every book source in its **Get books**
@@ -16,6 +16,12 @@ Plugin API 1 has three capabilities; a plugin may have any of them:
   plugins do: each file Dalibre adds, and the books the user runs it on
   from the book menu. It cleans them up, converts them, or unlocks them
   with the user's own key.
+
+- **Actions** are what the user runs on the books they chose, from the
+  book menu, or on the whole library, from the sidebar's **Tools**: find
+  duplicates, check the library, merge books. An action returns what it
+  found and what it wants changed; Dalibre shows the books as a list and
+  applies the changes.
 
 Your plugin gives data and never draws UI.
 
@@ -33,7 +39,7 @@ limits of what the user granted.
 
 - [Quick start](#quick-start)
 - [plugin.json](#pluginjson)
-- [main.js](#mainjs): [`search`](#search), [filters](#filters), [`collections` and `list`](#collections-and-list), [`get`](#get), [`resolve`](#resolve), [`identify`](#identify), [`process`](#process)
+- [main.js](#mainjs): [`search`](#search), [filters](#filters), [`collections` and `list`](#collections-and-list), [`get`](#get), [`resolve`](#resolve), [`identify`](#identify), [`process`](#process), [`run`](#run)
 - [Runtime](#runtime): [what you can use](#what-you-can-use), [fetch](#fetch), [timers](#timers), [your folders](#your-folders), [the `dalibre` object](#the-dalibre-object), [errors](#errors), [TypeScript](#typescript-and-npm-packages)
 - [Permissions and limits](#permissions-and-limits)
 - [Testing](#testing)
@@ -374,6 +380,90 @@ hooks (`"onImport": false`, no `process`) isn't in the book menu.
 calibre's conversion hooks have no counterpart: Dalibre doesn't convert
 through plugins.
 
+### run
+
+A plugin with `"actions"` in its capabilities exports `run(action,
+input)`, called with the id of the action the user chose:
+
+```json
+"capabilities": {
+  "actions": [
+    { "id": "find", "title": "Find duplicates…", "icon": "copy", "scope": "library" },
+    { "id": "exempt", "title": "Not duplicates", "scope": "books", "books": { "min": 2 }, "in": "results" },
+    { "id": "merge", "title": "Merge into one book", "scope": "books",
+      "books": { "min": 2 }, "formats": ["EPUB"], "files": true }
+  ]
+},
+"permissions": { "hosts": [], "library": "read" }
+```
+
+- `scope`: `"books"` runs on the books chosen, from the book menu and the
+  selection's **Plugins** button; `"library"` runs on every book, from
+  the sidebar's **Tools**.
+- `title` is what the menu says; end it in `…` when the action asks
+  something first. `icon` is one of Dalibre's own (the schema lists
+  them).
+- `books` is how many books it takes (`min`, `max`), `formats` the
+  formats it works on (every book must have one): Dalibre greys the item
+  out otherwise, without running your code.
+- `files: true` gives you a copy of each book's file in `/work`.
+- `in: "results"` shows the action only among the books your own results
+  list (below), where it comes first.
+
+```js
+export async function run(action, input) {
+  const { by } = await dalibre.form({
+    submit: "Find duplicates",
+    fields: [
+      { key: "by", title: "Compare", type: "select", value: "title",
+        options: [{ value: "title", title: "Title and author" }, { value: "isbn", title: "ISBN" }] },
+    ],
+  });
+  const seen = new Map();
+  let n = 0;
+  for await (const book of dalibre.library.books()) {
+    dalibre.progress(++n, 0);
+    const key = by === "isbn" ? book.identifiers.isbn : book.title + "|" + book.authors.join();
+    if (key) seen.set(key, [...(seen.get(key) ?? []), book]);
+  }
+  const groups = [...seen.values()].filter((books) => books.length > 1)
+    .map((books) => ({ title: books[0].title, books: books.map((b) => ({ id: b.id })) }));
+  return groups.length ? { groups } : { message: "No duplicates" };
+}
+```
+
+`input` is `{ books, files? }`: `books` are the books chosen, in the
+user's order, as a hook sees them (`id`, `title`, `authors`, `tags`,
+`identifiers`, `formats`…), and empty for a `"library"` action; `files`
+has each book's file by book id (`{ path, name, format }`).
+
+While it runs, an action has three things only Dalibre can give:
+
+| | |
+|---|---|
+| `await dalibre.form({ submit?, fields })` | Asks the user, in a dialog Dalibre draws under your action's title, and resolves to the answers by `key`. A field is `{ key, title, type, value?, options? }` with `type` `"text"`, `"toggle"`, `"select"` or `"multiselect"`; `value` is what it starts with. Cancel rejects with kind `"cancelled"`: leave it uncaught and the run ends quietly. Call it when you know what to ask (after reading the book, say), as often as you need. The run's time doesn't count while it is open. |
+| `dalibre.library.books()` | An async iterator over every book in the library, without `comments`. |
+| `dalibre.progress(done, total)` | The job's bar; `total` 0 when you don't know. |
+
+Return `null`, or what you found and want changed:
+
+| | Dalibre |
+|---|---|
+| `message` | says it in a toast: "No duplicates" |
+| `groups: [{ title, books: [{ id, note? }] }]` | opens the books as a list under each group's title, with `note` under a book's title. It is a book list like any other: the book menu and the detail panel work in it. A book shows once, under the first group that has it |
+| `changes: [{ book, metadata }]` | changes books' details, as a hook's `metadata`: at once with `"library": "write"` (and Undo), else shown to the user first, who applies them |
+| `add: [{ path, metadata? }]` | adds each file as a new book |
+| `formats: [{ book, path }]` | adds the file to the book; a file of the same format is kept as `ORIGINAL_<format>` |
+| `open` | opens the page in the browser; it must be on one of your hosts |
+
+An action never deletes: the books it ran on stay as they were.
+
+A run has 10 minutes and is a job the user can stop. Try it with
+`dalibre-plugin run . find --library ~/Calibre\ Library --answer by=isbn`
+or `dalibre-plugin run . merge a.epub b.epub`: without a window, the
+answers to your forms come from `--answer` (as from an AI agent), and
+`dalibre.interactive` is false. Your code is the same either way.
+
 ## Runtime
 
 ### What you can use
@@ -455,6 +545,7 @@ What only Dalibre can give you:
 | `dalibre.error(kind, message?)` | An `Error` Dalibre understands; see below. |
 | `dalibre.plugin` | `{ id, version }` from your manifest. |
 | `dalibre.api` | The plugin API version of the running Dalibre. |
+| `dalibre.form`, `dalibre.library`, `dalibre.progress`, `dalibre.interactive` | For an action while it runs; see [`run`](#run). |
 
 Everything in the `dalibre` object is frozen.
 
@@ -515,7 +606,9 @@ declare:
 | Limit | |
 |---|---|
 | One call (`search`, `list`, `get`, `resolve`…) | 60 seconds; then the script is stopped |
-| One `process` call | 10 minutes |
+| One `process` call, one action's `run` | 10 minutes, not counting the time a form is open |
+| A form | 24 fields, 500 options a field |
+| An action's results | 2000 groups; 200 files to add |
 | Memory | Not limited, as calibre doesn't limit its plugins |
 | Requests per call | 50 |
 | One `fetch` response | 16 MB (files go through the download) |

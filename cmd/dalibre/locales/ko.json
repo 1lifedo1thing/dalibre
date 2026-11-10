@@ -970,5 +970,21 @@
   "pluginsLibraryWriteDetail": "실행 대상인 책의 제목, 저자, 태그 등. 매번 묻지 않습니다.",
   "pluginsLibraryReadHooksDetail": "실행 대상인 책의 제목, 저자, 태그 등",
   "pluginsBookFilesHooksNote": "책을 추가하거나 형식을 삭제한 뒤에도 실행됩니다.",
-  "pluginsBookFilesHooksOnlyNote": "책 파일: {name}은(는) 책을 추가하거나 형식을 삭제한 뒤 실행됩니다."
+  "pluginsBookFilesHooksOnlyNote": "책 파일: {name}은(는) 책을 추가하거나 형식을 삭제한 뒤 실행됩니다.",
+  "mainNavTools": "도구",
+  "actionFailed": "{action} 실패: {reason}",
+  "actionAdded": "{action} · {count, plural, other {#권}} 추가됨",
+  "actionShow": "보기",
+  "actionGroups": "{count, plural, other {#개 그룹}}",
+  "actionRunAgain": "다시 실행",
+  "actionReviewNote": "{books, plural, other {#권}} · {fields, plural, other {변경 #건}}",
+  "actionApply": "변경 적용",
+  "actionStop": "{action} 중지",
+  "pluginsLibraryActions": "책의 세부 정보",
+  "pluginsLibraryActionsDetail": "실행 대상 책의 제목, 저자, 태그 등 세부 정보",
+  "pluginsLibraryAllDetail": "도구를 실행할 때 라이브러리에 있는 모든 책의 제목, 저자, 태그 등 세부 정보",
+  "mcpToolListActions": "플러그인이 책과 라이브러리에 할 수 있는 작업을 나열합니다.",
+  "mcpToolRunAction": "책 메뉴와 도구에서처럼 플러그인의 작업을 실행합니다.",
+  "mcpListedActions": "플러그인의 작업을 나열함",
+  "mcpRanAction": "{action} 실행함"
 }

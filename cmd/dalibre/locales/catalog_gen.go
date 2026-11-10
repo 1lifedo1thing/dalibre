@@ -7218,3 +7218,169 @@ func PluginsBookFilesHooksOnlyNote(name string) string {
 func (msgs Messages) PluginsBookFilesHooksOnlyNote(name string) string {
 	return Catalog.Format(msgs.locale, "pluginsBookFilesHooksOnlyNote", map[string]any{"name": name})
 }
+
+// MainNavTools says "Tools"
+// in the language the app shows.
+func MainNavTools() string { return In(i18n.Locale()).MainNavTools() }
+
+// MainNavTools says "Tools"
+// in the language of msgs.
+func (msgs Messages) MainNavTools() string {
+	return Catalog.Format(msgs.locale, "mainNavTools", nil)
+}
+
+// ActionFailed says "{action} failed: {reason}"
+// in the language the app shows.
+func ActionFailed(action string, reason string) string {
+	return In(i18n.Locale()).ActionFailed(action, reason)
+}
+
+// ActionFailed says "{action} failed: {reason}"
+// in the language of msgs.
+func (msgs Messages) ActionFailed(action string, reason string) string {
+	return Catalog.Format(msgs.locale, "actionFailed", map[string]any{"action": action, "reason": reason})
+}
+
+// ActionAdded says "{action} · {count, plural, one {# book} other {# books}} added"
+// in the language the app shows.
+func ActionAdded(action string, count int) string {
+	return In(i18n.Locale()).ActionAdded(action, count)
+}
+
+// ActionAdded says "{action} · {count, plural, one {# book} other {# books}} added"
+// in the language of msgs.
+func (msgs Messages) ActionAdded(action string, count int) string {
+	return Catalog.Format(msgs.locale, "actionAdded", map[string]any{"action": action, "count": count})
+}
+
+// ActionShow says "Show"
+// in the language the app shows.
+func ActionShow() string { return In(i18n.Locale()).ActionShow() }
+
+// ActionShow says "Show"
+// in the language of msgs.
+func (msgs Messages) ActionShow() string {
+	return Catalog.Format(msgs.locale, "actionShow", nil)
+}
+
+// ActionGroups says "{count, plural, one {# group} other {# groups}}"
+// in the language the app shows.
+func ActionGroups(count int) string { return In(i18n.Locale()).ActionGroups(count) }
+
+// ActionGroups says "{count, plural, one {# group} other {# groups}}"
+// in the language of msgs.
+func (msgs Messages) ActionGroups(count int) string {
+	return Catalog.Format(msgs.locale, "actionGroups", map[string]any{"count": count})
+}
+
+// ActionRunAgain says "Run again"
+// in the language the app shows.
+func ActionRunAgain() string { return In(i18n.Locale()).ActionRunAgain() }
+
+// ActionRunAgain says "Run again"
+// in the language of msgs.
+func (msgs Messages) ActionRunAgain() string {
+	return Catalog.Format(msgs.locale, "actionRunAgain", nil)
+}
+
+// ActionReviewNote says "{books, plural, one {# book} other {# books}} · {fields, plural, one {# change} other {# changes}}"
+// in the language the app shows.
+func ActionReviewNote(books int, fields int) string {
+	return In(i18n.Locale()).ActionReviewNote(books, fields)
+}
+
+// ActionReviewNote says "{books, plural, one {# book} other {# books}} · {fields, plural, one {# change} other {# changes}}"
+// in the language of msgs.
+func (msgs Messages) ActionReviewNote(books int, fields int) string {
+	return Catalog.Format(msgs.locale, "actionReviewNote", map[string]any{"books": books, "fields": fields})
+}
+
+// ActionApply says "Apply changes"
+// in the language the app shows.
+func ActionApply() string { return In(i18n.Locale()).ActionApply() }
+
+// ActionApply says "Apply changes"
+// in the language of msgs.
+func (msgs Messages) ActionApply() string {
+	return Catalog.Format(msgs.locale, "actionApply", nil)
+}
+
+// ActionStop says "Stop {action}"
+// in the language the app shows.
+func ActionStop(action string) string { return In(i18n.Locale()).ActionStop(action) }
+
+// ActionStop says "Stop {action}"
+// in the language of msgs.
+func (msgs Messages) ActionStop(action string) string {
+	return Catalog.Format(msgs.locale, "actionStop", map[string]any{"action": action})
+}
+
+// PluginsLibraryActions says "Your books’ details"
+// in the language the app shows.
+func PluginsLibraryActions() string { return In(i18n.Locale()).PluginsLibraryActions() }
+
+// PluginsLibraryActions says "Your books’ details"
+// in the language of msgs.
+func (msgs Messages) PluginsLibraryActions() string {
+	return Catalog.Format(msgs.locale, "pluginsLibraryActions", nil)
+}
+
+// PluginsLibraryActionsDetail says "Title, authors, tags and other details of the books you run it on"
+// in the language the app shows.
+func PluginsLibraryActionsDetail() string { return In(i18n.Locale()).PluginsLibraryActionsDetail() }
+
+// PluginsLibraryActionsDetail says "Title, authors, tags and other details of the books you run it on"
+// in the language of msgs.
+func (msgs Messages) PluginsLibraryActionsDetail() string {
+	return Catalog.Format(msgs.locale, "pluginsLibraryActionsDetail", nil)
+}
+
+// PluginsLibraryAllDetail says "Title, authors, tags and other details of every book in your library, when you run its tools"
+// in the language the app shows.
+func PluginsLibraryAllDetail() string { return In(i18n.Locale()).PluginsLibraryAllDetail() }
+
+// PluginsLibraryAllDetail says "Title, authors, tags and other details of every book in your library, when you run its tools"
+// in the language of msgs.
+func (msgs Messages) PluginsLibraryAllDetail() string {
+	return Catalog.Format(msgs.locale, "pluginsLibraryAllDetail", nil)
+}
+
+// McpToolListActions says "List what plugins can do with books and the library."
+// in the language the app shows.
+func McpToolListActions() string { return In(i18n.Locale()).McpToolListActions() }
+
+// McpToolListActions says "List what plugins can do with books and the library."
+// in the language of msgs.
+func (msgs Messages) McpToolListActions() string {
+	return Catalog.Format(msgs.locale, "mcpToolListActions", nil)
+}
+
+// McpToolRunAction says "Run a plugin’s action, as the book menu and Tools do."
+// in the language the app shows.
+func McpToolRunAction() string { return In(i18n.Locale()).McpToolRunAction() }
+
+// McpToolRunAction says "Run a plugin’s action, as the book menu and Tools do."
+// in the language of msgs.
+func (msgs Messages) McpToolRunAction() string {
+	return Catalog.Format(msgs.locale, "mcpToolRunAction", nil)
+}
+
+// McpListedActions says "Listed the plugins’ actions"
+// in the language the app shows.
+func McpListedActions() string { return In(i18n.Locale()).McpListedActions() }
+
+// McpListedActions says "Listed the plugins’ actions"
+// in the language of msgs.
+func (msgs Messages) McpListedActions() string {
+	return Catalog.Format(msgs.locale, "mcpListedActions", nil)
+}
+
+// McpRanAction says "Ran {action}"
+// in the language the app shows.
+func McpRanAction(action string) string { return In(i18n.Locale()).McpRanAction(action) }
+
+// McpRanAction says "Ran {action}"
+// in the language of msgs.
+func (msgs Messages) McpRanAction(action string) string {
+	return Catalog.Format(msgs.locale, "mcpRanAction", map[string]any{"action": action})
+}
