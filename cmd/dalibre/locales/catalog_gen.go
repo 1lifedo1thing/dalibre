@@ -7384,3 +7384,309 @@ func McpRanAction(action string) string { return In(i18n.Locale()).McpRanAction(
 func (msgs Messages) McpRanAction(action string) string {
 	return Catalog.Format(msgs.locale, "mcpRanAction", map[string]any{"action": action})
 }
+
+// PluginsTabInstalled says "Installed"
+// in the language the app shows.
+func PluginsTabInstalled() string { return In(i18n.Locale()).PluginsTabInstalled() }
+
+// PluginsTabInstalled says "Installed"
+// in the language of msgs.
+func (msgs Messages) PluginsTabInstalled() string {
+	return Catalog.Format(msgs.locale, "pluginsTabInstalled", nil)
+}
+
+// PluginsTabMarketplace says "Marketplace"
+// in the language the app shows.
+func PluginsTabMarketplace() string { return In(i18n.Locale()).PluginsTabMarketplace() }
+
+// PluginsTabMarketplace says "Marketplace"
+// in the language of msgs.
+func (msgs Messages) PluginsTabMarketplace() string {
+	return Catalog.Format(msgs.locale, "pluginsTabMarketplace", nil)
+}
+
+// MarketSearch says "Search plugins"
+// in the language the app shows.
+func MarketSearch() string { return In(i18n.Locale()).MarketSearch() }
+
+// MarketSearch says "Search plugins"
+// in the language of msgs.
+func (msgs Messages) MarketSearch() string {
+	return Catalog.Format(msgs.locale, "marketSearch", nil)
+}
+
+// MarketAll says "All"
+// in the language the app shows.
+func MarketAll() string { return In(i18n.Locale()).MarketAll() }
+
+// MarketAll says "All"
+// in the language of msgs.
+func (msgs Messages) MarketAll() string {
+	return Catalog.Format(msgs.locale, "marketAll", nil)
+}
+
+// MarketLoading says "Loading the Marketplace…"
+// in the language the app shows.
+func MarketLoading() string { return In(i18n.Locale()).MarketLoading() }
+
+// MarketLoading says "Loading the Marketplace…"
+// in the language of msgs.
+func (msgs Messages) MarketLoading() string {
+	return Catalog.Format(msgs.locale, "marketLoading", nil)
+}
+
+// MarketFailed says "Couldn’t load the Marketplace: {error}"
+// in the language the app shows.
+func MarketFailed(error string) string { return In(i18n.Locale()).MarketFailed(error) }
+
+// MarketFailed says "Couldn’t load the Marketplace: {error}"
+// in the language of msgs.
+func (msgs Messages) MarketFailed(error string) string {
+	return Catalog.Format(msgs.locale, "marketFailed", map[string]any{"error": error})
+}
+
+// MarketStale says "Couldn’t refresh the Marketplace; showing the last copy."
+// in the language the app shows.
+func MarketStale() string { return In(i18n.Locale()).MarketStale() }
+
+// MarketStale says "Couldn’t refresh the Marketplace; showing the last copy."
+// in the language of msgs.
+func (msgs Messages) MarketStale() string {
+	return Catalog.Format(msgs.locale, "marketStale", nil)
+}
+
+// MarketTryAgain says "Try again"
+// in the language the app shows.
+func MarketTryAgain() string { return In(i18n.Locale()).MarketTryAgain() }
+
+// MarketTryAgain says "Try again"
+// in the language of msgs.
+func (msgs Messages) MarketTryAgain() string {
+	return Catalog.Format(msgs.locale, "marketTryAgain", nil)
+}
+
+// MarketNoMatch says "No plugins match."
+// in the language the app shows.
+func MarketNoMatch() string { return In(i18n.Locale()).MarketNoMatch() }
+
+// MarketNoMatch says "No plugins match."
+// in the language of msgs.
+func (msgs Messages) MarketNoMatch() string {
+	return Catalog.Format(msgs.locale, "marketNoMatch", nil)
+}
+
+// MarketFrom says "From {repo}"
+// in the language the app shows.
+func MarketFrom(repo string) string { return In(i18n.Locale()).MarketFrom(repo) }
+
+// MarketFrom says "From {repo}"
+// in the language of msgs.
+func (msgs Messages) MarketFrom(repo string) string {
+	return Catalog.Format(msgs.locale, "marketFrom", map[string]any{"repo": repo})
+}
+
+// MarketUpdateTo says "Update to {version}"
+// in the language the app shows.
+func MarketUpdateTo(version string) string { return In(i18n.Locale()).MarketUpdateTo(version) }
+
+// MarketUpdateTo says "Update to {version}"
+// in the language of msgs.
+func (msgs Messages) MarketUpdateTo(version string) string {
+	return Catalog.Format(msgs.locale, "marketUpdateTo", map[string]any{"version": version})
+}
+
+// MarketInstallingLabel says "Installing {name}"
+// in the language the app shows.
+func MarketInstallingLabel(name string) string { return In(i18n.Locale()).MarketInstallingLabel(name) }
+
+// MarketInstallingLabel says "Installing {name}"
+// in the language of msgs.
+func (msgs Messages) MarketInstallingLabel(name string) string {
+	return Catalog.Format(msgs.locale, "marketInstallingLabel", map[string]any{"name": name})
+}
+
+// MarketInstalled says "Installed"
+// in the language the app shows.
+func MarketInstalled() string { return In(i18n.Locale()).MarketInstalled() }
+
+// MarketInstalled says "Installed"
+// in the language of msgs.
+func (msgs Messages) MarketInstalled() string {
+	return Catalog.Format(msgs.locale, "marketInstalled", nil)
+}
+
+// MarketInstall says "Install"
+// in the language the app shows.
+func MarketInstall() string { return In(i18n.Locale()).MarketInstall() }
+
+// MarketInstall says "Install"
+// in the language of msgs.
+func (msgs Messages) MarketInstall() string {
+	return Catalog.Format(msgs.locale, "marketInstall", nil)
+}
+
+// MarketVersionInstalled says "Version {installed} installed · {available} available"
+// in the language the app shows.
+func MarketVersionInstalled(installed string, available string) string {
+	return In(i18n.Locale()).MarketVersionInstalled(installed, available)
+}
+
+// MarketVersionInstalled says "Version {installed} installed · {available} available"
+// in the language of msgs.
+func (msgs Messages) MarketVersionInstalled(installed string, available string) string {
+	return Catalog.Format(msgs.locale, "marketVersionInstalled", map[string]any{"installed": installed, "available": available})
+}
+
+// MarketFollows says "FOLLOWS"
+// in the language the app shows.
+func MarketFollows() string { return In(i18n.Locale()).MarketFollows() }
+
+// MarketFollows says "FOLLOWS"
+// in the language of msgs.
+func (msgs Messages) MarketFollows() string {
+	return Catalog.Format(msgs.locale, "marketFollows", nil)
+}
+
+// MarketFollowsCalibre says "calibre’s {name}"
+// in the language the app shows.
+func MarketFollowsCalibre(name string) string { return In(i18n.Locale()).MarketFollowsCalibre(name) }
+
+// MarketFollowsCalibre says "calibre’s {name}"
+// in the language of msgs.
+func (msgs Messages) MarketFollowsCalibre(name string) string {
+	return Catalog.Format(msgs.locale, "marketFollowsCalibre", map[string]any{"name": name})
+}
+
+// MarketFollowsNote says "Ported to Dalibre; its calibre settings aren’t carried over."
+// in the language the app shows.
+func MarketFollowsNote() string { return In(i18n.Locale()).MarketFollowsNote() }
+
+// MarketFollowsNote says "Ported to Dalibre; its calibre settings aren’t carried over."
+// in the language of msgs.
+func (msgs Messages) MarketFollowsNote() string {
+	return Catalog.Format(msgs.locale, "marketFollowsNote", nil)
+}
+
+// MarketCalibreDownloads says "{count, plural, one {# download} other {# downloads}} on calibre."
+// in the language the app shows.
+func MarketCalibreDownloads(count int) string { return In(i18n.Locale()).MarketCalibreDownloads(count) }
+
+// MarketCalibreDownloads says "{count, plural, one {# download} other {# downloads}} on calibre."
+// in the language of msgs.
+func (msgs Messages) MarketCalibreDownloads(count int) string {
+	return Catalog.Format(msgs.locale, "marketCalibreDownloads", map[string]any{"count": count})
+}
+
+// MarketNoInternet says "No internet access"
+// in the language the app shows.
+func MarketNoInternet() string { return In(i18n.Locale()).MarketNoInternet() }
+
+// MarketNoInternet says "No internet access"
+// in the language of msgs.
+func (msgs Messages) MarketNoInternet() string {
+	return Catalog.Format(msgs.locale, "marketNoInternet", nil)
+}
+
+// MarketNoteAllow says "You allow this when you install it."
+// in the language the app shows.
+func MarketNoteAllow() string { return In(i18n.Locale()).MarketNoteAllow() }
+
+// MarketNoteAllow says "You allow this when you install it."
+// in the language of msgs.
+func (msgs Messages) MarketNoteAllow() string {
+	return Catalog.Format(msgs.locale, "marketNoteAllow", nil)
+}
+
+// MarketCommunity says "Community"
+// in the language the app shows.
+func MarketCommunity() string { return In(i18n.Locale()).MarketCommunity() }
+
+// MarketCommunity says "Community"
+// in the language of msgs.
+func (msgs Messages) MarketCommunity() string {
+	return Catalog.Format(msgs.locale, "marketCommunity", nil)
+}
+
+// MarketCommunityNote says "Made by the community, in {repo}"
+// in the language the app shows.
+func MarketCommunityNote(repo string) string { return In(i18n.Locale()).MarketCommunityNote(repo) }
+
+// MarketCommunityNote says "Made by the community, in {repo}"
+// in the language of msgs.
+func (msgs Messages) MarketCommunityNote(repo string) string {
+	return Catalog.Format(msgs.locale, "marketCommunityNote", map[string]any{"repo": repo})
+}
+
+// MarketShowInstalled says "Settings…"
+// in the language the app shows.
+func MarketShowInstalled() string { return In(i18n.Locale()).MarketShowInstalled() }
+
+// MarketShowInstalled says "Settings…"
+// in the language of msgs.
+func (msgs Messages) MarketShowInstalled() string {
+	return Catalog.Format(msgs.locale, "marketShowInstalled", nil)
+}
+
+// PluginsCapBookMenu says "Book menu"
+// in the language the app shows.
+func PluginsCapBookMenu() string { return In(i18n.Locale()).PluginsCapBookMenu() }
+
+// PluginsCapBookMenu says "Book menu"
+// in the language of msgs.
+func (msgs Messages) PluginsCapBookMenu() string {
+	return Catalog.Format(msgs.locale, "pluginsCapBookMenu", nil)
+}
+
+// PluginsToolsNote says "Tools: {actions}"
+// in the language the app shows.
+func PluginsToolsNote(actions string) string { return In(i18n.Locale()).PluginsToolsNote(actions) }
+
+// PluginsToolsNote says "Tools: {actions}"
+// in the language of msgs.
+func (msgs Messages) PluginsToolsNote(actions string) string {
+	return Catalog.Format(msgs.locale, "pluginsToolsNote", map[string]any{"actions": actions})
+}
+
+// PluginsBookMenuNote says "Book menu: {actions}"
+// in the language the app shows.
+func PluginsBookMenuNote(actions string) string {
+	return In(i18n.Locale()).PluginsBookMenuNote(actions)
+}
+
+// PluginsBookMenuNote says "Book menu: {actions}"
+// in the language of msgs.
+func (msgs Messages) PluginsBookMenuNote(actions string) string {
+	return Catalog.Format(msgs.locale, "pluginsBookMenuNote", map[string]any{"actions": actions})
+}
+
+// PluginsNotANumber says "{name} must be a number."
+// in the language the app shows.
+func PluginsNotANumber(name string) string { return In(i18n.Locale()).PluginsNotANumber(name) }
+
+// PluginsNotANumber says "{name} must be a number."
+// in the language of msgs.
+func (msgs Messages) PluginsNotANumber(name string) string {
+	return Catalog.Format(msgs.locale, "pluginsNotANumber", map[string]any{"name": name})
+}
+
+// MarketNeedsDalibre says "Needs Dalibre {version}"
+// in the language the app shows.
+func MarketNeedsDalibre(version string) string { return In(i18n.Locale()).MarketNeedsDalibre(version) }
+
+// MarketNeedsDalibre says "Needs Dalibre {version}"
+// in the language of msgs.
+func (msgs Messages) MarketNeedsDalibre(version string) string {
+	return Catalog.Format(msgs.locale, "marketNeedsDalibre", map[string]any{"version": version})
+}
+
+// MarketNeedsDalibreNote says "It needs Dalibre {version} or newer: update Dalibre to install it."
+// in the language the app shows.
+func MarketNeedsDalibreNote(version string) string {
+	return In(i18n.Locale()).MarketNeedsDalibreNote(version)
+}
+
+// MarketNeedsDalibreNote says "It needs Dalibre {version} or newer: update Dalibre to install it."
+// in the language of msgs.
+func (msgs Messages) MarketNeedsDalibreNote(version string) string {
+	return Catalog.Format(msgs.locale, "marketNeedsDalibreNote", map[string]any{"version": version})
+}

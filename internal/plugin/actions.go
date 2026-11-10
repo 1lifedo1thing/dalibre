@@ -36,9 +36,12 @@ type ActionHost struct {
 	// Books returns up to limit of the library's books with ids over
 	// after, in id order; fewer than limit ends the list. Nil gives the
 	// script no books.
-	Books func(after int64, limit int) ([]BookInfo, error)
+	Books func(after int64, limit int, comments bool) ([]BookInfo, error)
 	// Progress is told how far the action says it is.
 	Progress func(done, total int)
+	// Covers are the books' covers, by book id, for an action that takes
+	// them.
+	Covers map[int64]string
 }
 
 // ErrCancelled is what ActionHost.Form returns when the user cancelled.
@@ -49,6 +52,48 @@ type Form struct {
 	// Submit names the form's button; the action's title when empty.
 	Submit string      `json:"submit,omitempty"`
 	Fields []FormField `json:"fields"`
+	// Remember starts the form with the user's last answers to it, as
+	// calibre plugins keep their options.
+	Remember bool `json:"remember,omitempty"`
+}
+
+// Prefill starts the form's fields with saved answers, by key, where
+// they still fit the field: a select's option, a multiselect's options.
+func (f *Form) Prefill(saved map[string]any) {
+	for i := range f.Fields {
+		fd := &f.Fields[i]
+		v, ok := saved[fd.Key]
+		if !ok {
+			continue
+		}
+		has := func(s string) bool {
+			return slices.ContainsFunc(fd.Options, func(o Option) bool { return o.Value == s })
+		}
+		switch fd.Type {
+		case FieldText:
+			if s, ok := v.(string); ok {
+				fd.Value = s
+			}
+		case FieldSelect:
+			if s, ok := v.(string); ok && has(s) {
+				fd.Value = s
+			}
+		case FieldToggle:
+			if b, ok := v.(bool); ok {
+				fd.Value = b
+			}
+		case FieldMultiselect:
+			if list, ok := v.([]any); ok {
+				out := []string{}
+				for _, x := range list {
+					if s, ok := x.(string); ok && has(s) {
+						out = append(out, s)
+					}
+				}
+				fd.Value = out
+			}
+		}
+	}
 }
 
 // FormField is one question of a Form.
@@ -300,8 +345,9 @@ const (
 
 // actionInput is what run(action, input) is given.
 type actionInput struct {
-	Books []BookInfo          `json:"books"`
-	Files map[string]HookFile `json:"files,omitempty"`
+	Books  []BookInfo          `json:"books"`
+	Files  map[string]HookFile `json:"files,omitempty"`
+	Covers map[string]string   `json:"covers,omitempty"`
 }
 
 // RunAction runs the plugin's action id: on books, with a copy of each
@@ -360,6 +406,29 @@ func (p *Plugin) RunAction(ctx context.Context, id string, books []BookInfo, fil
 			}
 			in.Files[key] = HookFile{Path: path.Join("/", workFolder, work, key, name), Name: name,
 				Format: strings.ToUpper(strings.TrimPrefix(filepath.Ext(name), "."))}
+		}
+	}
+	if act.Covers && len(host.Covers) > 0 {
+		if p.dataDir == "" {
+			return nil, fail(KindUnavailable, "has no folder to work in")
+		}
+		work := strconv.FormatInt(workSeq.Add(1), 10)
+		in.Covers = map[string]string{}
+		for _, b := range in.Books {
+			src := host.Covers[b.ID]
+			if src == "" {
+				continue
+			}
+			key := strconv.FormatInt(b.ID, 10)
+			name := "cover" + strings.ToLower(filepath.Ext(src))
+			dir := filepath.Join(p.dataDir, workFolder, work, key)
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				return nil, err
+			}
+			if _, err := copyFile(src, filepath.Join(dir, name)); err != nil {
+				return nil, err
+			}
+			in.Covers[key] = path.Join("/", workFolder, work, key, name)
 		}
 	}
 	raw, err := p.callHosted(ctx, ProcessTimeout, host, "run", id, in)
@@ -592,7 +661,8 @@ func (p *Plugin) ask(ctx context.Context, host *ActionHost, limit *deadline, op,
 		return out, err
 	case "books":
 		var q struct {
-			After int64 `json:"after"`
+			After    int64 `json:"after"`
+			Comments bool  `json:"comments"`
 		}
 		if err := json.Unmarshal([]byte(arg), &q); err != nil {
 			return nil, err
@@ -600,7 +670,7 @@ func (p *Plugin) ask(ctx context.Context, host *ActionHost, limit *deadline, op,
 		page := []BookInfo{}
 		if host.Books != nil {
 			var err error
-			if page, err = host.Books(q.After, booksPage); err != nil {
+			if page, err = host.Books(q.After, booksPage, q.Comments); err != nil {
 				return nil, err
 			}
 		}

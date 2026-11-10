@@ -29,6 +29,15 @@ type BookInfo struct {
 	Formats     []string          `json:"formats"`
 	// Size is the size of the book's largest file, in bytes.
 	Size int64 `json:"size,omitempty"`
+	// UUID, TitleSort and AuthorSort are calibre's.
+	UUID       string `json:"uuid,omitempty"`
+	TitleSort  string `json:"titleSort,omitempty"`
+	AuthorSort string `json:"authorSort,omitempty"`
+	// Added and Modified are when the book was added and last changed,
+	// RFC 3339.
+	Added    string `json:"added,omitempty"`
+	Modified string `json:"modified,omitempty"`
+	HasCover bool   `json:"hasCover"`
 }
 
 // HookFile is a book's file a hook is handed: a copy in /work.

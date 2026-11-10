@@ -1,10 +1,12 @@
 package app
 
 import (
+	"errors"
 	"maps"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo"
@@ -71,6 +73,10 @@ func loadedOK(a *App, id string) bool { return a.pluginByID(id) != nil }
 // pluginsPane is Settings › Plugins: the plugins Dalibre found, and the
 // one chosen.
 func (a *App) pluginsPane(c *ui.Context) {
+	if a.plTab == pluginsTabMarketplace {
+		a.marketplacePane(c)
+		return
+	}
 	known := a.pluginsKnown
 	if a.pl.sel == "" || !slices.ContainsFunc(known, func(k knownPlugin) bool { return k.manifest.ID == a.pl.sel }) {
 		a.pl.sel = ""
@@ -79,6 +85,7 @@ func (a *App) pluginsPane(c *ui.Context) {
 		}
 	}
 	ui.Column(c).Width(248).Padding(theme.Space8).Gap(theme.Space2).Background(pal().Chrome).BorderWidth(0, 1, 0, 0).BorderColor(pal().BorderSubtle).AlignItems(ui.Stretch).Children(func() {
+		a.pluginsTabs(c)
 		ui.Scroll(c).Grow(1).MinHeight(0).Gap(theme.Space2).AlignItems(ui.Stretch).Children(func() {
 			for _, k := range known {
 				a.pluginRow(c.Key(k.manifest.ID), k)
@@ -271,6 +278,12 @@ func (a *App) pluginPane(c *ui.Context, k knownPlugin) {
 			if m.IsFileType() {
 				widgets.Tag(c, locales.PluginsCapBookFiles(), false, nil)
 			}
+			if m.HasLibraryAction() {
+				widgets.Tag(c, locales.MainNavTools(), false, nil)
+			}
+			if slices.ContainsFunc(m.Capabilities.Actions, func(act plugin.Action) bool { return act.Scope != plugin.ScopeLibrary }) {
+				widgets.Tag(c, locales.PluginsCapBookMenu(), false, nil)
+			}
 		})
 		if m.IsBookSource() {
 			ui.Text(c, locales.PluginsGetBooksNote(m.Name)).FontSize(12).TextColor(pal().TextTertiary)
@@ -420,15 +433,55 @@ func (a *App) pluginSettingsForm(c *ui.Context, m *plugin.Manifest, loaded bool)
 				hint = locales.PluginsRequired()
 			}
 			ui.Column(c.Key(s.Key)).Gap(theme.Space6).AlignItems(ui.Stretch).Children(func() {
-				ui.Row(c).Children(func() {
+				ui.Row(c).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, s.Title).FontSize(12).FontWeight(500).TextColor(pal().TextSecondary).Grow(1)
 					if hint != "" {
 						ui.Text(c, hint).FontSize(12).TextColor(pal().TextTertiary)
 					}
+					if s.Type == plugin.SettingToggle {
+						cur := v
+						if cur == "" {
+							cur = s.Default
+						}
+						on := cur == "true"
+						ui.Switch(c, &on).Label(s.Title)
+						if on != (cur == "true") {
+							v = strconv.FormatBool(on)
+						}
+					}
 				})
-				if s.Type == "file" {
+				switch s.Type {
+				case plugin.SettingToggle:
+				case plugin.SettingSelect:
+					cur := v
+					if cur == "" {
+						cur = s.Default
+					}
+					names := make([]string, len(s.Options))
+					for i, o := range s.Options {
+						names[i] = o.Title
+						if names[i] == "" {
+							names[i] = o.Value
+						}
+					}
+					title := names[0]
+					for i, o := range s.Options {
+						if o.Value == cur {
+							title = names[i]
+						}
+					}
+					before := title
+					ui.Select(c, &title, names).Label(s.Title)
+					if title != before {
+						for i, o := range s.Options {
+							if names[i] == title {
+								v = o.Value
+							}
+						}
+					}
+				case plugin.SettingFileType:
 					a.fileSettingField(c, m, s, &v)
-				} else {
+				default:
 					in := ui.TextInput(c, &v).Label(s.Title).Placeholder(s.Default)
 					if s.Type == "secret" {
 						in.Password()
@@ -441,13 +494,19 @@ func (a *App) pluginSettingsForm(c *ui.Context, m *plugin.Manifest, loaded bool)
 			a.pl.values[s.Key] = v
 		}
 		// File settings apply as they are chosen; Save is for the others.
-		if !slices.ContainsFunc(m.Settings, func(s plugin.Setting) bool { return s.Type != "file" }) {
+		if !slices.ContainsFunc(m.Settings, func(s plugin.Setting) bool { return s.Type != plugin.SettingFileType }) {
 			return
 		}
 		changed := !maps.Equal(trimmed(a.pl.values), trimmed(saved))
 		ui.Row(c).Gap(theme.Space8).Children(func() {
 			ui.Spacer(c)
 			if widgets.Button(c, widgets.Primary, nil, locales.PluginsSaveSettings()).Disabled(!changed).Clicked() {
+				for _, st := range m.Settings {
+					if v := strings.TrimSpace(a.pl.values[st.Key]); st.Type == plugin.SettingNumber && v != "" && !plugin.IsNumber(v) {
+						a.toastError(errors.New(locales.PluginsNotANumber(st.Title)))
+						return
+					}
+				}
 				a.setPluginValues(m.ID, trimmed(a.pl.values))
 				a.toast("%s", locales.PluginsSavedSettings(m.Name))
 			}

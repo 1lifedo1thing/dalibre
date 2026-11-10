@@ -7,6 +7,7 @@ import (
 	"log"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"dalibre/cmd/dalibre/locales"
 	"dalibre/internal/calibre"
@@ -152,6 +153,13 @@ func bookInfo(b *calibre.Book, d *calibre.Details) plugin.BookInfo {
 	}
 	if !b.Pubdate.IsZero() {
 		info.Pubdate = b.Pubdate.Format("2006-01-02")
+	}
+	info.UUID, info.TitleSort, info.AuthorSort, info.HasCover = b.UUID, b.Sort, b.AuthorSort, b.HasCover
+	if !b.Timestamp.IsZero() {
+		info.Added = b.Timestamp.Format(time.RFC3339)
+	}
+	if !b.LastModified.IsZero() {
+		info.Modified = b.LastModified.Format(time.RFC3339)
 	}
 	return info
 }

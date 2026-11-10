@@ -578,7 +578,7 @@ func (h mcpHost) RunAction(ctx context.Context, run mcp.ActionRun) (*mcp.ActionO
 	if err != nil {
 		return nil, err
 	}
-	res, err := p.RunAction(ctx, act.ID, infos, files, &plugin.ActionHost{Answers: run.Answers, Books: libraryPager(all, index)})
+	res, err := p.RunAction(ctx, act.ID, infos, files, &plugin.ActionHost{Answers: run.Answers, Books: libraryPager(lib, all, index), Covers: actionCovers(lib, act, books)})
 	if err != nil {
 		return nil, err
 	}

@@ -116,6 +116,7 @@ func setMetadata(tx *sql.Tx, id int64, m *Metadata, now time.Time) error {
 		table, linkCol, itemTable, itemCol string
 		values                             []string
 		extra                              func(v string) map[string]any
+		stored                             func(v string) string // the name as kept, when not v
 	}
 	one := func(s string) []string {
 		if s == "" {
@@ -124,10 +125,10 @@ func setMetadata(tx *sql.Tx, id int64, m *Metadata, now time.Time) error {
 		return []string{s}
 	}
 	links := []link{
-		{"books_authors_link", "author", "authors", "name", m.Authors, func(v string) map[string]any { return map[string]any{"sort": AuthorSort(v)} }},
-		{"books_tags_link", "tag", "tags", "name", m.Tags, nil},
-		{"books_series_link", "series", "series", "name", one(m.Series), nil},
-		{"books_publishers_link", "publisher", "publishers", "name", one(m.Publisher), nil},
+		{"books_authors_link", "author", "authors", "name", m.Authors, func(v string) map[string]any { return map[string]any{"sort": AuthorSort(v)} }, storedAuthor},
+		{"books_tags_link", "tag", "tags", "name", m.Tags, nil, nil},
+		{"books_series_link", "series", "series", "name", one(m.Series), nil, nil},
+		{"books_publishers_link", "publisher", "publishers", "name", one(m.Publisher), nil, nil},
 	}
 	for _, ln := range links {
 		if _, err := tx.Exec(`DELETE FROM `+ln.table+` WHERE book = ?`, id); err != nil {
@@ -137,6 +138,9 @@ func setMetadata(tx *sql.Tx, id int64, m *Metadata, now time.Time) error {
 			var extra map[string]any
 			if ln.extra != nil {
 				extra = ln.extra(v)
+			}
+			if ln.stored != nil {
+				v = ln.stored(v)
 			}
 			item, err := itemID(tx, ln.itemTable, ln.itemCol, v, extra)
 			if err != nil {

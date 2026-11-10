@@ -121,6 +121,11 @@ type App struct {
 	loadSeq  int
 	loadWait []chan struct{}
 	pl       pluginsState
+	// plTab is Settings › Plugins' tab; mk the Marketplace's.
+	plTab int
+	mk    marketState
+	// marketURL is the Marketplace's index; plugin.MarketplaceURL when "".
+	marketURL string
 	// updates are newer versions of plugins installed from GitHub, by id.
 	updates         map[string]*pluginUpdate
 	updatesChecking bool
@@ -213,6 +218,11 @@ func New(settingsPath string) *App {
 	a.run = func(fn func()) { go fn() }
 	a.trash = mygo.Shell.TrashItem
 	a.au.version = mygo.App.Version()
+	if !mygo.IsDev() {
+		// Plugins needing a newer Dalibre are refused; a development
+		// build runs them all.
+		plugin.DalibreVersion = a.au.version
+	}
 	a.au.relaunch = func() {}
 	a.open = calibre.Open
 	a.query.Sort = catalog.SortKey(a.settings.Sort)

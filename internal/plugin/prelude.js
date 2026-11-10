@@ -72,10 +72,11 @@
     form(spec) { return ask("form", spec); },
     progress(done, total) { hostProgress(Math.trunc(Number(done)) || 0, Math.trunc(Number(total)) || 0); },
     library: freeze({
-      async *books() {
+      async *books(options) {
+        const comments = !!(options && options.comments);
         let after = 0;
         for (;;) {
-          const page = await ask("books", { after });
+          const page = await ask("books", { after, comments });
           yield* page.books;
           if (!page.more || page.books.length === 0) return;
           after = page.books[page.books.length - 1].id;

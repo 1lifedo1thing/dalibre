@@ -32,6 +32,50 @@ import (
 	"strings"
 )
 
+// DalibreVersion is the version of the Dalibre running plugins, which a
+// manifest's dalibre field is held to; "" in a development build, which
+// holds them to nothing. The app and the CLI set it at start.
+var DalibreVersion string
+
+var dalibrePattern = regexp.MustCompile(`^>=\s*(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$`)
+
+// MinDalibre is the oldest Dalibre the plugin says it works in, as
+// "0.4.0"; "" when it says nothing.
+func (m *Manifest) MinDalibre() string {
+	return strings.TrimSpace(strings.TrimPrefix(m.Dalibre, ">="))
+}
+
+// NeedsDalibre is the Dalibre version the plugin needs when this one is
+// older, else "".
+func (m *Manifest) NeedsDalibre() string {
+	return NeedsDalibre(m.MinDalibre())
+}
+
+// NeedsDalibre is min when this Dalibre (DalibreVersion) is older, else
+// "".
+func NeedsDalibre(min string) string {
+	if min == "" || DalibreVersion == "" || !NewerVersion(min, DalibreVersion) {
+		return ""
+	}
+	return min
+}
+
+// FeaturesSince is the oldest Dalibre with what the manifest uses of plugin
+// API 1: "0.4.0" for actions and the newer kinds of settings, "" for what
+// every Dalibre has. A plugin using them should say so in its dalibre
+// field.
+func (m *Manifest) FeaturesSince() string {
+	if len(m.Capabilities.Actions) > 0 {
+		return "0.4.0"
+	}
+	for _, st := range m.Settings {
+		if st.Type == SettingToggle || st.Type == SettingSelect || st.Type == SettingNumber {
+			return "0.4.0"
+		}
+	}
+	return ""
+}
+
 // APIVersion is the plugin API this Dalibre implements. Within a version
 // the API only grows: new optional fields and functions, never a changed
 // or removed one. A manifest asking for a newer version is refused.
@@ -65,6 +109,9 @@ type Manifest struct {
 	Homepage    string `json:"homepage,omitempty"`
 	License     string `json:"license,omitempty"`
 	Main        string `json:"main,omitempty"` // main.js when empty
+	// Dalibre is the oldest Dalibre the plugin works in, as ">=0.4.0":
+	// for a plugin using what plugin API 1 gained after it began.
+	Dalibre string `json:"dalibre,omitempty"`
 	// Icon names the plugin's icon in Dalibre's set (Icons); "globe" when
 	// empty.
 	Icon         string       `json:"icon,omitempty"`
@@ -103,13 +150,27 @@ func (p Permissions) CanRead() bool { return p.Library == LibraryRead || p.Libra
 
 // Setting is a value the user gives a plugin, as an API key.
 type Setting struct {
-	Key         string `json:"key"`
-	Title       string `json:"title"`
-	Type        string `json:"type,omitempty"` // "text" (default), "secret" or "file"
+	Key   string `json:"key"`
+	Title string `json:"title"`
+	// Type is "text" (default), "secret", "file", "toggle" ("true" or
+	// "false"), "select" (one of Options' values) or "number".
+	Type        string `json:"type,omitempty"`
 	Description string `json:"description,omitempty"`
 	Default     string `json:"default,omitempty"`
 	Required    bool   `json:"required,omitempty"`
+	// Options are a select's choices.
+	Options []Option `json:"options,omitempty"`
 }
+
+// Setting types.
+const (
+	SettingText     = "text"
+	SettingSecret   = "secret"
+	SettingFileType = "file"
+	SettingToggle   = "toggle"
+	SettingSelect   = "select"
+	SettingNumber   = "number"
+)
 
 // Capabilities are what a plugin adds to Dalibre. In plugin.json they are
 // an object, {"bookSource": {...}}, or, as API 1 began, an array of names:
@@ -143,6 +204,9 @@ type Action struct {
 	// Files gives a ScopeBooks action a copy of each book's file, in
 	// /work.
 	Files bool `json:"files,omitempty"`
+	// Covers gives a ScopeBooks action a copy of each book's cover, in
+	// /work, for the books that have one.
+	Covers bool `json:"covers,omitempty"`
 	// In, when InResults, shows the action only among the books this
 	// plugin's own results list.
 	In string `json:"in,omitempty"`
@@ -463,6 +527,10 @@ func (m *Manifest) check() error {
 		return errors.New("api is missing; this Dalibre implements api 1")
 	case m.API > APIVersion:
 		return fmt.Errorf("needs plugin API %d; this Dalibre has %d, update Dalibre", m.API, APIVersion)
+	case m.Dalibre != "" && !dalibrePattern.MatchString(m.Dalibre):
+		return fmt.Errorf("dalibre %q must be a version to start from, as \">=0.4.0\"", m.Dalibre)
+	case m.NeedsDalibre() != "":
+		return fmt.Errorf("needs Dalibre %s or newer; this is %s, update Dalibre", m.NeedsDalibre(), DalibreVersion)
 	case len(m.Capabilities.Names()) == 0:
 		return errors.New("capabilities are missing")
 	case m.Icon != "" && !slices.Contains(Icons, m.Icon):
@@ -524,13 +592,29 @@ func (m *Manifest) check() error {
 			return fmt.Errorf("setting %q is defined twice", s.Key)
 		case strings.TrimSpace(s.Title) == "":
 			return fmt.Errorf("setting %q has no title", s.Key)
-		case s.Type != "" && s.Type != "text" && s.Type != "secret" && s.Type != "file":
-			return fmt.Errorf("setting %q: type must be \"text\", \"secret\" or \"file\"", s.Key)
+		case !slices.Contains([]string{"", SettingText, SettingSecret, SettingFileType, SettingToggle, SettingSelect, SettingNumber}, s.Type):
+			return fmt.Errorf("setting %q: type must be \"text\", \"secret\", \"file\", \"toggle\", \"select\" or \"number\"", s.Key)
+		case s.Type == SettingSelect && (len(s.Options) == 0 || len(s.Options) > 64):
+			return fmt.Errorf("setting %q: a select has 1 to 64 options", s.Key)
+		case s.Type != SettingSelect && len(s.Options) > 0:
+			return fmt.Errorf("setting %q: only a select has options", s.Key)
+		case s.Type == SettingSelect && s.Default != "" && !slices.ContainsFunc(s.Options, func(o Option) bool { return o.Value == s.Default }):
+			return fmt.Errorf("setting %q: default %q isn’t one of its options", s.Key, s.Default)
+		case s.Type == SettingToggle && s.Default != "" && s.Default != "true" && s.Default != "false":
+			return fmt.Errorf("setting %q: a toggle's default is \"true\" or \"false\"", s.Key)
+		case s.Type == SettingNumber && s.Default != "" && !numberPattern.MatchString(s.Default):
+			return fmt.Errorf("setting %q: default %q isn’t a number", s.Key, s.Default)
 		}
 		keys[s.Key] = true
 	}
 	return nil
 }
+
+var numberPattern = regexp.MustCompile(`^-?\d+(\.\d+)?$`)
+
+// IsNumber reports whether s is a number setting's value: digits, with
+// an optional minus and fraction.
+func IsNumber(s string) bool { return numberPattern.MatchString(s) }
 
 var actionIDPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
 

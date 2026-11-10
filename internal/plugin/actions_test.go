@@ -15,6 +15,7 @@ const actionsManifest = `{"id":"test.actions","name":"Actions","version":"1.0.0"
 		{"id":"find","title":"Find duplicates…","icon":"copy","scope":"library"},
 		{"id":"tag","title":"Tag","scope":"books","books":{"min":2}},
 		{"id":"merge","title":"Merge","scope":"books","formats":["TXT"],"files":true},
+		{"id":"covers","title":"Covers","scope":"books","covers":true},
 		{"id":"bad","title":"Bad","scope":"books"}
 	]},
 	"permissions":{"hosts":["example.com"],"library":"read"}}`
@@ -48,6 +49,11 @@ const actionsScript = `
 			await writeFile("/work/extra.txt", "extra");
 			return { add: [{ path: "/work/merged.txt", metadata: { title: "Merged" } }], formats: [{ book: input.books[0].id, path: "/work/extra.txt" }] };
 		}
+		if (action === "covers") {
+			const sizes = [];
+			for (const b of input.books) sizes.push(input.covers[b.id] ? (await readFile(input.covers[b.id])).length : 0);
+			return { message: sizes.join(",") };
+		}
 		if (input.books.length === 1) return { open: "https://elsewhere.org/" };
 		return { nope: 1 };
 	}`
@@ -62,8 +68,8 @@ func actionsPlugin(t *testing.T) *Plugin {
 	return p
 }
 
-func library(n int) func(after int64, limit int) ([]BookInfo, error) {
-	return func(after int64, limit int) ([]BookInfo, error) {
+func library(n int) func(after int64, limit int, comments bool) ([]BookInfo, error) {
+	return func(after int64, limit int, comments bool) ([]BookInfo, error) {
 		var out []BookInfo
 		for id := after + 1; id <= int64(n) && len(out) < limit; id++ {
 			title := "Book " + string(rune('A'+id%3))
@@ -192,6 +198,13 @@ func TestBooksAction(t *testing.T) {
 	res.Done()
 	if _, err := os.Stat(res.Add[0].File); !os.IsNotExist(err) {
 		t.Error("Done left the file")
+	}
+
+	cover := filepath.Join(t.TempDir(), "cover.jpg")
+	os.WriteFile(cover, []byte("jpeg"), 0o644)
+	res, err = p.RunAction(ctx, "covers", books, nil, &ActionHost{Covers: map[int64]string{4: cover}})
+	if err != nil || res.Message != "4,0" {
+		t.Errorf("covers: %+v %v", res, err)
 	}
 
 	if _, err := p.RunAction(ctx, "bad", books[:1], nil, nil); kind(err) != KindInvalid || !strings.Contains(err.Error(), "permissions.hosts") {

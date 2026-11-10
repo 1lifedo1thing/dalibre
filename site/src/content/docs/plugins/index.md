@@ -1410,6 +1410,27 @@ that isn't a pre-release, or a new commit on the branch followed.
 - One that asks for **more** waits for the user.
 - **Bump `version` in each release**, or it won't be seen as newer.
 
+### The Marketplace
+
+Settings › Plugins › **Marketplace** lists plugins users install with a
+click: the plugins in Dalibre's [marketplace/](https://github.com/djyde/dalibre/tree/main/marketplace)
+folder, and the community's. To list yours, open a pull request adding
+your repository to
+[marketplace/community.json](https://github.com/djyde/dalibre/blob/main/marketplace/community.json):
+
+```json
+{ "repo": "ann/dalibre-example-books", "category": "sources", "calibre": "Example Books" }
+```
+
+- `category` is one of `library`, `metadata`, `epub`, `language`,
+  `sources`; `calibre`, optional, names the calibre plugin yours does the
+  work of, so calibre's users find it.
+- Your repository needs a release, as above. The Marketplace lists its
+  latest, checked with `dalibre-plugin check`, and picks up new releases
+  within a day.
+- Installing still shows users what your plugin asks for; updates follow
+  the same rules as above.
+
 ### Compatibility
 
 Plugin API 1 is a promise:

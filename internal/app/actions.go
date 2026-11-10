@@ -129,7 +129,8 @@ func actionFile(act *plugin.Action, b *calibre.Book, d *calibre.Details) string 
 
 // libraryPager gives an action the library's books a page at a time, in
 // id order, as they were when it began. Any goroutine.
-func libraryPager(books []*calibre.Book, index map[string]int64) func(after int64, limit int) ([]plugin.BookInfo, error) {
+// With comments, each book's comments are read from lib as well.
+func libraryPager(lib *calibre.Library, books []*calibre.Book, index map[string]int64) func(after int64, limit int, comments bool) ([]plugin.BookInfo, error) {
 	sorted := slices.Clone(books)
 	slices.SortFunc(sorted, func(x, y *calibre.Book) int { return cmp.Compare(x.ID, y.ID) })
 	idents := map[int64]map[string]string{}
@@ -141,12 +142,20 @@ func libraryPager(books []*calibre.Book, index map[string]int64) func(after int6
 			idents[id][typ] = v
 		}
 	}
-	return func(after int64, limit int) ([]plugin.BookInfo, error) {
+	return func(after int64, limit int, comments bool) ([]plugin.BookInfo, error) {
 		i, _ := slices.BinarySearchFunc(sorted, after+1, func(b *calibre.Book, id int64) int { return cmp.Compare(b.ID, id) })
 		out := []plugin.BookInfo{}
 		for ; i < len(sorted) && len(out) < limit; i++ {
 			b := sorted[i]
-			out = append(out, bookInfo(b, &calibre.Details{Identifiers: idents[b.ID]}))
+			d := &calibre.Details{Identifiers: idents[b.ID]}
+			if comments && lib != nil {
+				full, err := lib.Details(b)
+				if err != nil {
+					return nil, err
+				}
+				d.Comments = full.Comments
+			}
+			out = append(out, bookInfo(b, d))
 		}
 		return out, nil
 	}
@@ -174,8 +183,9 @@ func (a *App) runAction(p *plugin.Plugin, act *plugin.Action, ids []int64) {
 	a.busy, a.busyDone, a.busyTotal = act.Label(), 0, 0
 	a.act.cancel = cancel
 	host := &plugin.ActionHost{
-		Form:  a.formAsker(p, act),
-		Books: libraryPager(a.books, a.idIndex),
+		Covers: actionCovers(lib, act, books),
+		Form:   a.formAsker(p, act),
+		Books:  libraryPager(lib, a.books, a.idIndex),
 		Progress: func(done, total int) {
 			a.post(func() {
 				if a.act.cancel != nil {
@@ -222,6 +232,21 @@ func actionBooks(lib *calibre.Library, act *plugin.Action, books []*calibre.Book
 		}
 	}
 	return infos, files, nil
+}
+
+// actionCovers are the covers of books, by id, for an action that takes
+// them.
+func actionCovers(lib *calibre.Library, act *plugin.Action, books []*calibre.Book) map[int64]string {
+	if !act.Covers {
+		return nil
+	}
+	out := map[int64]string{}
+	for _, b := range books {
+		if b.HasCover {
+			out[b.ID] = lib.CoverPath(b)
+		}
+	}
+	return out
 }
 
 // metaUndo puts a book's details back as they were.
@@ -606,7 +631,14 @@ func (a *App) formAsker(p *plugin.Plugin, act *plugin.Action) func(context.Conte
 			return a.act.answer(f)
 		}
 		reply := make(chan formReply, 1)
-		a.post(func() { a.act.form = newFormAsk(p, act, f, reply) })
+		a.post(func() {
+			if f.Remember {
+				if st := a.settings.Plugins[p.Manifest.ID]; st != nil {
+					f.Prefill(st.Answers[act.ID])
+				}
+			}
+			a.act.form = newFormAsk(p, act, f, reply)
+		})
 		select {
 		case r := <-reply:
 			return r.answers, r.err
@@ -629,7 +661,28 @@ func (a *App) answerForm(submit bool) {
 	}
 	a.act.form = nil
 	if submit {
-		fa.reply <- formReply{answers: fa.answers()}
+		answers := fa.answers()
+		if fa.form.Remember {
+			st := a.settings.Plugin(fa.p.Manifest.ID)
+			if st.Answers == nil {
+				st.Answers = map[string]map[string]any{}
+			}
+			// As JSON would have them, so they read back the same.
+			saved := map[string]any{}
+			for k, v := range answers {
+				if list, ok := v.([]string); ok {
+					items := make([]any, len(list))
+					for i, s := range list {
+						items[i] = s
+					}
+					v = items
+				}
+				saved[k] = v
+			}
+			st.Answers[fa.act.ID] = saved
+			a.saveSettings()
+		}
+		fa.reply <- formReply{answers: answers}
 	} else {
 		fa.reply <- formReply{err: plugin.ErrCancelled}
 	}

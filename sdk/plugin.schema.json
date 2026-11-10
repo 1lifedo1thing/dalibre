@@ -102,6 +102,7 @@
                   },
                   "formats": { "description": "The formats a \"books\" action works on, upper case: every book must have one.", "type": "array", "items": { "type": "string", "pattern": "^[A-Z0-9_]+$" } },
                   "files": { "description": "Give a \"books\" action a copy of each book's file, in /work.", "type": "boolean" },
+                  "covers": { "description": "Give a \"books\" action a copy of each book's cover, in /work, for the books that have one.", "type": "boolean" },
                   "in": { "description": "\"results\": show the action only among the books this plugin's own results list.", "enum": ["results"] }
                 }
               }
@@ -135,10 +136,18 @@
         "properties": {
           "key": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$" },
           "title": { "type": "string", "minLength": 1 },
-          "type": { "enum": ["text", "secret", "file"] },
+          "type": { "enum": ["text", "secret", "file", "toggle", "select", "number"] },
           "description": { "type": "string" },
-          "default": { "type": "string" },
-          "required": { "type": "boolean" }
+          "default": { "description": "A toggle's is \"true\" or \"false\"; a select's, one of its options' values.", "type": "string" },
+          "required": { "type": "boolean" },
+          "options": {
+            "description": "A select's choices.",
+            "type": "array", "minItems": 1, "maxItems": 64,
+            "items": {
+              "type": "object", "additionalProperties": false, "required": ["value"],
+              "properties": { "value": { "type": "string" }, "title": { "type": "string" } }
+            }
+          }
         }
       }
     }

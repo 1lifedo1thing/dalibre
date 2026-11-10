@@ -16,6 +16,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,13 +40,14 @@ const usage = `dalibre-plugin is for writing Dalibre plugins.
   dalibre-plugin identify <dir> [title] [--author A] [--isbn N] [--id type:value] [--language L] [--json]
                                                       what Fetch metadata shows for a book
   dalibre-plugin process <dir> <file> [--manual] [-o DIR]  run a file type plugin on a book's file
-  dalibre-plugin run <dir> <action> [file…] [--library DIR] [--answer key=value] [-o DIR] [--json]
+  dalibre-plugin run <dir> <action> [file…] [--library DIR [--book ID…]] [--answer key=value] [-o DIR] [--json]
                                                       run an action: on the files, as books, or on a
                                                       calibre library's books
   dalibre-plugin pack <dir> [-o DIR]                  make <id>-<version>.dalibre-plugin
   dalibre-plugin install <package> [--yes]            install into Dalibre's plugins folder
   dalibre-plugin uninstall <id>
   dalibre-plugin installed                            list installed plugins
+  dalibre-plugin version                              the Dalibre version it comes with
 
 search, list, get, download, identify and process take --set key=value for the
 plugin's settings (a file setting takes a file's path, copied into the plugin's
@@ -54,7 +56,21 @@ Dalibre are used otherwise. The plugins folder is
 $DALIBRE_PLUGINS, or Dalibre's in your configuration folder.
 `
 
+// version is the Dalibre version this tool comes with, set by the release
+// build (-ldflags "-X main.version=0.4.0"); "" in a development build,
+// which loads plugins needing any version.
+var version string
+
 func main() {
+	plugin.DalibreVersion = version
+	if len(os.Args) == 2 && (os.Args[1] == "version" || os.Args[1] == "--version") {
+		v := version
+		if v == "" {
+			v = "development build"
+		}
+		fmt.Printf("dalibre-plugin %s, plugin API %d\n", v, plugin.APIVersion)
+		return
+	}
 	if len(os.Args) < 2 || os.Args[1] == "-h" || os.Args[1] == "--help" || os.Args[1] == "help" {
 		fmt.Print(usage)
 		return
@@ -223,6 +239,9 @@ func cmdCheck(_ context.Context, args []string) error {
 	}
 	if m.Homepage == "" {
 		fmt.Println("warning: no homepage")
+	}
+	if since := m.FeaturesSince(); since != "" && plugin.NewerVersion(since, m.MinDalibre()) {
+		fmt.Printf("warning: uses what Dalibre %s added; say \"dalibre\": \">=%s\" in plugin.json so older ones don’t offer it\n", since, since)
 	}
 	fmt.Println("ok")
 	return nil
@@ -540,6 +559,19 @@ func cmdProcess(ctx context.Context, args []string) error {
 	return nil
 }
 
+// bookFlags are --book ids.
+type bookFlags []int64
+
+func (b *bookFlags) String() string { return fmt.Sprint(*b) }
+func (b *bookFlags) Set(v string) error {
+	id, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		return fmt.Errorf("a book id is a number: %q", v)
+	}
+	*b = append(*b, id)
+	return nil
+}
+
 // cmdRun runs an action as the app does, without its window: the forms
 // it asks are answered with --answer, the books it runs on are the files
 // given, and the library it reads is the one at --library.
@@ -548,6 +580,8 @@ func cmdRun(ctx context.Context, args []string) error {
 	out := fs.String("o", ".", "the folder to save the files it makes in")
 	libDir := fs.String("library", "", "a calibre library, for an action that reads the library")
 	asJSON := fs.Bool("json", false, "print what it returned as JSON")
+	var bookIDs bookFlags
+	fs.Var(&bookIDs, "book", "with --library, a book to run on, by its id (repeatable)")
 	set, answer := setFlags{}, setFlags{}
 	fs.Var(set, "set", "a setting, as key=value (repeatable)")
 	fs.Var(answer, "answer", "an answer to a form's field, as key=value: true, a text, or a JSON list (repeatable)")
@@ -610,7 +644,28 @@ func cmdRun(ctx context.Context, args []string) error {
 			return err
 		}
 		slices.SortFunc(all, func(a, b *calibre.Book) int { return cmp.Compare(a.ID, b.ID) })
-		host.Books = func(after int64, limit int) ([]plugin.BookInfo, error) {
+		info := func(b *calibre.Book, comments bool) plugin.BookInfo {
+			info := plugin.BookInfo{ID: b.ID, Title: b.Title, Authors: b.Authors, Series: b.Series, SeriesIndex: b.SeriesIndex,
+				Tags: b.Tags, Publisher: b.Publisher, Languages: b.Languages, Rating: b.Rating, Formats: b.Formats, Size: b.Size,
+				UUID: b.UUID, TitleSort: b.Sort, AuthorSort: b.AuthorSort, HasCover: b.HasCover}
+			if !b.Pubdate.IsZero() {
+				info.Pubdate = b.Pubdate.Format("2006-01-02")
+			}
+			if !b.Timestamp.IsZero() {
+				info.Added = b.Timestamp.Format(time.RFC3339)
+			}
+			if !b.LastModified.IsZero() {
+				info.Modified = b.LastModified.Format(time.RFC3339)
+			}
+			if d, err := lib.Details(b); err == nil {
+				info.Identifiers = d.Identifiers
+				if comments {
+					info.Comments = d.Comments
+				}
+			}
+			return info
+		}
+		host.Books = func(after int64, limit int, comments bool) ([]plugin.BookInfo, error) {
 			var page []plugin.BookInfo
 			for _, b := range all {
 				if b.ID <= after {
@@ -619,18 +674,36 @@ func cmdRun(ctx context.Context, args []string) error {
 				if len(page) == limit {
 					break
 				}
-				info := plugin.BookInfo{ID: b.ID, Title: b.Title, Authors: b.Authors, Series: b.Series, SeriesIndex: b.SeriesIndex,
-					Tags: b.Tags, Publisher: b.Publisher, Languages: b.Languages, Rating: b.Rating, Formats: b.Formats, Size: b.Size}
-				if !b.Pubdate.IsZero() {
-					info.Pubdate = b.Pubdate.Format("2006-01-02")
-				}
-				if d, err := lib.Details(b); err == nil {
-					info.Identifiers = d.Identifiers
-				}
-				page = append(page, info)
+				page = append(page, info(b, comments))
 			}
 			return page, nil
 		}
+		// --book: books of the library to run on, with their first file
+		// in Dalibre's order.
+		for _, id := range bookIDs {
+			i := slices.IndexFunc(all, func(b *calibre.Book) bool { return b.ID == id })
+			if i < 0 {
+				return fmt.Errorf("the library has no book %d", id)
+			}
+			b := all[i]
+			books = append(books, info(b, true))
+			if b.HasCover {
+				if host.Covers == nil {
+					host.Covers = map[int64]string{}
+				}
+				host.Covers[b.ID] = lib.CoverPath(b)
+			}
+			if d, err := lib.Details(b); err == nil {
+				for _, want := range []string{"EPUB", "KEPUB", "AZW3", "MOBI", "AZW", "PDF", "FB2", "DOCX", "TXT"} {
+					if j := slices.IndexFunc(d.Files, func(f calibre.FormatFile) bool { return f.Format == want }); j >= 0 {
+						files[b.ID] = filepath.Join(lib.Dir(b), d.Files[j].Name+"."+strings.ToLower(want))
+						break
+					}
+				}
+			}
+		}
+	} else if len(bookIDs) > 0 {
+		return errors.New("--book needs --library")
 	}
 	start := time.Now()
 	res, err := p.RunAction(ctx, pos[1], books, files, host)

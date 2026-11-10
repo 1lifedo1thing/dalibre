@@ -198,6 +198,14 @@ declare namespace Dalibre {
     formats: string[];
     /** The size of the book's largest file, in bytes. */
     size?: number;
+    uuid?: string;
+    /** calibre's sort strings: "Dune", "Herbert, Frank". */
+    titleSort?: string;
+    authorSort?: string;
+    /** When the book was added and last changed, RFC 3339. */
+    added?: string;
+    modified?: string;
+    hasCover: boolean;
   }
 
   /** A book's file a hook is handed: a copy in /work. */
@@ -240,6 +248,8 @@ declare namespace Dalibre {
     books: BookInfo[];
     /** With "files": a copy of each book's file in /work, by book id. */
     files?: Record<number, HookFile>;
+    /** With "covers": a copy of each book's cover in /work, by book id, for the books that have one. */
+    covers?: Record<number, string>;
   }
 
   /**
@@ -279,6 +289,8 @@ declare namespace Dalibre {
     /** The form's button; the action's title when left out. */
     submit?: string;
     fields: FormField[];
+    /** Start with the user's last answers to this action's form, as calibre plugins keep their options. */
+    remember?: boolean;
   }
 
   /** What a file type plugin exports, after calibre's file type plugins. */
@@ -298,7 +310,10 @@ declare const dalibre: {
   /** The plugin API version of the running Dalibre. */
   readonly api: number;
   readonly plugin: { readonly id: string; readonly version: string };
-  /** The user's values for the settings in plugin.json, by key; defaults when not set. */
+  /**
+   * The user's values for the settings in plugin.json, by key; defaults when not set.
+   * A toggle's is "true" or "false", a select's its option's value, a number's its digits.
+   */
   readonly settings: Readonly<Record<string, string>>;
   /** An Error the app understands: `throw dalibre.error("auth", "The API key was refused")`. */
   error(kind: Dalibre.ErrorKind, message?: string): Error;
@@ -316,8 +331,8 @@ declare const dalibre: {
   /** In an action's run: the job's progress bar. total 0 when unknown. */
   progress(done: number, total: number): void;
   readonly library: {
-    /** In an action's run: every book in the library, without comments. */
-    books(): AsyncGenerator<Dalibre.BookInfo, void, void>;
+    /** In an action's run: every book in the library; with { comments: true }, with their comments. */
+    books(options?: { comments?: boolean }): AsyncGenerator<Dalibre.BookInfo, void, void>;
   };
 };
 
