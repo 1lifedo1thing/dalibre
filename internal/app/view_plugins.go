@@ -16,6 +16,7 @@ import (
 	"dalibre/internal/app/icons"
 	"dalibre/internal/app/theme"
 	"dalibre/internal/app/widgets"
+	"dalibre/internal/mcp"
 	"dalibre/internal/plugin"
 )
 
@@ -76,6 +77,9 @@ func (a *App) pluginsDialog(c *ui.Context) {
 		})
 	}, func() {
 		ui.Text(c, locales.PluginsSandboxNote()).FontSize(12).TextColor(pal().TextTertiary).Grow(1)
+		if widgets.Button(c, widgets.Ghost, icons.External, locales.PluginsWriteOne()).Tooltip(strings.TrimPrefix(mcp.PluginDocs, "https://")).Clicked() {
+			openURL(mcp.PluginDocs)
+		}
 		if widgets.Button(c, widgets.Primary, nil, locales.CommonDone()).Clicked() {
 			a.pluginsOpen = false
 		}

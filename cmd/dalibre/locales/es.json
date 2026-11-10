@@ -1011,5 +1011,6 @@
   "marketNeedsDalibre": "Requiere Dalibre {version}",
   "marketNeedsDalibreNote": "Requiere Dalibre {version} o posterior: actualiza Dalibre para instalarlo.",
   "pluginsSandboxNote": "Los plugins se ejecutan aislados, solo con lo que permitas.",
-  "marketCount": "{count, plural, one {# plugin} many {# plugins} other {# plugins}}"
+  "marketCount": "{count, plural, one {# plugin} many {# plugins} other {# plugins}}",
+  "pluginsWriteOne": "Escribir un plugin"
 }

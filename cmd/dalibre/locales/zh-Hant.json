@@ -821,5 +821,6 @@
   "marketNeedsDalibre": "需要 Dalibre {version}",
   "marketNeedsDalibreNote": "需要 Dalibre {version} 或更新版本，請先更新 Dalibre。",
   "pluginsSandboxNote": "外掛在沙盒中執行，只能使用你允許的內容。",
-  "marketCount": "{count} 個外掛"
+  "marketCount": "{count} 個外掛",
+  "pluginsWriteOne": "開發外掛"
 }

@@ -821,5 +821,6 @@
   "marketNeedsDalibre": "Dalibre {version} が必要",
   "marketNeedsDalibreNote": "Dalibre {version} 以降が必要です。インストールするには Dalibre をアップデートしてください。",
   "pluginsSandboxNote": "プラグインは隔離された環境で、許可した範囲だけで動きます。",
-  "marketCount": "{count} 個のプラグイン"
+  "marketCount": "{count} 個のプラグイン",
+  "pluginsWriteOne": "プラグインを作る"
 }

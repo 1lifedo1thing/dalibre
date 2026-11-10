@@ -7638,3 +7638,13 @@ func MarketCount(count int) string { return In(i18n.Locale()).MarketCount(count)
 func (msgs Messages) MarketCount(count int) string {
 	return Catalog.Format(msgs.locale, "marketCount", map[string]any{"count": count})
 }
+
+// PluginsWriteOne says "Write a plugin"
+// in the language the app shows.
+func PluginsWriteOne() string { return In(i18n.Locale()).PluginsWriteOne() }
+
+// PluginsWriteOne says "Write a plugin"
+// in the language of msgs.
+func (msgs Messages) PluginsWriteOne() string {
+	return Catalog.Format(msgs.locale, "pluginsWriteOne", nil)
+}

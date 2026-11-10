@@ -1011,5 +1011,6 @@
   "marketNeedsDalibre": "Dalibre {version} 필요",
   "marketNeedsDalibreNote": "Dalibre {version} 이상이 필요합니다. 설치하려면 Dalibre를 업데이트하세요.",
   "pluginsSandboxNote": "플러그인은 격리된 환경에서 허용한 것만 사용해 실행됩니다.",
-  "marketCount": "플러그인 {count}개"
+  "marketCount": "플러그인 {count}개",
+  "pluginsWriteOne": "플러그인 만들기"
 }

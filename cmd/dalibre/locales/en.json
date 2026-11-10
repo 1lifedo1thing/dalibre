@@ -1041,5 +1041,6 @@
   "marketNeedsDalibre": "Needs Dalibre {version}",
   "marketNeedsDalibreNote": "It needs Dalibre {version} or newer: update Dalibre to install it.",
   "pluginsSandboxNote": "Plugins run sandboxed, with only what you allow.",
-  "marketCount": "{count, plural, one {# plugin} other {# plugins}}"
+  "marketCount": "{count, plural, one {# plugin} other {# plugins}}",
+  "pluginsWriteOne": "Write a plugin"
 }
