@@ -12,7 +12,7 @@ export const GET: APIRoute = async ({ site }) => {
     `    <xhtml:link rel="alternate" hreflang="x-default" href="${abs(defaultLocale.path)}"/>`,
   ].join("\n");
   const home = locales.map((l) => `  <url>\n    <loc>${abs(l.path)}</loc>\n${alternates}\n  </url>`);
-  const rest = ["/changelog/", ...docs.map((d) => href(slugOf(d.id)))].map((p) => `  <url><loc>${abs(p)}</loc></url>`);
+  const rest = ["/plugins/", "/changelog/", ...docs.map((d) => href(slugOf(d.id)))].map((p) => `  <url><loc>${abs(p)}</loc></url>`);
   return new Response(
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${[...home, ...rest].join("\n")}\n</urlset>\n`,
     { headers: { "Content-Type": "application/xml; charset=utf-8" } },

@@ -4,7 +4,7 @@ import { locale as findLocale, strings } from "../i18n";
 // The landing page's top bar, shared with the pages beside it.
 interface Props {
   /** The page shown, marked in the links. */
-  current?: "changelog";
+  current?: "changelog" | "plugins";
   /** The landing page's language; the pages beside it are in English. */
   locale?: string;
 }
@@ -21,7 +21,11 @@ const t = strings(locale).nav;
     </a>
     <div class="flex items-center gap-1 text-sm text-sand-11 sm:gap-6">
       <a href={`${home}#both`} class="hidden hover:text-ink sm:inline">{t.agents}</a>
-      <a href={`${home}#plugins`} class="hidden hover:text-ink sm:inline">{t.plugins}</a>
+      <a
+        href="/plugins/"
+        class:list={["hidden hover:text-ink sm:inline", current === "plugins" && "text-ink"]}
+        aria-current={current === "plugins" ? "page" : undefined}
+      >{t.plugins}</a>
       <a href="/docs/" class="px-2 hover:text-ink sm:px-0">{t.docs}</a>
       <a
         href="/changelog/"

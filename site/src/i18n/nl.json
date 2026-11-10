@@ -180,6 +180,7 @@
       "Titel, auteurs, tags, uitgever, datum, ISBN, cover en beschrijving uit Google Books. Voeg je eigen API-sleutel toe voor een eigen quotum."
     ],
     "docs": "Lees de plugin-documentatie →",
+    "browse": "Bekijk de plugins →",
     "safe": "Zo blijven plugins veilig →"
   },
   "devices": {

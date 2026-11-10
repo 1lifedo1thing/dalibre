@@ -4,6 +4,11 @@ Each version's section is the release notes that Dalibre's update window
 shows, so write them for readers of the app. `mygo build` needs a
 `## <version>` section for the version in `cmd/dalibre/mygo.json`.
 
+## 0.5.0
+
+- Plugin authors can install dalibre-plugin, the tool that makes and
+  checks plugins, from npm: `npm install -g dalibre-plugin`.
+
 ## 0.4.0
 
 - Plugins have their own window, from the toolbar's Plugins button, with

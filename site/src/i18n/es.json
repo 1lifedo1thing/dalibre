@@ -180,6 +180,7 @@
       "Título, autores, etiquetas, editorial, fecha, ISBN, portada y descripción de Google Books. Añade tu propia clave de API para tener una cuota propia."
     ],
     "docs": "Lee la documentación de plugins →",
+    "browse": "Ver los plugins →",
     "safe": "Cómo se mantienen seguros los plugins →"
   },
   "devices": {

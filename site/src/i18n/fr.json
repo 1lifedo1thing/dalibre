@@ -180,6 +180,7 @@
       "Titre, auteurs, tags, éditeur, date, ISBN, couverture et description depuis Google Books. Ajoutez votre propre clé API pour disposer de votre propre quota."
     ],
     "docs": "Lire la documentation des plugins →",
+    "browse": "Parcourir les plugins →",
     "safe": "Comment les plugins sont protégés →"
   },
   "devices": {
