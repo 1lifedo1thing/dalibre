@@ -4,6 +4,11 @@ Each version's section is the release notes that Dalibre's update window
 shows, so write them for readers of the app. `mygo build` needs a
 `## <version>` section for the version in `cmd/dalibre/mygo.json`.
 
+## 0.5.1
+
+- Edit book opens AZW3 books, to read in Glance or to edit, and saves
+  them back as AZW3.
+
 ## 0.5.0
 
 - Plugin authors can install dalibre-plugin, the tool that makes and
