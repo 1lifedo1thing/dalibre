@@ -1,5 +1,5 @@
 // The host's side of a plugin's world, run as a script in its runtime before
-// the plugin. It turns three host functions that pass strings (JSON) into
+// the plugin. It turns the host functions that pass strings (JSON) into
 // the dalibre object and console (with two more for what an action asks the
 // app while it runs), and calls the plugin's exports for the
 // host, reporting each outcome back as JSON. The host functions are taken
@@ -9,8 +9,8 @@
 (() => {
   "use strict";
   const hostLog = __host_log, hostSettle = __host_settle, hostInfo = __host_info;
-  const hostAsk = __host_ask, hostFlag = __host_flag, hostProgress = __host_progress;
-  for (const k of ["__host_log", "__host_settle", "__host_info", "__host_ask", "__host_flag", "__host_progress"]) delete globalThis[k];
+  const hostAsk = __host_ask, hostFlag = __host_flag, hostProgress = __host_progress, hostHTML = __host_html;
+  for (const k of ["__host_log", "__host_settle", "__host_info", "__host_ask", "__host_flag", "__host_progress", "__host_html"]) delete globalThis[k];
   const { parse, stringify } = JSON;
   const { freeze, defineProperty, keys } = Object;
   const resolved = Promise.resolve.bind(Promise), rejected = Promise.reject.bind(Promise);
@@ -71,6 +71,10 @@
     get interactive() { return hostFlag("interactive") === "1"; },
     form(spec) { return ask("form", spec); },
     progress(done, total) { hostProgress(Math.trunc(Number(done)) || 0, Math.trunc(Number(total)) || 0); },
+    html: freeze({
+      tokens(s) { return parse(hostHTML(String(s))); },
+      escape(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); },
+    }),
     library: freeze({
       async *books(options) {
         const comments = !!(options && options.comments);

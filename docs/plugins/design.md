@@ -69,6 +69,7 @@ functions that take and return strings:
 | `__host_info()` | the API version, plugin id/version and settings, as JSON |
 | `__host_log(level, text)` | logs, masking secrets |
 | `__host_settle(json)` | the outcome of the call in progress; stops the loop |
+| `__host_html(html)` | the tokens of `dalibre.html.tokens`, as JSON |
 
 `internal/plugin/prelude.js` runs first in every runtime: it takes those
 functions off the global object, builds the frozen `dalibre` object and

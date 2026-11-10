@@ -180,32 +180,33 @@ export function getLanguageCode(c) {
 
 /**
  * HTML_TextProcessor.processText, for a whole document: converts text
- * (never tags, comments, entities), quotation marks and punctuation, and
- * sets Chinese lang attributes.
+ * (entities decoded, as calibre's HTMLParser does; never tags, comments,
+ * script or style), quotation marks and punctuation, and sets Chinese lang
+ * attributes.
  * @param {string} html @param {Criteria} criteria @param {OpenCC} converter @param {string | null} lang
  */
 export function processText(html, criteria, converter, lang) {
   const zhNon = /lang="zh-Latn|lang="zh-Cyrl|lang="zh-Bopo|lang="zh-Mong/i;
   const zh = /lang="zh-[-\w+]+"|lang="zh"/gi;
-  return html.replace(
-    /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<[?!][^>]*>|<\/?[a-zA-Z][^>]*>|&(?:#\d+|#x[0-9a-fA-F]+|\w+);|[^<&]+|[<&]/g,
-    (tok) => {
-      if (tok[0] === "<" && tok.length > 1) {
-        if (/^<[!?/]/.test(tok)) return tok;
-        let tag = tok;
-        // A body gets the class the text direction's CSS rule targets.
-        if (criteria.orientation !== 0 && /^<body\b/i.test(tag) && !tag.includes("calibre-chinese_text")) {
-          tag = /\sclass\s*=/.test(tag)
-            ? tag.replace(/(\sclass\s*=\s*)(["'])(.*?)\2/, (_, x, q, v) => `${x}${q}${v} calibre-chinese_text${q}`)
-            : tag.replace(/^<body/i, '<body class="calibre-chinese_text"');
-        }
-        if (criteria.conversionType !== 0 && lang && !zhNon.test(tag)) tag = tag.replace(zh, `lang="${lang}"`);
-        return tag;
+  let code = false; // in script or style
+  return dalibre.html.tokens(html).map((t) => {
+    if (t.type === "start" || t.type === "self") {
+      if (t.type === "start") code = t.name === "script" || t.name === "style";
+      let tag = t.raw;
+      // A body gets the class the text direction's CSS rule targets.
+      if (criteria.orientation !== 0 && t.name === "body" && !tag.includes("calibre-chinese_text")) {
+        tag = /\sclass\s*=/.test(tag)
+          ? tag.replace(/(\sclass\s*=\s*)(["'])(.*?)\2/, (_, x, q, v) => `${x}${q}${v} calibre-chinese_text${q}`)
+          : tag.replace(/^<body/i, '<body class="calibre-chinese_text"');
       }
-      if (tok[0] === "&" && tok.length > 1) return tok;
-      return handleData(tok, criteria, converter);
-    },
-  );
+      if (criteria.conversionType !== 0 && lang && !zhNon.test(tag)) tag = tag.replace(zh, `lang="${lang}"`);
+      return tag;
+    }
+    if (t.type === "end") code = false;
+    if (t.type !== "text" || code) return t.raw;
+    const after = handleData(t.text, criteria, converter);
+    return after === t.text ? t.raw : dalibre.html.escape(after);
+  }).join("");
 }
 
 /** HTML_TextProcessor.handle_data. @param {string} s @param {Criteria} criteria @param {OpenCC} converter */

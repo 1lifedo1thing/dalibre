@@ -246,6 +246,7 @@ func (p *Plugin) start() error {
 		"__host_settle":   p.hostSettle,
 		"__host_flag":     p.hostFlag,
 		"__host_progress": p.hostProgress,
+		"__host_html":     hostHTML,
 	}
 	for name, fn := range host {
 		if err := rt.SetGlobal(name, hostFunc(fn)); err != nil {

@@ -563,8 +563,31 @@ What only Dalibre can give you:
 | `dalibre.plugin` | `{ id, version }` from your manifest. |
 | `dalibre.api` | The plugin API version of the running Dalibre. |
 | `dalibre.form`, `dalibre.library`, `dalibre.progress`, `dalibre.interactive` | For an action while it runs; see [`run`](#run). |
+| `dalibre.html.tokens(html)`, `dalibre.html.escape(text)` | HTML and XHTML as tokens; see below. |
 
 Everything in the `dalibre` object is frozen.
+
+### HTML
+
+`dalibre.html.tokens(html)` splits a document into tokens, each with
+`raw`, as written: rewrite the ones you need and join the `raw` of the
+rest, and the rest of the file stays byte for byte as it was.
+
+```js
+const out = dalibre.html.tokens(xhtml)
+  .map((t) => (t.type === "text" ? dalibre.html.escape(convert(t.text)) : t.raw))
+  .join("");
+```
+
+| `type` | Has |
+|---|---|
+| `text` | `text`, entities decoded (`&#36825;` is 这); as written in script and style |
+| `start`, `self`, `end` | `name`, lowercase; `attrs`, decoded, on `start` and `self` (`<br/>`) |
+| `comment`, `doctype` | `text`; `<?xml …?>` and `<![CDATA[…]]>` are comments |
+
+Documents are read as XHTML: `<title/>` is empty, and only script,
+style, title and textarea hold text. `dalibre.html.escape` escapes
+`& < > "` for text and attribute values. Needs Dalibre 0.6.0.
 
 ### Errors
 

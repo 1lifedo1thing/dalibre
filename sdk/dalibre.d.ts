@@ -14,6 +14,16 @@
 // @types/node (npm i -D @types/node).
 
 declare namespace Dalibre {
+  /** A token of dalibre.html.tokens. */
+  type HTMLToken =
+    /** Text, with its entities decoded (as written in script and style). */
+    | { type: "text"; raw: string; text: string }
+    /** A tag: its name lowercase, its attributes decoded (the first of a repeated one). */
+    | { type: "start" | "self"; raw: string; name: string; attrs?: Record<string, string> }
+    | { type: "end"; raw: string; name: string }
+    /** A comment, also <?xml …?> and <![CDATA[…]]>; text is what's inside. */
+    | { type: "comment" | "doctype"; raw: string; text: string };
+
   /** What search is asked for. */
   interface Query {
     /** What the user typed, trimmed. May be empty: return popular or recent books, or nothing. */
@@ -332,6 +342,17 @@ declare const dalibre: {
   readonly interactive: boolean;
   /** In an action's run: the job's progress bar. total 0 when unknown. */
   progress(done: number, total: number): void;
+  readonly html: {
+    /**
+     * HTML or XHTML split into tokens; their raw joined is html. Change the
+     * tokens you need and join the raw of the rest, and the rest stays as
+     * written. Read as XHTML: <title/> is empty, and only script, style,
+     * title and textarea hold text.
+     */
+    tokens(html: string): Dalibre.HTMLToken[];
+    /** Text escaped for HTML or XHTML: & < > and ". */
+    escape(text: string): string;
+  };
   readonly library: {
     /** In an action's run: every book in the library; with { comments: true }, with their comments. */
     books(options?: { comments?: boolean }): AsyncGenerator<Dalibre.BookInfo, void, void>;
