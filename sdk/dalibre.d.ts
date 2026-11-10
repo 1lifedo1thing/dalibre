@@ -80,10 +80,12 @@ declare namespace Dalibre {
     extra?: unknown;
   }
 
+  /** The formats Dalibre knows, as calibre names them. */
   type FormatName =
     | "EPUB" | "KEPUB" | "AZW3" | "AZW" | "MOBI" | "PDF" | "FB2" | "DJVU" | "CBZ" | "CBR" | "CB7"
     | "TXT" | "RTF" | "DOCX" | "ODT" | "HTMLZ" | "LIT" | "PRC" | "PDB" | "LRF" | "SNB" | "TCR";
 
+  /** A file of a result: its format, size and where to download it. */
   interface Format {
     format: FormatName;
     /** Bytes, if known; shown to the user. */

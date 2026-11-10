@@ -1,15 +1,13 @@
 # dalibre-plugin
 
-The tool for writing [Dalibre](https://github.com/djyde/dalibre) plugins:
-start one from the template, run its functions as Dalibre does, check
-and pack it.
+The CLI for writing [Dalibre](https://github.com/djyde/dalibre) plugins,
+with their docs:
 
 ```sh
-npx dalibre-plugin init my-source --id com.example.books --name "Example Books"
-npx dalibre-plugin check my-source
-npx dalibre-plugin version
+npx dalibre-plugin@latest docs              # topics; then: docs <topic>, or docs --all
+npx dalibre-plugin@latest types             # the API's types; then: types <Name>
+npx dalibre-plugin@latest --help            # every command
 ```
 
-Each version is the Dalibre release of the same number: it holds plugins
-to what that Dalibre can run. See [Writing Dalibre
-plugins](https://github.com/djyde/dalibre/blob/main/docs/plugins/README.md).
+Each version is the Dalibre release of the same number, and its docs are
+that release's plugin API.

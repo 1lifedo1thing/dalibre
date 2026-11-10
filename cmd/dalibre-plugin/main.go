@@ -32,6 +32,8 @@ const usage = `dalibre-plugin is for writing Dalibre plugins.
 
   dalibre-plugin init <dir> [--id ID] [--name NAME]   start a plugin from the template
   dalibre-plugin check <dir>                          validate plugin.json and load main.js
+  dalibre-plugin dev <dir>                            add it to the running Dalibre, which reloads it
+                                                      as you save; needs Dalibre's MCP server on
   dalibre-plugin search <dir> <text> [--filter key=value] [--page N] [--cursor C] [--json]
   dalibre-plugin collections <dir>                    list what the source offers to browse
   dalibre-plugin list <dir> <collection> [--filter key=value] [--page N] [--json]
@@ -49,6 +51,9 @@ const usage = `dalibre-plugin is for writing Dalibre plugins.
   dalibre-plugin installed                            list installed plugins
   dalibre-plugin version                              the Dalibre version it comes with
 
+  dalibre-plugin docs [topic…] [--all]                the plugin API's guide: its topics, or one
+  dalibre-plugin types [Name…] [--all]                the API's types, from dalibre.d.ts
+
 search, list, get, download, identify and process take --set key=value for the
 plugin's settings (a file setting takes a file's path, copied into the plugin's
 .data folder), and --filter key=value for its filters; the values saved in
@@ -60,6 +65,9 @@ $DALIBRE_PLUGINS, or Dalibre's in your configuration folder.
 // build (-ldflags "-X main.version=0.4.0"); "" in a development build,
 // which loads plugins needing any version.
 var version string
+
+// pluginAPI is the plugin API version this tool runs plugins with.
+const pluginAPI = plugin.APIVersion
 
 func main() {
 	plugin.DalibreVersion = version
@@ -78,7 +86,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	cmds := map[string]func(context.Context, []string) error{
-		"init": cmdInit, "check": cmdCheck, "search": cmdSearch, "download": cmdDownload,
+		"init": cmdInit, "check": cmdCheck, "dev": cmdDev, "docs": cmdDocs, "types": cmdTypes, "search": cmdSearch, "download": cmdDownload,
 		"collections": cmdCollections, "list": cmdListCollection, "get": cmdGet, "identify": cmdIdentify, "process": cmdProcess, "run": cmdRun,
 		"pack": cmdPack, "install": cmdInstall, "uninstall": cmdUninstall, "installed": cmdList,
 	}
@@ -201,7 +209,7 @@ func cmdInit(_ context.Context, args []string) error {
 	if _, err := plugin.ReadManifest(dir); err != nil {
 		return fmt.Errorf("%w (is %q a valid id? pass --id)", err, *id)
 	}
-	fmt.Printf("Made %s. Edit plugin.json and main.js, then: dalibre-plugin search %s \"a title\"\n", dir, dir)
+	fmt.Printf("Made %s. Edit plugin.json and main.js, then:\n  dalibre-plugin check %s\n  dalibre-plugin dev %s     # try it in Dalibre as you edit\n", dir, dir, dir)
 	return nil
 }
 
@@ -224,6 +232,9 @@ func cmdCheck(_ context.Context, args []string) error {
 	}
 	if plugin.Reserved(m.ID) {
 		fmt.Println("note: a reserved id; only a plugin shipped inside Dalibre may use it")
+	}
+	if placeholderID(m.ID) {
+		fmt.Printf("warning: %q is the template's id; give the plugin its own, such as com.<you>.<plugin>\n", m.ID)
 	}
 	for _, fn := range []string{"search", "collections", "list", "get", "resolve", "identify"} {
 		if p.Defines(fn) {

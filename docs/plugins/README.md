@@ -56,14 +56,19 @@ dalibre-plugin init my-source --id com.example.books --name "Example Books"
 cd my-source
 # edit plugin.json and main.js
 dalibre-plugin check .
+dalibre-plugin dev .                             # add it to Dalibre, reloaded as you save
 dalibre-plugin search . "dune" --set apiKey=…
-dalibre-plugin get . "dune"
-dalibre-plugin download . "dune" --format EPUB
 dalibre-plugin pack .                            # com.example.books-0.1.0.dalibre-plugin
 ```
 
-`init` writes `dalibre.d.ts`, `jsconfig.json` and `plugin.schema.json`
-next to your code: with `// @ts-check` at the top of `main.js`, VS Code
+This guide comes with the tool, for the API of its version:
+`dalibre-plugin docs` lists its topics, `dalibre-plugin docs fetch` prints
+one, and `dalibre-plugin types Result` prints a type of `dalibre.d.ts`.
+
+`init` makes a repository ready for GitHub: `.gitignore`, and a workflow
+that checks the plugin on each push and publishes a release when you push
+a tag (see [Publishing](#publishing)). It also writes `dalibre.d.ts`,
+`jsconfig.json` and `plugin.schema.json` next to your code: with `// @ts-check` at the top of `main.js`, VS Code
 and other editors check your code and complete the API as you type.
 
 Prefer TypeScript? Write `main.ts` and set `"main": "main.ts"`: Dalibre
@@ -654,8 +659,11 @@ dalibre-plugin download . "dune" --item 3 --format PDF -o /tmp
 `--set key=value` gives a setting; otherwise the values saved in Dalibre
 for your plugin's id are used. Logs and warnings go to stderr.
 
-To try it in the app, use Plugins › Add plugin › From a
-folder… and pick your plugin's folder. Dalibre loads the plugin from
+To try it in the app, run `dalibre-plugin dev .` with Dalibre open and
+its MCP server on (Settings › MCP): it adds the folder to Dalibre and
+prints each reload, with its errors and what you must allow or fill in.
+Or use Plugins › Add plugin › From a folder… and pick your plugin's
+folder. Either way Dalibre loads the plugin from
 that folder, not a copy, and reloads it a moment after you save a change
 (hidden files and `node_modules` aside). Remove takes it out of Dalibre
 and leaves the folder alone. `dalibre-plugin install` takes a folder or
@@ -671,6 +679,11 @@ results, logs and errors. You still allow the hosts it reaches.
 your folder, leaving out hidden files and `node_modules`. Users install
 the file. Publish it as a GitHub release asset, with your source next to
 it.
+
+The workflow `init` writes (`.github/workflows/plugin.yml`) does this
+for you: bump `version` in `plugin.json`, then
+`git tag v0.2.0 && git push origin v0.2.0`. It checks the plugin, makes
+sure the tag matches the version, packs it, and creates the release.
 
 Users can install straight from your repository: Plugins ›
 Install from GitHub, with `owner/repo` or a github.com link. They pick
