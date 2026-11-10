@@ -14,7 +14,7 @@ import (
 	"dalibre/internal/settings"
 )
 
-// The Marketplace (Figma "18 · Plugin marketplace"): Settings › Plugins'
+// The Marketplace (Figma "18 · Plugin marketplace"): the Plugins window's
 // second tab lists the plugins in the Marketplace's index (marketplace/), its
 // own and the community's, to install with a click. Installing asks for
 // the plugin's permissions as any install does; updates are the versions
@@ -23,7 +23,7 @@ import (
 // marketRefresh is how old the index may be before the tab reads it again.
 const marketRefresh = time.Hour
 
-// Settings › Plugins' tabs.
+// The Plugins window's tabs.
 const (
 	pluginsTabInstalled = iota
 	pluginsTabMarketplace

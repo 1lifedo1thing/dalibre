@@ -121,9 +121,10 @@ type App struct {
 	loadSeq  int
 	loadWait []chan struct{}
 	pl       pluginsState
-	// plTab is Settings › Plugins' tab; mk the Marketplace's.
-	plTab int
-	mk    marketState
+	// plTab is the Plugins window's tab; mk the Marketplace's.
+	plTab       int
+	pluginsOpen bool // the Plugins window
+	mk          marketState
 	// marketURL is the Marketplace's index; plugin.MarketplaceURL when "".
 	marketURL string
 	// updates are newer versions of plugins installed from GitHub, by id.
@@ -185,6 +186,7 @@ type App struct {
 	editorToasts map[int64][]toastMsg
 	searchFocus  ui.Handle
 	mainBox      ui.Handle // the middle column, measured to fit the toolbar
+	gridBox      ui.Handle // the Marketplace's grid, measured to fit its cards
 }
 
 type toastMsg struct {

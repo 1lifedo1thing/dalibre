@@ -89,8 +89,8 @@ func TestMarketplaceInstallAndUpdate(t *testing.T) {
 		t.Fatalf("%v: %q", err, tt.Texts())
 	}
 	tt.Frame()
-	for _, s := range []string{"Find Duplicates", "Wikidata", "calibre’s Find Duplicates", "11,688 downloads on calibre. Ported to Dalibre; its calibre settings aren’t carried over.",
-		"Tools: Find duplicates…", "Book menu: Not duplicates", "No internet access", "From djyde/dalibre"} {
+	for _, s := range []string{"Find Duplicates", "Wikidata", "Find duplicates…", "Tools", "Version 1.0.0 · Randy",
+		"No internet access", "2 plugins", "GPL-3.0-or-later"} {
 		if !tt.HasText(s) {
 			t.Fatalf("marketplace misses %q: %q", s, tt.Texts())
 		}

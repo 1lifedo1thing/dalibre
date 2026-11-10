@@ -915,11 +915,11 @@ func (msgs Messages) FetchMetaNoPluginTitle() string {
 	return Catalog.Format(msgs.locale, "fetchMetaNoPluginTitle", nil)
 }
 
-// FetchMetaNoPluginBody says "Plugins in Settings › Plugins can add sources like NeoDB."
+// FetchMetaNoPluginBody says "Plugins can add sources like NeoDB: find them in Plugins › Marketplace, from the toolbar."
 // in the language the app shows.
 func FetchMetaNoPluginBody() string { return In(i18n.Locale()).FetchMetaNoPluginBody() }
 
-// FetchMetaNoPluginBody says "Plugins in Settings › Plugins can add sources like NeoDB."
+// FetchMetaNoPluginBody says "Plugins can add sources like NeoDB: find them in Plugins › Marketplace, from the toolbar."
 // in the language of msgs.
 func (msgs Messages) FetchMetaNoPluginBody() string {
 	return Catalog.Format(msgs.locale, "fetchMetaNoPluginBody", nil)
@@ -3961,14 +3961,14 @@ func (msgs Messages) SettingsSectionOPDS() string {
 	return Catalog.Format(msgs.locale, "settingsSectionOPDS", nil)
 }
 
-// SettingsSectionPlugins says "Plugins"
+// PluginsTitle says "Plugins"
 // in the language the app shows.
-func SettingsSectionPlugins() string { return In(i18n.Locale()).SettingsSectionPlugins() }
+func PluginsTitle() string { return In(i18n.Locale()).PluginsTitle() }
 
-// SettingsSectionPlugins says "Plugins"
+// PluginsTitle says "Plugins"
 // in the language of msgs.
-func (msgs Messages) SettingsSectionPlugins() string {
-	return Catalog.Format(msgs.locale, "settingsSectionPlugins", nil)
+func (msgs Messages) PluginsTitle() string {
+	return Catalog.Format(msgs.locale, "pluginsTitle", nil)
 }
 
 // SettingsChangesApplyNote says "Changes apply right away."
@@ -7475,16 +7475,6 @@ func (msgs Messages) MarketNoMatch() string {
 	return Catalog.Format(msgs.locale, "marketNoMatch", nil)
 }
 
-// MarketFrom says "From {repo}"
-// in the language the app shows.
-func MarketFrom(repo string) string { return In(i18n.Locale()).MarketFrom(repo) }
-
-// MarketFrom says "From {repo}"
-// in the language of msgs.
-func (msgs Messages) MarketFrom(repo string) string {
-	return Catalog.Format(msgs.locale, "marketFrom", map[string]any{"repo": repo})
-}
-
 // MarketUpdateTo says "Update to {version}"
 // in the language the app shows.
 func MarketUpdateTo(version string) string { return In(i18n.Locale()).MarketUpdateTo(version) }
@@ -7535,46 +7525,6 @@ func MarketVersionInstalled(installed string, available string) string {
 // in the language of msgs.
 func (msgs Messages) MarketVersionInstalled(installed string, available string) string {
 	return Catalog.Format(msgs.locale, "marketVersionInstalled", map[string]any{"installed": installed, "available": available})
-}
-
-// MarketFollows says "FOLLOWS"
-// in the language the app shows.
-func MarketFollows() string { return In(i18n.Locale()).MarketFollows() }
-
-// MarketFollows says "FOLLOWS"
-// in the language of msgs.
-func (msgs Messages) MarketFollows() string {
-	return Catalog.Format(msgs.locale, "marketFollows", nil)
-}
-
-// MarketFollowsCalibre says "calibre’s {name}"
-// in the language the app shows.
-func MarketFollowsCalibre(name string) string { return In(i18n.Locale()).MarketFollowsCalibre(name) }
-
-// MarketFollowsCalibre says "calibre’s {name}"
-// in the language of msgs.
-func (msgs Messages) MarketFollowsCalibre(name string) string {
-	return Catalog.Format(msgs.locale, "marketFollowsCalibre", map[string]any{"name": name})
-}
-
-// MarketFollowsNote says "Ported to Dalibre; its calibre settings aren’t carried over."
-// in the language the app shows.
-func MarketFollowsNote() string { return In(i18n.Locale()).MarketFollowsNote() }
-
-// MarketFollowsNote says "Ported to Dalibre; its calibre settings aren’t carried over."
-// in the language of msgs.
-func (msgs Messages) MarketFollowsNote() string {
-	return Catalog.Format(msgs.locale, "marketFollowsNote", nil)
-}
-
-// MarketCalibreDownloads says "{count, plural, one {# download} other {# downloads}} on calibre."
-// in the language the app shows.
-func MarketCalibreDownloads(count int) string { return In(i18n.Locale()).MarketCalibreDownloads(count) }
-
-// MarketCalibreDownloads says "{count, plural, one {# download} other {# downloads}} on calibre."
-// in the language of msgs.
-func (msgs Messages) MarketCalibreDownloads(count int) string {
-	return Catalog.Format(msgs.locale, "marketCalibreDownloads", map[string]any{"count": count})
 }
 
 // MarketNoInternet says "No internet access"
@@ -7637,28 +7587,6 @@ func (msgs Messages) PluginsCapBookMenu() string {
 	return Catalog.Format(msgs.locale, "pluginsCapBookMenu", nil)
 }
 
-// PluginsToolsNote says "Tools: {actions}"
-// in the language the app shows.
-func PluginsToolsNote(actions string) string { return In(i18n.Locale()).PluginsToolsNote(actions) }
-
-// PluginsToolsNote says "Tools: {actions}"
-// in the language of msgs.
-func (msgs Messages) PluginsToolsNote(actions string) string {
-	return Catalog.Format(msgs.locale, "pluginsToolsNote", map[string]any{"actions": actions})
-}
-
-// PluginsBookMenuNote says "Book menu: {actions}"
-// in the language the app shows.
-func PluginsBookMenuNote(actions string) string {
-	return In(i18n.Locale()).PluginsBookMenuNote(actions)
-}
-
-// PluginsBookMenuNote says "Book menu: {actions}"
-// in the language of msgs.
-func (msgs Messages) PluginsBookMenuNote(actions string) string {
-	return Catalog.Format(msgs.locale, "pluginsBookMenuNote", map[string]any{"actions": actions})
-}
-
 // PluginsNotANumber says "{name} must be a number."
 // in the language the app shows.
 func PluginsNotANumber(name string) string { return In(i18n.Locale()).PluginsNotANumber(name) }
@@ -7689,4 +7617,24 @@ func MarketNeedsDalibreNote(version string) string {
 // in the language of msgs.
 func (msgs Messages) MarketNeedsDalibreNote(version string) string {
 	return Catalog.Format(msgs.locale, "marketNeedsDalibreNote", map[string]any{"version": version})
+}
+
+// PluginsSandboxNote says "Plugins run sandboxed, with only what you allow."
+// in the language the app shows.
+func PluginsSandboxNote() string { return In(i18n.Locale()).PluginsSandboxNote() }
+
+// PluginsSandboxNote says "Plugins run sandboxed, with only what you allow."
+// in the language of msgs.
+func (msgs Messages) PluginsSandboxNote() string {
+	return Catalog.Format(msgs.locale, "pluginsSandboxNote", nil)
+}
+
+// MarketCount says "{count, plural, one {# plugin} other {# plugins}}"
+// in the language the app shows.
+func MarketCount(count int) string { return In(i18n.Locale()).MarketCount(count) }
+
+// MarketCount says "{count, plural, one {# plugin} other {# plugins}}"
+// in the language of msgs.
+func (msgs Messages) MarketCount(count int) string {
+	return Catalog.Format(msgs.locale, "marketCount", map[string]any{"count": count})
 }

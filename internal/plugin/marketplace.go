@@ -21,9 +21,6 @@ import (
 // MarketplaceURL is where Dalibre reads the Marketplace's index.
 const MarketplaceURL = "https://raw.githubusercontent.com/djyde/dalibre/refs/heads/marketplace/marketplace.json"
 
-// MarketplaceRepo is the repository the Marketplace's own plugins are in.
-const MarketplaceRepo = "djyde/dalibre"
-
 // Marketplace is the Marketplace's index, marketplace.json.
 type Marketplace struct {
 	Name       string     `json:"name"`

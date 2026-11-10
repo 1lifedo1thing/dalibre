@@ -654,7 +654,7 @@ dalibre-plugin download . "dune" --item 3 --format PDF -o /tmp
 `--set key=value` gives a setting; otherwise the values saved in Dalibre
 for your plugin's id are used. Logs and warnings go to stderr.
 
-To try it in the app, use Settings › Plugins › Add plugin › From a
+To try it in the app, use Plugins › Add plugin › From a
 folder… and pick your plugin's folder. Dalibre loads the plugin from
 that folder, not a copy, and reloads it a moment after you save a change
 (hidden files and `node_modules` aside). Remove takes it out of Dalibre
@@ -672,7 +672,7 @@ your folder, leaving out hidden files and `node_modules`. Users install
 the file. Publish it as a GitHub release asset, with your source next to
 it.
 
-Users can install straight from your repository: Settings › Plugins ›
+Users can install straight from your repository: Plugins ›
 Install from GitHub, with `owner/repo` or a github.com link. They pick
 one of your releases (the latest by default) or a branch:
 
@@ -687,7 +687,7 @@ that isn't a pre-release, or a new commit on the branch followed. An
 update that asks for no new permissions can install by itself; one that
 asks for more waits for the user. Bump `version` in each release.
 
-**The Marketplace.** Settings › Plugins › Marketplace lists plugins users
+**The Marketplace.** Plugins › Marketplace (the toolbar's Plugins button) lists plugins users
 install with a click, from
 the plugins in [marketplace/](../../marketplace) and the community's.
 To list yours, open a pull request adding your repository to

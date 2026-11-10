@@ -422,6 +422,7 @@ func (a *App) toolbar(c *ui.Context) {
 		}
 		a.sharingButton(c)
 		a.agentsButton(c)
+		a.pluginsButton(c)
 		ui.Box(c).Size(1, 20).Background(pal().Border).Margin(0, theme.Space4)
 		label := locales.CommonAddBooks()
 		if compact {
@@ -440,7 +441,7 @@ func (a *App) toolbar(c *ui.Context) {
 // listControls are the toolbar's controls for the list of books: search,
 // grid or list, and the order.
 func (a *App) listControls(c *ui.Context) {
-	ui.SearchField(c, &a.query.Search).Placeholder(locales.MainSearchPlaceholder()).Label(locales.MainSearchLabel()).Width(260).Shrink(1).MinWidth(140).Bind(&a.searchFocus).OnChange(func() {
+	ui.SearchField(c, &a.query.Search).Placeholder(locales.MainSearchPlaceholder()).Label(locales.MainSearchLabel()).Width(260).Shrink(1).MinWidth(104).Bind(&a.searchFocus).OnChange(func() {
 		a.curID = 0
 	})
 	a.viewToggle(c)

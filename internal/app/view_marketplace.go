@@ -12,11 +12,11 @@ import (
 	"dalibre/internal/plugin"
 )
 
-// The Marketplace tab of Settings › Plugins (Figma "18 · Plugin
-// marketplace"): search, categories and the plugins listed, and the one
-// chosen, with what it adds and may reach.
+// The Plugins window's Marketplace tab (Figma "18 · Plugin
+// marketplace"): search, categories and a grid of the plugins listed,
+// and the one chosen, with what it adds and may reach.
 
-// pluginsTabs are Settings › Plugins' tabs, atop its list.
+// pluginsTabs are the Plugins window's tabs, in its header.
 func (a *App) pluginsTabs(c *ui.Context) {
 	tab := a.plTab
 	ui.Tabs(c, &tab, locales.PluginsTabInstalled(), locales.PluginsTabMarketplace())
@@ -28,7 +28,23 @@ func (a *App) pluginsTabs(c *ui.Context) {
 	}
 }
 
-// marketplacePane is the Marketplace tab: its list, and the plugin chosen.
+// cardWidth is a PluginCard's narrowest; the grid's width is shared
+// between as many as fit.
+const cardWidth = 220
+
+// cardGap is the space between cards.
+const cardGap = theme.Space12
+
+// cardsWide is a PluginCard's width in a grid w wide.
+func cardsWide(w float32) float32 {
+	if w <= 0 {
+		return 242
+	}
+	n := max(1, int((w+cardGap)/(cardWidth+cardGap)))
+	return float32(int((w - cardGap*float32(n-1)) / float32(n)))
+}
+
+// marketplacePane is the Marketplace tab: the grid, and the plugin chosen.
 func (a *App) marketplacePane(c *ui.Context) {
 	mk := &a.mk
 	if mk.index == nil && !mk.loading && mk.err == "" {
@@ -38,11 +54,14 @@ func (a *App) marketplacePane(c *ui.Context) {
 	if (mk.sel == "" || mk.index.Find(mk.sel) == nil) && len(list) > 0 {
 		mk.sel = list[0].ID
 	}
-	ui.Column(c).Width(300).Padding(theme.Space8).Gap(theme.Space8).Background(pal().Chrome).BorderWidth(0, 1, 0, 0).BorderColor(pal().BorderSubtle).AlignItems(ui.Stretch).Children(func() {
-		a.pluginsTabs(c)
-		ui.SearchField(c, &mk.query).Placeholder(locales.MarketSearch()).Label(locales.MarketSearch())
-		if mk.index != nil && len(mk.index.Categories) > 0 {
-			ui.Row(c).Wrap().Gap(theme.Space6).Children(func() {
+	// The grid's scroll bar runs in a gutter of its own, off the cards.
+	ui.Column(c).Grow(1).MinWidth(0).Padding(theme.Space20, theme.Space12, 0, theme.Space24).Gap(theme.Space16).Background(pal().BgApp).AlignItems(ui.Stretch).Children(func() {
+		ui.SearchField(c, &mk.query).Placeholder(locales.MarketSearch()).Label(locales.MarketSearch()).Margin(0, theme.Space12, 0, 0)
+		ui.Row(c).Gap(theme.Space12).AlignItems(ui.Center).Margin(0, theme.Space12, 0, 0).Children(func() {
+			ui.Row(c).Grow(1).MinWidth(0).Wrap().Gap(theme.Space6).Children(func() {
+				if mk.index == nil {
+					return
+				}
 				if widgets.Tag(c.Key("all"), locales.MarketAll(), mk.cat == "", nil).Clicked() {
 					mk.cat = ""
 				}
@@ -52,29 +71,34 @@ func (a *App) marketplacePane(c *ui.Context) {
 					}
 				}
 			})
-		}
-		ui.Scroll(c).Grow(1).MinHeight(0).Gap(theme.Space2).AlignItems(ui.Stretch).Children(func() {
-			switch {
-			case mk.index == nil && mk.loading:
-				ui.Row(c).Padding(theme.Space12, theme.Space10).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
-					ui.Spinner(c).Size(14, 14)
-					ui.Text(c, locales.MarketLoading()).FontSize(12).TextColor(pal().TextTertiary)
-				})
-			case mk.index == nil && mk.err != "":
-				a.marketError(c, locales.MarketFailed(mk.err))
-			case len(list) == 0:
-				ui.Text(c, locales.MarketNoMatch()).FontSize(12).TextColor(pal().TextTertiary).Padding(theme.Space12, theme.Space10)
-			}
-			for _, l := range list {
-				a.marketRow(c.Key(l.ID), l)
+			if mk.index != nil {
+				ui.Text(c, locales.MarketCount(len(list))).FontSize(13).TextColor(pal().TextSecondary).NoWrap()
 			}
 		})
 		if mk.index != nil && mk.err != "" {
 			a.marketError(c, locales.MarketStale())
 		}
-		ui.Text(c, locales.MarketFrom(plugin.MarketplaceRepo)).FontSize(11).TextColor(pal().TextTertiary).SingleLine().Padding(0, theme.Space4)
+		ui.Scroll(c).Grow(1).MinHeight(0).Padding(0, theme.Space12, theme.Space24, 0).AlignItems(ui.Stretch).Children(func() {
+			switch {
+			case mk.index == nil && mk.loading:
+				ui.Row(c).Padding(theme.Space12, 0).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
+					ui.Spinner(c).Size(14, 14)
+					ui.Text(c, locales.MarketLoading()).FontSize(13).TextColor(pal().TextTertiary)
+				})
+			case mk.index == nil && mk.err != "":
+				a.marketError(c, locales.MarketFailed(mk.err))
+			case len(list) == 0:
+				ui.Text(c, locales.MarketNoMatch()).FontSize(13).TextColor(pal().TextTertiary).Padding(theme.Space12, 0)
+			}
+			width := cardsWide(a.gridBox.Bounds(c).W)
+			ui.Row(c).Wrap().Gap(cardGap).AlignItems(ui.Stretch).Bind(&a.gridBox).Children(func() {
+				for _, l := range list {
+					a.pluginCard(c.Key(l.ID), l, width)
+				}
+			})
+		})
 	})
-	ui.Scroll(c).Grow(1).MinWidth(0).Padding(theme.Space20).Gap(theme.Space16).AlignItems(ui.Stretch).Children(func() {
+	ui.Scroll(c).Width(400).Padding(theme.Space24).Gap(theme.Space20).Background(pal().SurfaceRaised).BorderWidth(0, 0, 0, 1).BorderColor(pal().BorderSubtle).AlignItems(ui.Stretch).Children(func() {
 		if l := mk.index.Find(mk.sel); l != nil {
 			a.listingPane(c, l)
 		}
@@ -83,36 +107,44 @@ func (a *App) marketplacePane(c *ui.Context) {
 
 // marketError says why the index couldn't be read, with Try again.
 func (a *App) marketError(c *ui.Context, msg string) {
-	ui.Column(c).Padding(theme.Space8, theme.Space10).Gap(theme.Space6).AlignItems(ui.Start).Children(func() {
-		ui.Text(c, msg).FontSize(12).TextColor(pal().TextSecondary).MaxLines(4)
+	ui.Row(c).Gap(theme.Space12).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, msg).FontSize(13).TextColor(pal().TextSecondary).MaxLines(4).Grow(1).MinWidth(0)
 		if widgets.ButtonSized(c, widgets.Secondary, nil, locales.MarketTryAgain(), theme.ControlS).Disabled(a.mk.loading).Clicked() {
 			a.loadMarketplace(true)
 		}
 	})
 }
 
-// marketRow is the MarketplaceRow component.
-func (a *App) marketRow(c *ui.Context, l *plugin.Listing) {
+// pluginCard is the PluginCard component: a plugin in the grid.
+func (a *App) pluginCard(c *ui.Context, l *plugin.Listing, width float32) {
 	sel := a.mk.sel == l.ID
 	state := a.listingState(l)
-	row := ui.ButtonBase(c).Padding(theme.Space8, theme.Space10).Gap(theme.Space10).Radius(theme.RadiusMD).AlignItems(ui.Center).Label(l.Name)
+	card := ui.ButtonBase(c).Width(width).Padding(theme.Space16).Radius(theme.RadiusLG).AlignItems(ui.Stretch).Label(l.Name)
 	switch {
 	case sel:
-		row.Background(pal().SurfaceRaised).Shadow(0, 1, 2, 0, ui.RGBA(26, 23, 18, 0.06)).Shadow(0, 0, 0, 1, pal().BorderSubtle.Alpha(0.6))
-	case row.Hovered():
-		row.Background(pal().Hover)
+		card.Background(pal().Selected).Border(1.5, pal().BorderSelected)
+	case card.Hovered():
+		card.Background(pal().Surface).Border(1, pal().BorderStrong)
+	default:
+		card.Background(pal().Surface).Border(1, pal().BorderSubtle)
 	}
-	row.OnClick(func() { a.mk.sel = l.ID }).Children(func() {
-		pluginTile(c, l.Manifest(), 28)
-		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-			ui.Text(c, l.Name).FontSize(13).FontWeight(500).SingleLine()
-			detail, tone := l.Description, pal().TextTertiary
-			if state == listingUpdate {
-				detail, tone = locales.MarketUpdateTo(l.Version), pal().TextAccent
-			}
-			ui.Text(c, detail).FontSize(12).TextColor(tone).SingleLine()
+	card.OnClick(func() { a.mk.sel = l.ID }).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Gap(theme.Space12).AlignItems(ui.Stretch).Children(func() {
+			ui.Row(c).AlignItems(ui.Center).Children(func() {
+				pluginTile(c, l.Manifest(), 40)
+				ui.Spacer(c)
+				a.listingButton(c, l, state, false)
+			})
+			ui.Column(c).Gap(theme.Space4).AlignItems(ui.Stretch).Children(func() {
+				ui.Text(c, l.Name).FontSize(14).FontWeight(600).SingleLine()
+				// Two lines, always: the cards of a row line up.
+				desc, tone := l.Description, pal().TextSecondary
+				if state == listingUpdate {
+					desc, tone = locales.MarketUpdateTo(l.Version), pal().TextAccent
+				}
+				ui.Text(c, desc).FontSize(13).TextColor(tone).MaxLines(2).MinHeight(36)
+			})
 		})
-		a.listingButton(c, l, state, false)
 	})
 }
 
@@ -152,45 +184,46 @@ func (a *App) listingButton(c *ui.Context, l *plugin.Listing, state listingState
 	}
 }
 
-// listingPane is the plugin chosen in the Marketplace.
+// listingPane is the plugin chosen in the Marketplace: what it is, does
+// and may reach.
 func (a *App) listingPane(c *ui.Context, l *plugin.Listing) {
 	m := l.Manifest()
 	state := a.listingState(l)
-	ui.Row(c).Gap(theme.Space12).AlignItems(ui.Center).Children(func() {
-		pluginTile(c, m, 40)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(theme.Space2).Children(func() {
-			ui.Text(c, l.Name).FontSize(16).FontWeight(600)
-			var parts []string
-			if state == listingUpdate {
-				parts = append(parts, locales.MarketVersionInstalled(a.installedVersion(l.ID, nil), l.Version))
-			} else {
-				parts = append(parts, locales.PluginsVersion(l.Version))
-				if l.Author != "" {
-					parts = append(parts, locales.PluginsByAuthor(l.Author))
+	ui.Column(c).Gap(theme.Space16).AlignItems(ui.Stretch).Children(func() {
+		ui.Row(c).Gap(theme.Space12).AlignItems(ui.Center).Children(func() {
+			pluginTile(c, m, 48)
+			ui.Column(c).Grow(1).MinWidth(0).Gap(theme.Space2).Children(func() {
+				ui.Text(c, l.Name).FontSize(18).FontWeight(600).MaxLines(2)
+				meta := locales.PluginsVersion(l.Version)
+				if state == listingUpdate {
+					meta = locales.MarketVersionInstalled(a.installedVersion(l.ID, nil), l.Version)
+				} else if l.Author != "" {
+					meta += " · " + l.Author
 				}
-				if l.License != "" {
-					parts = append(parts, l.License)
-				}
-			}
-			ui.Text(c, strings.Join(parts, " · ")).FontSize(12).TextColor(pal().TextTertiary)
+				ui.Text(c, meta).FontSize(12).TextColor(pal().TextTertiary).SingleLine()
+			})
 		})
-		a.listingButton(c, l, state, true)
+		if l.Description != "" {
+			ui.Text(c, l.Description).FontSize(13).TextColor(pal().TextSecondary)
+		}
+		a.listingAction(c, l, state)
 	})
-	if l.Description != "" {
-		ui.Text(c, l.Description).FontSize(13).TextColor(pal().TextSecondary)
-	}
-	pluginAddsTo(c, m, false)
-	if l.Calibre != "" {
-		ui.Column(c).Gap(theme.Space6).AlignItems(ui.Stretch).Children(func() {
-			widgets.Overline(c, locales.MarketFollows())
-			ui.Text(c, locales.MarketFollowsCalibre(l.Calibre)).FontSize(13)
-			note := locales.MarketFollowsNote()
-			if l.Downloads > 0 {
-				note = locales.MarketCalibreDownloads(l.Downloads) + " " + note
+	if places := listingPlaces(m); len(places) > 0 {
+		widgets.Hairline(c)
+		ui.Column(c).Gap(theme.Space10).AlignItems(ui.Stretch).Children(func() {
+			widgets.Overline(c, locales.PluginsAddsToTitle())
+			for i, p := range places {
+				ui.Row(c.Key(i)).Gap(theme.Space10).AlignItems(ui.Center).Children(func() {
+					ui.Icon(c, p.icon).FontSize(14).TextColor(pal().IconMuted)
+					ui.Text(c, p.title).FontSize(13).SingleLine().Grow(1).MinWidth(0)
+					if p.where != "" {
+						ui.Text(c, p.where).FontSize(12).TextColor(pal().TextTertiary).NoWrap()
+					}
+				})
 			}
-			ui.Text(c, note).FontSize(12).TextColor(pal().TextTertiary)
 		})
 	}
+	widgets.Hairline(c)
 	ui.Column(c).Gap(theme.Space8).AlignItems(ui.Stretch).Children(func() {
 		widgets.Overline(c, locales.PluginsCanAccess())
 		for _, h := range m.Permissions.Hosts {
@@ -207,9 +240,10 @@ func (a *App) listingPane(c *ui.Context, l *plugin.Listing) {
 		}
 		libraryPermission(c, m, false, nil)
 		note := locales.MarketNoteAllow()
-		if state == listingNeedsDalibre {
-			note = locales.MarketNeedsDalibreNote(l.Manifest().NeedsDalibre())
-		} else if state != listingAvailable {
+		switch state {
+		case listingNeedsDalibre:
+			note = locales.MarketNeedsDalibreNote(m.NeedsDalibre())
+		case listingInstalled, listingUpdate:
 			note = locales.PluginsNoteAllowed()
 		}
 		ui.Text(c, note).FontSize(12).TextColor(pal().TextTertiary)
@@ -221,7 +255,7 @@ func (a *App) listingPane(c *ui.Context, l *plugin.Listing) {
 			src = "https://github.com/" + l.Repo
 		}
 		if l.Repo != "" {
-			if widgets.Button(c, widgets.Ghost, icons.External, locales.PluginsViewOnGithub()).Tooltip(strings.TrimPrefix(src, "https://")).Clicked() {
+			if widgets.ButtonSized(c, widgets.Ghost, icons.External, locales.PluginsViewOnGithub(), theme.ControlS).Tooltip(strings.TrimPrefix(src, "https://")).Clicked() {
 				openURL(src)
 			}
 		}
@@ -229,63 +263,71 @@ func (a *App) listingPane(c *ui.Context, l *plugin.Listing) {
 		if l.Community {
 			widgets.Tag(c, locales.MarketCommunity(), false, nil).Tooltip(locales.MarketCommunityNote(l.Repo))
 		}
-		if state == listingInstalled || state == listingUpdate {
-			if widgets.Button(c, widgets.Secondary, nil, locales.MarketShowInstalled()).Clicked() {
-				a.plTab, a.pl.sel = pluginsTabInstalled, l.ID
-			}
+		if l.License != "" {
+			ui.Text(c, l.License).FontSize(12).TextColor(pal().TextTertiary)
 		}
 	})
 }
 
-// pluginAddsTo is ADDS TO DALIBRE: where the plugin shows up, and, for
-// one with actions, their titles. installed tells the notes of an
-// installed plugin's pane, which say more.
-func pluginAddsTo(c *ui.Context, m *plugin.Manifest, installed bool) {
-	acts := m.Capabilities.Actions
-	var tools, menu []string
-	for _, act := range acts {
-		if act.Scope == plugin.ScopeLibrary {
-			tools = append(tools, act.Title)
-		} else {
-			menu = append(menu, act.Title)
-		}
-	}
-	if !m.IsBookSource() && !m.IsMetadataSource() && !m.IsFileType() && len(acts) == 0 {
-		return
-	}
-	ui.Column(c).Gap(theme.Space8).AlignItems(ui.Stretch).Children(func() {
-		widgets.Overline(c, locales.PluginsAddsToTitle())
-		ui.Row(c).Wrap().Gap(theme.Space6).Children(func() {
-			if m.IsBookSource() {
-				widgets.Tag(c, locales.CommonGetBooks(), false, nil)
-			}
-			if m.IsMetadataSource() {
-				widgets.Tag(c, locales.CommonFetchMetadata(), false, nil)
-			}
-			if m.IsFileType() {
-				widgets.Tag(c, locales.PluginsCapBookFiles(), false, nil)
-			}
-			if len(tools) > 0 {
-				widgets.Tag(c, locales.MainNavTools(), false, nil)
-			}
-			if len(menu) > 0 {
-				widgets.Tag(c, locales.PluginsCapBookMenu(), false, nil)
+// listingAction is the detail pane's button: Install, Update, or that it
+// is installed, with its settings a click away.
+func (a *App) listingAction(c *ui.Context, l *plugin.Listing, state listingState) {
+	switch {
+	case a.mk.installing == l.ID || state == listingUpdate && a.updates[l.ID] != nil && a.updates[l.ID].busy:
+		ui.Row(c).Height(theme.ControlM).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
+			ui.Spinner(c).Size(16, 16)
+			ui.Text(c, locales.MarketInstallingLabel(l.Name)).FontSize(13).TextColor(pal().TextSecondary)
+		})
+	case state == listingNeedsDalibre:
+		ui.Text(c, locales.MarketNeedsDalibre(l.Manifest().NeedsDalibre())).FontSize(13).TextColor(pal().TextTertiary)
+	case state == listingInstalled:
+		ui.Row(c).Gap(theme.Space8).AlignItems(ui.Center).Children(func() {
+			ui.Icon(c, icons.CheckCircle).FontSize(16).TextColor(pal().Success.FG)
+			ui.Text(c, locales.MarketInstalled()).FontSize(13).FontWeight(500).TextColor(pal().Success.FG).Grow(1)
+			if widgets.ButtonSized(c, widgets.Secondary, icons.Settings, locales.MarketShowInstalled(), theme.ControlS).Clicked() {
+				a.plTab, a.pl.sel = pluginsTabInstalled, l.ID
 			}
 		})
-		if installed {
-			return
+	case state == listingUpdate:
+		if widgets.Button(c, widgets.Primary, icons.Refresh, locales.CommonUpdate()).Clicked() {
+			a.updatePlugin(l.ID, false)
 		}
-		if len(tools) > 0 {
-			ui.Text(c, locales.PluginsToolsNote(strings.Join(tools, ", "))).FontSize(12).TextColor(pal().TextTertiary)
+	default:
+		if widgets.Button(c, widgets.Primary, icons.Download, locales.MarketInstall()).Disabled(a.mk.installing != "" || a.pluginDir == "").Clicked() {
+			a.installListing(l)
 		}
-		if len(menu) > 0 {
-			ui.Text(c, locales.PluginsBookMenuNote(strings.Join(menu, ", "))).FontSize(12).TextColor(pal().TextTertiary)
+	}
+}
+
+// place is where a plugin shows up in Dalibre.
+type place struct {
+	icon         *ui.SVG
+	title, where string
+}
+
+// listingPlaces are where the plugin shows up: its actions by title, in
+// Tools or the book menu, and what else it adds.
+func listingPlaces(m *plugin.Manifest) []place {
+	var out []place
+	for i := range m.Capabilities.Actions {
+		act := &m.Capabilities.Actions[i]
+		if act.In != "" {
+			continue // only among its own results
 		}
-		if m.IsBookSource() {
-			ui.Text(c, locales.PluginsGetBooksNote(m.Name)).FontSize(12).TextColor(pal().TextTertiary)
+		where := locales.PluginsCapBookMenu()
+		if act.Scope == plugin.ScopeLibrary {
+			where = locales.MainNavTools()
 		}
-		if m.IsMetadataSource() {
-			ui.Text(c, locales.PluginsFetchMetadataNote(m.Name)).FontSize(12).TextColor(pal().TextTertiary)
-		}
-	})
+		out = append(out, place{actionIcon(act), act.Title, where})
+	}
+	if m.IsBookSource() {
+		out = append(out, place{icons.Download, locales.CommonGetBooks(), ""})
+	}
+	if m.IsMetadataSource() {
+		out = append(out, place{icons.Search, locales.CommonFetchMetadata(), ""})
+	}
+	if m.IsFileType() {
+		out = append(out, place{icons.File, locales.PluginsCapBookFiles(), ""})
+	}
+	return out
 }

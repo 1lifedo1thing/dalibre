@@ -30,13 +30,65 @@ type pluginsState struct {
 	uninstall bool              // asking to uninstall sel
 }
 
-// openPlugins opens Settings at Plugins, on plugin id or the first.
+// openPlugins opens the Plugins window at Installed, on plugin id or the
+// first.
 func (a *App) openPlugins(id string) {
-	a.openSettings(sectionPlugins)
+	a.pluginsOpen, a.plTab = true, pluginsTabInstalled
+	a.checkUpdates(false)
 	if id != "" {
 		a.pl.sel = id
 	}
 }
+
+// openMarketplace opens the Plugins window at the Marketplace.
+func (a *App) openMarketplace() {
+	a.pluginsOpen, a.plTab = true, pluginsTabMarketplace
+	a.checkUpdates(false)
+	a.loadMarketplace(false)
+}
+
+// pluginsButton is the toolbar's Plugins button (Figma "18 · Plugin
+// marketplace"): it opens the Plugins window.
+func (a *App) pluginsButton(c *ui.Context) {
+	if widgets.IconButton(c, icons.Puzzle, locales.PluginsTitle(), a.pluginsOpen).Clicked() {
+		a.openPlugins("")
+	}
+}
+
+// pluginsDialog is the Plugins window: Installed and Marketplace, in tabs
+// of its header.
+func (a *App) pluginsDialog(c *ui.Context) {
+	if !a.pluginsOpen {
+		return
+	}
+	widgets.TallDialogFrame(c, &a.pluginsOpen, pluginsWidth, pluginsHeight, func() {
+		ui.Text(c, locales.PluginsTitle()).FontSize(16).FontWeight(600)
+		ui.Box(c).Width(theme.Space12)
+		a.pluginsTabs(c)
+		ui.Spacer(c)
+	}, func() {
+		ui.Row(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
+			if a.plTab == pluginsTabMarketplace {
+				a.marketplacePane(c)
+			} else {
+				a.pluginsPane(c)
+			}
+		})
+	}, func() {
+		ui.Text(c, locales.PluginsSandboxNote()).FontSize(12).TextColor(pal().TextTertiary).Grow(1)
+		if widgets.Button(c, widgets.Primary, nil, locales.CommonDone()).Clicked() {
+			a.pluginsOpen = false
+		}
+	})
+	a.githubSheet(c)
+}
+
+// The Plugins window's size, as the window allows: wide enough for three
+// cards beside a plugin's details.
+const (
+	pluginsWidth  = 1200
+	pluginsHeight = 800
+)
 
 // pluginStatus says what state a plugin is in, as its row shows it.
 func (a *App) pluginStatus(k knownPlugin) (text string, tone ui.Color, loaded bool) {
@@ -70,13 +122,9 @@ func (a *App) pluginStatus(k knownPlugin) (text string, tone ui.Color, loaded bo
 
 func loadedOK(a *App, id string) bool { return a.pluginByID(id) != nil }
 
-// pluginsPane is Settings › Plugins: the plugins Dalibre found, and the
+// pluginsPane is the Plugins window's Installed tab: the plugins Dalibre found, and the
 // one chosen.
 func (a *App) pluginsPane(c *ui.Context) {
-	if a.plTab == pluginsTabMarketplace {
-		a.marketplacePane(c)
-		return
-	}
 	known := a.pluginsKnown
 	if a.pl.sel == "" || !slices.ContainsFunc(known, func(k knownPlugin) bool { return k.manifest.ID == a.pl.sel }) {
 		a.pl.sel = ""
@@ -84,8 +132,7 @@ func (a *App) pluginsPane(c *ui.Context) {
 			a.pl.sel = known[0].manifest.ID
 		}
 	}
-	ui.Column(c).Width(248).Padding(theme.Space8).Gap(theme.Space2).Background(pal().Chrome).BorderWidth(0, 1, 0, 0).BorderColor(pal().BorderSubtle).AlignItems(ui.Stretch).Children(func() {
-		a.pluginsTabs(c)
+	ui.Column(c).Width(320).Padding(theme.Space12).Gap(theme.Space2).Background(pal().Chrome).BorderWidth(0, 1, 0, 0).BorderColor(pal().BorderSubtle).AlignItems(ui.Stretch).Children(func() {
 		ui.Scroll(c).Grow(1).MinHeight(0).Gap(theme.Space2).AlignItems(ui.Stretch).Children(func() {
 			for _, k := range known {
 				a.pluginRow(c.Key(k.manifest.ID), k)
@@ -99,7 +146,7 @@ func (a *App) pluginsPane(c *ui.Context) {
 		})
 		a.pluginsFolderActions(c)
 	})
-	ui.Scroll(c).Grow(1).MinWidth(0).Padding(theme.Space20).Gap(theme.Space16).AlignItems(ui.Stretch).Children(func() {
+	ui.Scroll(c).Grow(1).MinWidth(0).Padding(theme.Space24).Gap(theme.Space16).AlignItems(ui.Stretch).Children(func() {
 		for _, k := range known {
 			if k.manifest.ID == a.pl.sel {
 				a.pluginPane(c, k)

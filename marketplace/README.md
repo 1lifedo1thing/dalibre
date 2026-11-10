@@ -1,6 +1,6 @@
 # Dalibre Marketplace
 
-The plugins in Dalibre's Settings › Plugins › **Marketplace**: the most used calibre plugins
+The plugins in Dalibre's **Plugins › Marketplace** (the toolbar's Plugins button): the most used calibre plugins
 (by [calibre's download stats](https://plugins.calibre-ebook.com/stats.html)),
 ported to Dalibre's plugin API from their source, and the community's
 own plugins.
