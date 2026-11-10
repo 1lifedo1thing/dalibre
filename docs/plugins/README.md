@@ -587,7 +587,7 @@ const out = dalibre.html.tokens(xhtml)
 
 Documents are read as XHTML: `<title/>` is empty, and only script,
 style, title and textarea hold text. `dalibre.html.escape` escapes
-`& < > "` for text and attribute values. Needs Dalibre 0.6.0.
+`& < > "` for text and attribute values. Needs Dalibre 0.5.0.
 
 ### Errors
 

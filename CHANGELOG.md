@@ -8,6 +8,8 @@ shows, so write them for readers of the app. `mygo build` needs a
 
 - Plugin authors can install dalibre-plugin, the tool that makes and
   checks plugins, from npm: `npm install -g dalibre-plugin`.
+- Chinese Text Conversion converts all of a book's text, not just its
+  title, authors and contents, in books that write it as HTML entities.
 
 ## 0.4.0
 
