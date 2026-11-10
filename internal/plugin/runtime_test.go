@@ -141,7 +141,7 @@ func TestDataFolder(t *testing.T) {
 		export async function search(q) {
 			if (q.text === "write") { await mkdir("/data/cache", { recursive: true }); await writeFile("/data/cache/token", "t0k"); return item("ok"); }
 			if (q.text === "read") return item(existsSync("token") ? "relative" : await readFile("/data/cache/token", "utf8"));
-			if (q.text === "escape") { try { await readFile("/data/../../plugin.json", "utf8"); return item("escaped"); } catch (e) { return item(e.code); } }
+			if (q.text === "escape") { try { await readFile("/data/../../../plugin.json", "utf8"); return item("escaped"); } catch (e) { return item(e.code); } }
 			if (q.text === "fill") {
 				const chunk = "x".repeat(8 << 20);
 				try { for (let i = 0; i < 20; i++) await writeFile("/data/f" + i, chunk); } catch (e) { return item(e.code); }
@@ -158,7 +158,7 @@ func TestDataFolder(t *testing.T) {
 		t.Fatal("write failed")
 	}
 	p.Close()
-	if b, _ := os.ReadFile(filepath.Join(data, "cache", "token")); string(b) != "t0k" {
+	if b, _ := os.ReadFile(filepath.Join(data, "data", "cache", "token")); string(b) != "t0k" {
 		t.Fatalf("on disk: %q", b)
 	}
 	// It lasts across loads.

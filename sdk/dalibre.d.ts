@@ -3,7 +3,8 @@
 // A plugin is an ES module (ES2023), in JavaScript or TypeScript;
 // CommonJS (module.exports) works too. A book source exports search and,
 // optionally, collections and list (with "collections": true in
-// plugin.json), get and resolve. A metadata source exports identify.
+// plugin.json), get and resolve. A metadata source exports identify. A
+// file type plugin exports process.
 //
 // Put this file next to main.js (or main.ts) with the template's
 // jsconfig.json (or a tsconfig.json with the same options). In JavaScript,
@@ -155,6 +156,90 @@ declare namespace Dalibre {
     /** Candidates for book, best first; at most 20. Return [] when nothing matches. */
     identify(book: Book): Candidate[] | Promise<Candidate[]>;
   }
+
+  /** A book's file, as process(file) gets it. */
+  interface File {
+    /** Where to read it: a copy of the file in /work, which you may change or write beside. */
+    path: string;
+    /** The file's own name: "Dune - Frank Herbert.epub". */
+    name: string;
+    /** Its format, upper case: "EPUB". */
+    format: string;
+    /** "import": Dalibre is adding it. "manual": the user ran the plugin on the book. */
+    reason: "import" | "manual";
+    /** The book it belongs to, when it is in the library (reason "manual"). */
+    book?: Book;
+  }
+
+  /**
+   * What process returns: null to leave the file as it is, or the new
+   * file's path (in /work or /data), with the extension of its format.
+   * report lines are shown to the user and in the CLI.
+   */
+  type Processed = null | string | { path?: string; report?: string[] };
+
+  /** A book as a hook sees it. */
+  interface BookInfo {
+    id: number;
+    title: string;
+    authors: string[];
+    series?: string;
+    seriesIndex?: number;
+    tags: string[];
+    publisher?: string;
+    /** "2006-01-02". */
+    pubdate?: string;
+    /** ISO 639-2: "eng". */
+    languages?: string[];
+    identifiers: Record<string, string>;
+    /** 0–10, as calibre keeps it. */
+    rating?: number;
+    comments?: string;
+    formats: string[];
+  }
+
+  /** A book's file a hook is handed: a copy in /work. */
+  interface HookFile {
+    path: string;
+    name: string;
+    format: string;
+  }
+
+  /** What a hook gets. */
+  interface HookEvent {
+    book: BookInfo;
+    /** postimport: the format added. postdelete: the format removed. */
+    format?: string;
+    /** postimport: the file added. */
+    file?: HookFile;
+    /** postadd: the new book's files. */
+    files?: HookFile[];
+  }
+
+  /**
+   * What a hook may return: null, or changes to the book's details, which
+   * Dalibre writes with permissions.library "write". Identifiers are
+   * merged; an empty value removes one.
+   */
+  type HookResult = null | void | {
+    metadata?: Partial<{
+      title: string; authors: string[]; series: string; seriesIndex: number; tags: string[];
+      publisher: string; pubdate: string; languages: string[]; identifiers: Record<string, string>;
+      rating: number; comments: string;
+    }>;
+  };
+
+  /** What a file type plugin exports, after calibre's file type plugins. */
+  interface FileType {
+    /** As files are added (unless onImport is false), and from the book menu. */
+    process(file: File): Processed | Promise<Processed>;
+    /** With onPostImport: after a file was added to a book. */
+    postimport?(event: HookEvent): HookResult | Promise<HookResult>;
+    /** With onPostAdd: after a book was added. */
+    postadd?(event: HookEvent): HookResult | Promise<HookResult>;
+    /** With onPostDelete: after a format was removed. */
+    postdelete?(event: HookEvent): HookResult | Promise<HookResult>;
+  }
 }
 
 declare const dalibre: {
@@ -168,5 +253,5 @@ declare const dalibre: {
 };
 
 /** For CommonJS plugins; ES modules export their functions instead. */
-declare const module: { exports: Partial<Dalibre.Source & Dalibre.MetadataSource> };
-declare const exports: Partial<Dalibre.Source & Dalibre.MetadataSource>;
+declare const module: { exports: Partial<Dalibre.Source & Dalibre.MetadataSource & Dalibre.FileType> };
+declare const exports: Partial<Dalibre.Source & Dalibre.MetadataSource & Dalibre.FileType>;

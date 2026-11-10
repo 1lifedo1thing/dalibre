@@ -48,18 +48,16 @@ TypeScript modules run as they are (`CompileTS` erases the types).
 | WebAssembly (any language) | Every author needs a compiler and a build; too much for "call an API, map JSON". |
 
 Against modernc.org/quickjs on macOS (arm64): the app binary grows by
-4.3 MB (40.2 → 44.6 MB); a memory bomb is stopped at the 64 MB limit in
-about 0.2 s. moejs's own benchmarks put a new runtime at 1.4 µs and a
-call at about a fifth of QuickJS-in-Go's.
+4.3 MB (40.2 → 44.6 MB). moejs's own benchmarks put a new runtime at
+1.4 µs and a call at about a fifth of QuickJS-in-Go's. Decrypting a 5 MB
+Adept-style EPUB in a plugin with pure-JS libraries (`node-forge` for
+RSA, `@noble/ciphers` for AES, `fflate` for zip) takes about 0.7 s.
 
 Each runtime has its own mutable copy of the builtins
 (`MutableIntrinsics`), so a bundled polyfill that patches a prototype
-works as in a browser. The memory limit stops a call in one of two ways:
-an allocation whose size is known up front (`"x".repeat(n)`, `new
-ArrayBuffer(n)`) and past what is left throws a `RangeError` the script
-can catch, and the plugin carries on; any other allocation past the
-limit interrupts the runtime, which no `catch` sees, and the runtime is
-dropped.
+works as in a browser; `self` is the global object, as in a Web Worker.
+Memory isn't limited, as calibre doesn't limit its plugins': a file type
+plugin works on whole books, and a limit only turned large ones away.
 
 ### The host boundary
 
@@ -97,12 +95,13 @@ once, at install.
 
 | Threat | Defence |
 |---|---|
-| Read or write the user's files | `node:fs` reaches only the plugin's data folder (`<plugins>/.data/<id>`), through an `os.Root`, so neither `..` nor a link leaves it; writes stop at 64 MB. No process or other Node modules. Downloads are written by the host, to a temp folder, under a sanitized name. |
+| Read or write the user's files | `node:fs` reaches only the plugin's own folder (`<plugins>/.data/<id>`), through an `os.Root`, so neither `..` nor a link leaves it, and in it only `/data` (writes stop at 64 MB) and `/work`. A book's file reaches a file type plugin as a copy in `/work`, emptied after each call; what it returns is checked to be in `/work` or `/data` and moved out by the host, which alone writes the library. No process or other Node modules. Downloads are written by the host, to a temp folder, under a sanitized name. |
 | Reach hosts it didn't declare | Every request, redirect, download and cover URL is checked against the granted `permissions.hosts` (for `fetch`, in its allow hook, at every hop). Only http(s); no credentials in URLs. |
 | Reach the user's machine or LAN (router admin, local services) | Without `localNetwork`, the dialer refuses loopback, private, link-local, CGNAT, multicast and unspecified addresses **after** DNS resolution, so a listed host resolving to 127.0.0.1 (DNS rebinding) fails too. |
 | Exfiltrate other plugins' secrets | Each plugin has its own runtime, settings, cookies and data folder. |
-| Hang or overload the app | Per-call deadline (60 s; interrupts the script), 64 MB of memory per plugin, 50 requests per call, 16 MB per fetch body, 64 MB of data, stack depth cap, 4 MB of scripts, results capped at 100. Calls into one plugin are serialized; the call's deadline also ends its fetches and wakes a loop waiting on a timer. A runtime that ran out of time or memory is discarded and the plugin loaded afresh on its next call. |
+| Hang or overload the app | Per-call deadline (60 s, 10 min for `process`; interrupts the script), 50 requests per call, 16 MB per fetch body, 64 MB of data, stack depth cap, 4 MB of scripts, results capped at 100. Calls into one plugin are serialized; the call's deadline also ends its fetches and wakes a loop waiting on a timer. A runtime that ran out of time is discarded and the plugin loaded afresh on its next call. |
 | Huge or hostile files | Downloads capped at 2 GB and streamed; covers 10 MB; packages 32 MB / 1000 files, zip-slip and non-regular entries refused. |
+| Change the library | A plugin never writes it. Hooks return the changes they want, which the host checks and writes, and only with `permissions.library: "write"`, shown as a warning at install. |
 | Gain permissions silently in an update | Granted permissions are stored per plugin; a version asking for more stays unloaded until the user grants again. |
 | Deface the host API | `dalibre`, its settings and info are frozen. |
 | Leak secrets through logs | Values of `secret` settings are masked in plugin logs. |
@@ -113,8 +112,10 @@ once, at install.
   host gave it. It is Go, so it can't corrupt memory, and a panic inside
   it comes back as an error that drops the runtime. Keep the dependency
   current.
-- **The memory limit is approximate**: moejs counts allocations and
-  measures what is kept, within a small factor of the real use.
+- **No memory limit.** A plugin that allocates without end takes the
+  computer's memory until the system stops Dalibre, as a calibre plugin
+  can. Accepted, as calibre does: a limit turned large books away, and
+  the deadline still ends a plugin that loops.
 - **The data quota is checked before each write**, from what the folder
   holds, so one write can pass 64 MB by its own size (at most the memory
   limit, which bounds what the script can hand over).
@@ -211,7 +212,11 @@ Every failure is a `*plugin.Error` with a `Kind` the UI acts on:
 | `internal/plugin/prelude.js` | the script side of the host boundary: `dalibre`, `console`, calling exports |
 | `internal/plugin/host.go` | host functions, the network sandbox (client, dialer, URL checks), error kinds |
 | `internal/plugin/web.go` | `fetch`'s client and allow hook: hosts, request count, user agent, credentials, body cap |
-| `internal/plugin/files.go` | the data folder: where it is, its quota |
+| `internal/plugin/files.go` | the plugin's own folder (`/data`, `/work`), its quota, file settings |
+| `internal/plugin/process.go` | the file type contract: `process`, the copy in `/work`, checking and moving out what it returns |
+| `internal/app/filetype.go` | file type plugins on import: the chain every added file goes through |
+| `internal/app/runplugin.go` | running a file type plugin from the book menu, writing its files with ORIGINAL_ kept, Undo |
+| `internal/plugin/hooks.go` | file type hooks: `postimport`, `postadd`, `postdelete`, their events and the changes they return |
 | `internal/plugin/source.go` | the book source contract: search, list, collections, get, checking, resolve, download, cover |
 | `internal/plugin/install.go` | inspect, install, uninstall, pack |
 | `internal/app/plugins.go` | loading (built-in and installed), consent, enable/disable, settings, `downloadBook` |
@@ -262,7 +267,7 @@ refused.
   books, as calibre's metadata sources), `opds` (expose a source as OPDS),
   event hooks.
 - A subprocess or wasm runtime behind `"runtime"` in the manifest, for
-  plugins needing native code or a memory limit.
+  plugins needing native code.
 - A `dalibre-plugin test` harness with recorded HTTP fixtures, so
   authors can run their plugin in CI.
 

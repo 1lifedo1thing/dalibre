@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"maps"
 	"net/http"
 	"os"
 	"path"
@@ -30,9 +31,8 @@ const (
 	// CallTimeout bounds one call when the caller's context has no
 	// earlier deadline.
 	CallTimeout = 60 * time.Second
-	// MaxMemory is how much memory a plugin's runtime may keep and
-	// allocate in one call.
-	MaxMemory = 64 << 20
+	// ProcessTimeout bounds one process call, on a book's file.
+	ProcessTimeout = 10 * time.Minute
 )
 
 //go:embed prelude.js
@@ -65,9 +65,13 @@ type Plugin struct {
 	settings map[string]string
 	client   *http.Client
 	logf     func(format string, args ...any)
+	tapMu    sync.Mutex
+	taps     map[int]func(line string) // Tap's listeners
+	tapSeq   int
 
-	dataDir  string       // the plugin's own folder, node:fs's /data; "" for none
+	dataDir  string       // the plugin's own folder, the root of its node:fs; "" for none
 	requests atomic.Int32 // fetches made by the call in progress
+	workMu   sync.Mutex   // one Process at a time: it owns /work
 
 	mu       sync.Mutex // guards the fields below and the runtime
 	rt       *moejs.Runtime
@@ -98,9 +102,10 @@ type Options struct {
 	// Authorize, when set, is called on every request the plugin makes,
 	// to add credentials: the user's account on an OPDS server.
 	Authorize func(*http.Request)
-	// DataDir is the plugin's own folder for what it keeps between runs,
-	// which its script sees at /data through node:fs (DataDir(root, id)).
-	// It is made when needed. When "", the script has no node:fs.
+	// DataDir is the plugin's own folder (DataDir(root, id)), which its
+	// script sees through node:fs: data/ at /data, what it keeps between
+	// runs, and work/ at /work, the files it is handed. It is made when
+	// needed. When "", the script has no node:fs and can't process files.
 	DataDir string
 }
 
@@ -136,6 +141,11 @@ func load(m *Manifest, fsys fs.FS, dir string, opts Options) (*Plugin, error) {
 	p := &Plugin{Manifest: m, Dir: dir, fsys: fsys, ctx: context.Background(), logf: opts.Logf, settings: map[string]string{}}
 	if p.logf == nil {
 		p.logf = log.Printf
+	}
+	base := p.logf
+	p.logf = func(format string, args ...any) {
+		base(format, args...)
+		p.tapped(fmt.Sprintf(format, args...))
 	}
 	for _, s := range m.Settings {
 		v, ok := opts.Settings[s.Key]
@@ -182,7 +192,20 @@ func (p *Plugin) checkExports() error {
 	if m.IsMetadataSource() && !slices.Contains(p.exported, "identify") {
 		return &Error{Plugin: m.ID, Kind: KindInvalid, Msg: "a metadata source must export identify"}
 	}
+	if m.RunsOnImport() && !slices.Contains(p.exported, "process") {
+		return &Error{Plugin: m.ID, Kind: KindInvalid, Msg: "a file type plugin that runs on import must export process"}
+	}
+	for _, h := range m.Hooks() {
+		if !slices.Contains(p.exported, h) {
+			return &Error{Plugin: m.ID, Kind: KindInvalid, Msg: fmt.Sprintf("a file type plugin with %s must export %s", hookFlag(h), h)}
+		}
+	}
 	return nil
+}
+
+// hookFlag is the manifest field that asks for hook.
+func hookFlag(hook string) string {
+	return map[string]string{HookPostImport: "onPostImport", HookPostAdd: "onPostAdd", HookPostDelete: "onPostDelete"}[hook]
 }
 
 // Close drops the plugin's runtime. Calls after Close fail.
@@ -201,10 +224,10 @@ func (p *Plugin) start() error {
 	}
 	p.srcSize, p.modules = 0, map[string]*moejs.Module{}
 	// Plugins get their own builtins, so a bundled polyfill that patches
-	// a prototype works as it does in a browser.
+	// a prototype works as it does in a browser. Memory isn't limited, as
+	// calibre doesn't limit its plugins': a plugin works on whole books.
 	rt := moejs.NewRuntime(moejs.Options{
 		Importer:          node.Importer(&moejs.Importer{Resolve: p.resolveModule}),
-		MemoryLimit:       MaxMemory,
 		MutableIntrinsics: true,
 	})
 	p.rt = rt
@@ -235,7 +258,7 @@ func (p *Plugin) start() error {
 		return fmt.Errorf("plugin prelude: %w", err)
 	}
 	var names []string
-	if err := p.invoke(context.Background(), "", &names, p.load, moejs.String(p.Manifest.Main)); err != nil {
+	if err := p.invoke(context.Background(), CallTimeout, "", &names, p.load, moejs.String(p.Manifest.Main)); err != nil {
 		p.stop()
 		return err
 	}
@@ -281,10 +304,12 @@ func (p *Plugin) install() error {
 	}
 	opts := node.Options{Buffer: true}
 	if p.dataDir != "" {
-		if err := os.MkdirAll(p.dataDir, 0o700); err != nil {
-			return err
+		for _, d := range []string{dataFolder, workFolder} {
+			if err := os.MkdirAll(filepath.Join(p.dataDir, d), 0o700); err != nil {
+				return err
+			}
 		}
-		opts.FS = &node.FSOptions{Root: p.dataDir, Mount: DataMount, Write: true, Allow: p.allowFile}
+		opts.FS = &node.FSOptions{Root: p.dataDir, Mount: "/", Cwd: "/" + dataFolder, Write: true, Allow: p.allowFile}
 	}
 	p.nodeAPI, err = node.InstallLoop(loop, opts)
 	return err
@@ -448,6 +473,34 @@ func DefaultDir() string {
 	return filepath.Join(dir, "Dalibre", "plugins")
 }
 
+// Tap also gives the plugin's log lines (what its script logs, and the
+// host's warnings about what it returned) to fn, until stop is called:
+// for showing a plugin's author what a call logged.
+func (p *Plugin) Tap(fn func(line string)) (stop func()) {
+	p.tapMu.Lock()
+	defer p.tapMu.Unlock()
+	if p.taps == nil {
+		p.taps = map[int]func(string){}
+	}
+	p.tapSeq++
+	id := p.tapSeq
+	p.taps[id] = fn
+	return func() {
+		p.tapMu.Lock()
+		delete(p.taps, id)
+		p.tapMu.Unlock()
+	}
+}
+
+func (p *Plugin) tapped(line string) {
+	p.tapMu.Lock()
+	fns := slices.Collect(maps.Values(p.taps))
+	p.tapMu.Unlock()
+	for _, fn := range fns {
+		fn(line)
+	}
+}
+
 // Defines reports whether the plugin exports a function called name.
 func (p *Plugin) Defines(name string) bool {
 	if p.native != nil {
@@ -473,6 +526,11 @@ func (p *Plugin) MissingSettings() []string {
 // as JSON. Arguments and results cross as JSON so neither side sees the
 // other's types. An async function's promise is awaited.
 func (p *Plugin) call(ctx context.Context, name string, args ...any) (json.RawMessage, error) {
+	return p.callWithin(ctx, CallTimeout, name, args...)
+}
+
+// callWithin is call with timeout in place of CallTimeout.
+func (p *Plugin) callWithin(ctx context.Context, timeout time.Duration, name string, args ...any) (json.RawMessage, error) {
 	if missing := p.MissingSettings(); len(missing) > 0 {
 		return nil, &Error{Plugin: p.Manifest.ID, Call: name, Kind: KindSettings,
 			Msg: "needs " + strings.Join(missing, ", ") + " in its settings"}
@@ -500,7 +558,7 @@ func (p *Plugin) call(ctx context.Context, name string, args ...any) (json.RawMe
 		return nil, &Error{Plugin: p.Manifest.ID, Call: name, Kind: KindInvalid, Msg: "isn’t exported"}
 	}
 	var out json.RawMessage
-	if err := p.invoke(ctx, name, &out, p.invokeFn, moejs.String(name), moejs.String(string(data))); err != nil {
+	if err := p.invoke(ctx, timeout, name, &out, p.invokeFn, moejs.String(name), moejs.String(string(data))); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -516,12 +574,11 @@ type outcome struct {
 }
 
 // invoke calls fn, a function of the prelude, under ctx's deadline or
-// CallTimeout, and decodes the value it settles with into out. The promise
-// jobs it queues run before the call returns. A runtime that ran out of
-// time or memory, or failed inside, is stopped, to start afresh on the next
-// call.
-func (p *Plugin) invoke(ctx context.Context, call string, out any, fn moejs.Value, args ...moejs.Value) (err error) {
-	ctx, cancel := context.WithTimeout(ctx, CallTimeout)
+// timeout, and decodes the value it settles with into out. A runtime that
+// ran out of time, or failed inside, is stopped, to start afresh on the
+// next call.
+func (p *Plugin) invoke(ctx context.Context, timeout time.Duration, call string, out any, fn moejs.Value, args ...moejs.Value) (err error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	rt, loop := p.rt, p.loop
 	rt.ClearInterrupt()
@@ -543,7 +600,7 @@ func (p *Plugin) invoke(ctx context.Context, call string, out any, fn moejs.Valu
 			err = &Error{Plugin: p.Manifest.ID, Call: call, Kind: KindScript, Msg: fmt.Sprint("the interpreter failed: ", r)}
 		}
 		if p.rt == rt {
-			rt.ReleaseCallData() // and a new memory budget for the next call
+			rt.ReleaseCallData() // the call's arguments can go
 		}
 	}()
 
@@ -565,8 +622,6 @@ func (p *Plugin) invoke(ctx context.Context, call string, out any, fn moejs.Valu
 			return fail(KindTimeout, "canceled")
 		}
 		return fail(KindTimeout, "took too long")
-	case errors.Is(jsErr, moejs.ErrMemoryLimit):
-		return fail(KindScript, fmt.Sprintf("used more than %d MB of memory", MaxMemory>>20))
 	case errors.As(jsErr, &internal):
 		return fail(KindScript, fmt.Sprint("the interpreter failed: ", internal.Value))
 	case p.settled == nil && jsErr != nil:

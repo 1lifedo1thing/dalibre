@@ -351,14 +351,12 @@ func TestModules(t *testing.T) {
 }
 
 // A plugin's module state lasts across calls, until the interpreter has
-// to start over: after running out of memory or time.
-func TestMemoryAndRecovery(t *testing.T) {
+// to start over: after running out of time.
+func TestRecovery(t *testing.T) {
 	dir := write(t, testManifest, `
 		let calls = 0;
 		export function search(q) {
 			calls++;
-			if (q.text === "bomb") { const a = []; for (;;) a.push({ n: a.length, s: "x" + a.length, l: [a.length] }); }
-			if (q.text === "big") { const a = []; for (;;) a.push("x".repeat(1 << 20) + a.length); }
 			if (q.text === "loop") for (;;) {}
 			return { items: [{ id: String(calls), title: "t", formats: [{ format: "TXT", url: "https://books.example/" }] }] };
 		}`)
@@ -376,25 +374,6 @@ func TestMemoryAndRecovery(t *testing.T) {
 	}
 	if count() != "1" || count() != "2" {
 		t.Fatal("module state isn’t kept between calls")
-	}
-	start := time.Now()
-	if _, err := p.Search(context.Background(), Query{Text: "bomb"}); kind(err) != KindScript || !strings.Contains(err.Error(), "memory") {
-		t.Fatalf("bomb: %v", err)
-	}
-	if d := time.Since(start); d > 5*time.Second && !raceEnabled { // the race detector slows the engine a lot
-		t.Errorf("the memory limit took %v", d)
-	}
-	if count() != "1" {
-		t.Error("the interpreter didn’t start over after running out of memory")
-	}
-	// An allocation whose size is known up front ("x".repeat) and over
-	// what is left throws a RangeError the script can catch; the plugin
-	// carries on.
-	if _, err := p.Search(context.Background(), Query{Text: "big"}); kind(err) != KindScript || !strings.Contains(err.Error(), "RangeError") {
-		t.Fatalf("big: %v", err)
-	}
-	if count() != "3" {
-		t.Error("a RangeError restarted the interpreter")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()

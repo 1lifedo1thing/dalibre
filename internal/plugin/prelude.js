@@ -59,6 +59,10 @@
   fixed("dalibre", dalibre);
   fixed("console", freeze({ log: log("log"), info: log("info"), warn: log("warn"), error: log("error"), debug: log("debug") }));
 
+  // self is the global object, as in a Web Worker: libraries made for
+  // browsers look for it.
+  globalThis.self = globalThis;
+
   // CommonJS, for plugins that set module.exports or exports.x.
   globalThis.module = { exports: {} };
   globalThis.exports = globalThis.module.exports;
