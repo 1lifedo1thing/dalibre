@@ -1,6 +1,6 @@
 {
   "name": "Dalibre",
-  "identifier": "app.dalibre",
+  "identifier": "org.randynamic.dalibre",
   "version": "0.2.2",
   "out": "build",
   "i18n": {

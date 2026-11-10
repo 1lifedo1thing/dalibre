@@ -452,7 +452,7 @@ func (p Permissions) Describe() []string {
 
 // SecretService is the service in the system's credential store under
 // which Dalibre keeps plugins' secret settings: the app's identifier.
-const SecretService = "app.dalibre"
+const SecretService = "org.randynamic.dalibre"
 
 // SecretKey is the credential store's key for secret setting key of
 // plugin id.
