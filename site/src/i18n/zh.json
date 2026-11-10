@@ -9,6 +9,7 @@
       "从目录和 OPDS 服务器获取书籍",
       "通过 OPDS 把书发送到电子阅读器",
       "沙盒化的 JavaScript 插件",
+      "插件市场：移植自 calibre 最常用的插件",
       "为 Claude Code、Claude Desktop 和 Cursor 等 AI Agent 提供的 MCP 服务器",
       "AI Agent 可以通过 MCP 编写、试用和安装插件"
     ]
@@ -161,7 +162,7 @@
     "eyebrow": "扩展",
     "title1": "缺少某个功能？",
     "title2": "直接告诉它。",
-    "lead": "Dalibre 通过插件不断成长，你的 AI 也可以为它编写插件。说出你的需求：它会编写插件、试用，并修复失败的地方。你只需决定它可以访问什么。",
+    "lead": "Dalibre 通过插件不断成长。你可以从插件市场安装移植自 calibre 的常用插件，也可以让你的 AI 编写你需要的插件：它会编写插件、试用，并修复失败的地方。你只需决定它可以访问什么。",
     "dialog": {
       "label": "Dalibre 询问你",
       "title": "添加“Standard Ebooks”？",
@@ -246,7 +247,7 @@
       },
       {
         "q": "Dalibre 能运行 calibre 插件吗？",
-        "a": "不能。Dalibre 有自己的插件：小型、沙盒化的 JavaScript 模块，用来增加获取书籍和查询元数据的来源。任何人都可以编写。"
+        "a": "不能直接运行 calibre 的插件。Dalibre 有自己的插件：小型、沙盒化的 JavaScript 模块，任何人都可以编写。在工具栏的「插件」按钮里打开插件市场，可以安装移植自 calibre 的常用插件，例如 Find Duplicates、Quality Check、EpubMerge 和 KePub。"
       }
     ]
   },

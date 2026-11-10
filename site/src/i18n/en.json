@@ -9,6 +9,7 @@
       "Get books from catalogues and OPDS servers",
       "Send books to e-readers over OPDS",
       "Sandboxed JavaScript plugins",
+      "A Marketplace of calibre's most used plugins, ported",
       "MCP server for AI agents such as Claude Code, Claude Desktop and Cursor",
       "AI agents can write, try and install plugins over MCP"
     ]
@@ -161,7 +162,7 @@
     "eyebrow": "Extend",
     "title1": "Missing a feature?",
     "title2": "Ask for it.",
-    "lead": "Dalibre grows with plugins, and your AI can write them. Say what you need: it builds the plugin, tries it, and fixes what fails. You only decide what it may reach.",
+    "lead": "Dalibre grows with plugins. Install calibre's most used ones, ported, from the Marketplace, or ask your AI for the one you need: it builds the plugin, tries it, and fixes what fails. You only decide what it may reach.",
     "dialog": {
       "label": "Dalibre asks you",
       "title": "Add “Standard Ebooks”?",
@@ -246,7 +247,7 @@
       },
       {
         "q": "Does Dalibre run calibre plugins?",
-        "a": "No. Dalibre has its own plugins: small, sandboxed JavaScript modules that add places to get books and to look up metadata. Anyone can write one."
+        "a": "Not calibre's own. Dalibre has its own plugins: small, sandboxed JavaScript modules that anyone can write. Its Marketplace, from the toolbar's Plugins button, has calibre's most used plugins ported to them, such as Find Duplicates, Quality Check, EpubMerge and KePub."
       }
     ]
   },

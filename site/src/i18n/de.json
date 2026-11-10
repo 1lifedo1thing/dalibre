@@ -9,6 +9,7 @@
       "Bücher aus Katalogen und von OPDS-Servern beziehen",
       "Bücher per OPDS an E-Reader senden",
       "JavaScript-Plugins in einer Sandbox",
+      "Ein Marktplatz mit calibres meistgenutzten Plugins, portiert",
       "MCP-Server für KI-Agenten wie Claude Code, Claude Desktop und Cursor",
       "KI-Agenten können Plugins über MCP schreiben, testen und installieren"
     ]
@@ -161,7 +162,7 @@
     "eyebrow": "Erweitern",
     "title1": "Funktion fehlt?",
     "title2": "Frag danach.",
-    "lead": "Dalibre wächst mit Plugins, und deine KI kann sie schreiben. Sag, was du brauchst: Sie baut das Plugin, testet es und behebt, was fehlschlägt. Du entscheidest nur, worauf es zugreifen darf.",
+    "lead": "Dalibre wächst mit Plugins. Installiere calibres meistgenutzte, portiert, aus dem Marktplatz, oder bitte deine KI um das, das dir fehlt: Sie baut das Plugin, testet es und behebt, was fehlschlägt. Du entscheidest nur, worauf es zugreifen darf.",
     "dialog": {
       "label": "Dalibre fragt dich",
       "title": "„Standard Ebooks“ hinzufügen?",
@@ -246,7 +247,7 @@
       },
       {
         "q": "Führt Dalibre calibre-Plugins aus?",
-        "a": "Nein. Dalibre hat eigene Plugins: kleine JavaScript-Module in einer Sandbox, die Quellen zum Beziehen von Büchern und zum Nachschlagen von Metadaten hinzufügen. Jeder kann eines schreiben."
+        "a": "Nicht die von calibre selbst. Dalibre hat eigene Plugins: kleine JavaScript-Module in einer Sandbox, die jeder schreiben kann. Sein Marktplatz, über den Plugins-Knopf in der Symbolleiste, bietet calibres meistgenutzte Plugins dafür portiert, etwa Find Duplicates, Quality Check, EpubMerge und KePub."
       }
     ]
   },

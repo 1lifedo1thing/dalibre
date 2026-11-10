@@ -9,6 +9,7 @@
       "Consigue libros de catálogos y servidores OPDS",
       "Envía libros a lectores electrónicos por OPDS",
       "Plugins de JavaScript en entorno aislado",
+      "Un Marketplace con los plugins más usados de calibre, adaptados",
       "Servidor MCP para agentes de IA como Claude Code, Claude Desktop y Cursor",
       "Los agentes de IA pueden escribir, probar e instalar plugins por MCP"
     ]
@@ -161,7 +162,7 @@
     "eyebrow": "Ampliar",
     "title1": "¿Te falta una función?",
     "title2": "Pídela.",
-    "lead": "Dalibre crece con plugins, y tu IA puede escribirlos. Di lo que necesitas: crea el plugin, lo prueba y corrige lo que falle. Tú solo decides a qué puede acceder.",
+    "lead": "Dalibre crece con plugins. Instala los más usados de calibre, adaptados, desde el Marketplace, o pide a tu IA el que necesites: crea el plugin, lo prueba y corrige lo que falle. Tú solo decides a qué puede acceder.",
     "dialog": {
       "label": "Dalibre te pregunta",
       "title": "¿Añadir «Standard Ebooks»?",
@@ -246,7 +247,7 @@
       },
       {
         "q": "¿Dalibre ejecuta plugins de calibre?",
-        "a": "No. Dalibre tiene sus propios plugins: pequeños módulos de JavaScript en entorno aislado que añaden lugares donde conseguir libros y buscar metadatos. Cualquiera puede escribir uno."
+        "a": "Los de calibre tal cual, no. Dalibre tiene sus propios plugins: pequeños módulos de JavaScript en entorno aislado que cualquiera puede escribir. Su Marketplace, desde el botón Plugins de la barra de herramientas, ofrece los plugins más usados de calibre adaptados a ellos, como Find Duplicates, Quality Check, EpubMerge y KePub."
       }
     ]
   },

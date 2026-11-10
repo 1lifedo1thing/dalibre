@@ -9,6 +9,7 @@
       "Haal boeken op uit catalogi en OPDS-servers",
       "Stuur boeken naar e-readers via OPDS",
       "JavaScript-plugins in een sandbox",
+      "Een Marketplace met de meestgebruikte calibre-plugins, overgezet",
       "MCP-server voor AI-agents zoals Claude Code, Claude Desktop en Cursor",
       "AI-agents kunnen plugins schrijven, uitproberen en installeren via MCP"
     ]
@@ -161,7 +162,7 @@
     "eyebrow": "Uitbreiden",
     "title1": "Mist er een functie?",
     "title2": "Vraag erom.",
-    "lead": "Dalibre groeit met plugins, en je AI kan ze schrijven. Zeg wat je nodig hebt: het bouwt de plugin, probeert hem uit en repareert wat faalt. Jij bepaalt alleen wat hij mag bereiken.",
+    "lead": "Dalibre groeit met plugins. Installeer de meestgebruikte van calibre, overgezet, uit de Marketplace, of vraag je AI om de plugin die je mist: het bouwt de plugin, probeert hem uit en repareert wat faalt. Jij bepaalt alleen wat hij mag bereiken.",
     "dialog": {
       "label": "Dalibre vraagt je",
       "title": "„Standard Ebooks” toevoegen?",
@@ -246,7 +247,7 @@
       },
       {
         "q": "Draait Dalibre calibre-plugins?",
-        "a": "Nee. Dalibre heeft zijn eigen plugins: kleine, in een sandbox draaiende JavaScript-modules die plekken toevoegen om boeken op te halen en metadata op te zoeken. Iedereen kan er één schrijven."
+        "a": "Niet die van calibre zelf. Dalibre heeft zijn eigen plugins: kleine JavaScript-modules in een sandbox die iedereen kan schrijven. De Marketplace, via de knop Plugins in de werkbalk, heeft de meestgebruikte calibre-plugins daarnaar overgezet, zoals Find Duplicates, Quality Check, EpubMerge en KePub."
       }
     ]
   },
