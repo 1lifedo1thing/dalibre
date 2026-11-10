@@ -29,6 +29,10 @@ doesn't do yet.
 
 ## List your plugin
 
+New to writing one? Start from
+[dalibre-plugin-template](https://github.com/djyde/dalibre-plugin-template): its workflow makes the release the
+Marketplace needs each time you push a version tag.
+
 Open a pull request adding your plugin's repository to
 [community.json](community.json):
 

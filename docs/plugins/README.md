@@ -49,6 +49,11 @@ limits of what the user granted.
 
 ## Quick start
 
+Start on GitHub from
+[dalibre-plugin-template](https://github.com/djyde/dalibre-plugin-template): **Use this template**, clone it, and
+give it your own `id` and `name` in `plugin.json`. Or make the same
+folder with the tool:
+
 ```sh
 npm i -g dalibre-plugin                          # or npx dalibre-plugin …; or download it from a Dalibre release
 
@@ -64,11 +69,6 @@ dalibre-plugin pack .                            # com.example.books-0.1.0.dalib
 This guide comes with the tool, for the API of its version:
 `dalibre-plugin docs` lists its topics, `dalibre-plugin docs fetch` prints
 one, and `dalibre-plugin types Result` prints a type of `dalibre.d.ts`.
-
-Or start on GitHub from
-[dalibre-plugin-template](https://github.com/djyde/dalibre-plugin-template)
-(**Use this template**), which is what `init` makes, then give it your own
-`id` and `name` in `plugin.json`.
 
 `init` makes a repository ready for GitHub: `.gitignore`, and a workflow
 that checks the plugin on each push and publishes a release when you push
@@ -685,8 +685,8 @@ your folder, leaving out hidden files and `node_modules`. Users install
 the file. Publish it as a GitHub release asset, with your source next to
 it.
 
-The workflow `init` writes (`.github/workflows/plugin.yml`) does this
-for you: bump `version` in `plugin.json`, then
+The workflow [the template](https://github.com/djyde/dalibre-plugin-template) and `init` come with
+(`.github/workflows/plugin.yml`) does this for you: bump `version` in `plugin.json`, then
 `git tag v0.2.0 && git push origin v0.2.0`. It checks the plugin, makes
 sure the tag matches the version, packs it, and creates the release.
 

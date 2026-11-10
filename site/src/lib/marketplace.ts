@@ -47,31 +47,15 @@ export async function loadMarketplace(): Promise<{ categories: Category[]; plugi
   return { categories: data.categories ?? [], plugins: data.plugins ?? [] };
 }
 
-/** What the plugin adds to Dalibre, in the words of the app's menus. */
-export function adds(p: Plugin): string[] {
+/** What the plugin may reach, in one short line: "Reads your library · Offline". */
+export function reach(p: Plugin): string {
   const out: string[] = [];
-  const c = p.capabilities;
-  if (c.bookSource) out.push("A source in Get books");
-  if (c.metadata) {
-    const f = c.metadata.fields;
-    out.push(f?.length === 1 && f[0] === "cover" ? "Covers in Fetch metadata" : "A source in Fetch metadata");
-  }
-  if (c.fileType) out.push(c.fileType.title ?? "Works on the files you add");
-  for (const a of c.actions ?? []) {
-    const title = a.title.replace(/…$/, "");
-    if (!out.includes(title)) out.push(title);
-  }
-  return out;
-}
-
-/** What the plugin asks the user to allow, in a few words. */
-export function asks(p: Plugin): string[] {
-  const out: string[] = [];
-  const hosts = p.permissions.hosts ?? [];
-  if (hosts.length) out.push(`Reaches ${hosts.join(", ")}`);
-  if (p.permissions.localNetwork) out.push("Reaches your local network");
-  if (p.permissions.library === "write") out.push("Reads and changes your library");
+  if (p.permissions.library === "write") out.push("Changes your library");
   else if (p.permissions.library === "read") out.push("Reads your library");
-  if (!hosts.length && !p.permissions.localNetwork) out.push("Nothing on the internet");
-  return out;
+  const hosts = p.permissions.hosts ?? [];
+  if (hosts.length === 1) out.push(hosts[0]);
+  else if (hosts.length > 1) out.push(`${hosts.length} sites`);
+  if (p.permissions.localNetwork) out.push("Local network");
+  if (!hosts.length && !p.permissions.localNetwork) out.push("Offline");
+  return out.join(" · ");
 }

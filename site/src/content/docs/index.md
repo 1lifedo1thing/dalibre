@@ -41,7 +41,8 @@ used plugins ported to Dalibre.
 overview, a quick start that builds a working book source, and the full
 reference for `plugin.json`, book sources, metadata sources, file type
 plugins, actions, the runtime, permissions, the CLI, publishing and every
-type. The `dalibre-plugin` CLI has it too: `npx dalibre-plugin docs`.
+type. The `dalibre-plugin` CLI has it too: `npx dalibre-plugin docs`. To start one,
+use [dalibre-plugin-template](https://github.com/djyde/dalibre-plugin-template) on GitHub.
 
 Working with an AI assistant? Give it
 [`/docs/plugins.md`](/docs/plugins.md), the same page as plain Markdown,

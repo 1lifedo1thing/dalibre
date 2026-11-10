@@ -137,6 +137,13 @@ Three plugins ship inside Dalibre, and are good worked examples:
 
 ## Quick start
 
+> **The fastest start: [dalibre-plugin-template](https://github.com/djyde/dalibre-plugin-template).** On GitHub,
+> click **Use this template**, clone your new repository, and set your own
+> `id` and `name` in `plugin.json`. It has a starter `main.js`, the types
+> and schema for your editor, and a workflow that checks the plugin on
+> each push and publishes a release when you push a tag. The same files
+> come from `npx dalibre-plugin init my-plugin`.
+
 In this guide you'll write a book source for Project Gutenberg's
 70,000 public-domain books, read from its OPDS catalog. By the end it
 will search, filter by language, show covers, offer shelves to browse
@@ -166,11 +173,8 @@ They're optional, but worth it: with `// @ts-check` at the top of
 `main.js`, VS Code and other editors check your code and complete the
 API as you type, and `plugin.json` is validated as you write it.
 
-> With Node installed, `npx dalibre-plugin init gutenberg --id io.github.you.gutenberg`
-> makes the folder with these files, a starter `main.js`, and a GitHub
-> workflow that releases your plugin. So does
-> [dalibre-plugin-template](https://github.com/djyde/dalibre-plugin-template)
-> on GitHub (**Use this template**). See [the dalibre-plugin tool](#the-dalibre-plugin-tool).
+> Started from the [template](https://github.com/djyde/dalibre-plugin-template) or `npx dalibre-plugin init`? These
+> files are there already.
 
 ### 2. Pick an id
 
@@ -1505,7 +1509,7 @@ npm i -g dalibre-plugin        # or put npx in front of each command
 
 | Command | |
 |---|---|
-| `init <dir> --id ID --name NAME` | Starts a plugin: `plugin.json`, `main.js`, the types and schema, `.gitignore`, and a GitHub workflow that checks it on each push and releases it on a `v*` tag |
+| `init <dir> --id ID --name NAME` | Makes what [dalibre-plugin-template](https://github.com/djyde/dalibre-plugin-template) holds: `plugin.json`, `main.js`, the types and schema, `.gitignore`, and a GitHub workflow that checks it on each push and releases it on a `v*` tag |
 | `check .` | Validates `plugin.json`, loads the script, lists its exports and what it asks for |
 | `dev .` | Adds the folder to the running Dalibre, which reloads it as you save, and prints each reload with its errors. Needs Dalibre's MCP server on |
 | `search . "dune"`, `get`, `download`, `collections`, `list` | Calls a book source as the Get books page does; `--json` prints exactly what Dalibre gets |
@@ -1545,7 +1549,8 @@ one of your releases (the latest by default) or a branch:
   There is no build step: commit what `main.js` imports, bundled output
   included.
 
-A typical release, with the workflow `init` and the template give you:
+A typical release, with the workflow [the template](https://github.com/djyde/dalibre-plugin-template) and `init`
+give you:
 bump `version` in `plugin.json`, then tag it. The workflow checks the
 plugin, makes sure the tag matches the version, packs it and creates the
 release.
