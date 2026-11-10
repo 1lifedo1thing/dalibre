@@ -27,8 +27,8 @@ import (
 const maxMenuActions = 2
 
 // pluginActions adds the file type plugins' actions to the book menu, to
-// run on books ids.
-func (a *App) pluginActions(m *ui.Menu, ids []int64) {
+// run on books ids, and reports whether there were any.
+func (a *App) pluginActions(m *ui.Menu, ids []int64) bool {
 	ps := a.fileTypePlugins()
 	results, others := a.bookActions()
 	// What the plugin whose results show does with them comes first.
@@ -52,6 +52,7 @@ func (a *App) pluginActions(m *ui.Menu, ids []int64) {
 	default:
 		m.Submenu(locales.BooksMenuPlugins(), add).Icon(icons.Menu(icons.Puzzle))
 	}
+	return len(results)+len(ps)+len(others) > 0
 }
 
 // actionItem is a plugin's action in a menu, to run on books ids: greyed
