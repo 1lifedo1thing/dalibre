@@ -515,6 +515,13 @@ func (l *Library) SetCover(id int64, img []byte) error {
 // inside the library, so that a removal can be undone by hand.
 const TrashDir = ".dalibre-trash"
 
+// hasTable reports whether the library's database has table name.
+func hasTable(tx *sql.Tx, name string) (bool, error) {
+	var n int
+	err := tx.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, name).Scan(&n)
+	return n > 0, err
+}
+
 // RemoveBooks deletes books from the database, then hands each book's
 // folder to trash, as the system's Recycle Bin; with a nil trash the
 // folders move to the library's TrashDir.
@@ -532,13 +539,18 @@ func (l *Library) RemoveBooks(ids []int64, trash func(path string) error) error 
 		if err := tx.QueryRow(`SELECT path FROM books WHERE id = ?`, id).Scan(&path); err != nil {
 			return err
 		}
-		for _, q := range []string{
-			`DELETE FROM books WHERE id = ?`,
-			`DELETE FROM books_pages_link WHERE book = ?`,
-			`DELETE FROM metadata_dirtied WHERE book = ?`,
-			`DELETE FROM annotations_dirtied WHERE book = ?`,
-		} {
-			if _, err := tx.Exec(q, id); err != nil {
+		if _, err := tx.Exec(`DELETE FROM books WHERE id = ?`, id); err != nil {
+			return err
+		}
+		// Tables newer calibres added, which older libraries don't have:
+		// books_pages_link came with calibre 8.
+		for _, table := range []string{"books_pages_link", "metadata_dirtied", "annotations_dirtied"} {
+			if ok, err := hasTable(tx, table); err != nil {
+				return err
+			} else if !ok {
+				continue
+			}
+			if _, err := tx.Exec(`DELETE FROM `+table+` WHERE book = ?`, id); err != nil {
 				return err
 			}
 		}

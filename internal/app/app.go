@@ -588,7 +588,17 @@ func (a *App) removeBooks(ids []int64) {
 				if err != nil {
 					a.toastError(err)
 				}
-				a.toast("%s", locales.AppToastMovedToTrash(len(ids)))
+				// The books gone: none when the database refused, all when
+				// only a folder couldn't be moved.
+				gone := 0
+				for _, id := range ids {
+					if a.byID[id] == nil {
+						gone++
+					}
+				}
+				if gone > 0 {
+					a.toast("%s", locales.AppToastMovedToTrash(gone))
+				}
 			})
 		})
 	})
