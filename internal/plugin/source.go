@@ -476,6 +476,13 @@ func (p *Plugin) Download(ctx context.Context, r Result, format, dir string, pro
 	if err != nil {
 		return "", err
 	}
+	return p.DownloadResolved(ctx, req, r, format, dir, progress)
+}
+
+// DownloadResolved is Download of what Resolve said, for a caller that
+// resolved already: resolving again would make a plugin's tool download
+// the book again.
+func (p *Plugin) DownloadResolved(ctx context.Context, req Request, r Result, format, dir string, progress func(done, total int64)) (string, error) {
 	fail := func(kind ErrorKind, err error) (string, error) {
 		switch {
 		case errors.Is(err, ErrHostNotAllowed):

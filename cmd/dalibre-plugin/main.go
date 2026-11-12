@@ -850,8 +850,12 @@ func cmdDownload(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s (%s) from %s\n", r.Title, strings.ToUpper(*format), req.URL)
-	path, err := p.Download(ctx, r, *format, *out, func(done, total int64) {
+	from := req.URL
+	if req.Path != "" {
+		from = req.Path
+	}
+	fmt.Printf("%s (%s) from %s\n", r.Title, strings.ToUpper(*format), from)
+	path, err := p.DownloadResolved(ctx, req, r, *format, *out, func(done, total int64) {
 		if total > 0 {
 			fmt.Fprintf(os.Stderr, "\r%.1f / %.1f MB", float64(done)/(1<<20), float64(total)/(1<<20))
 		} else {
