@@ -4,6 +4,16 @@ Each version's section is the release notes that Dalibre's update window
 shows, so write them for readers of the app. `mygo build` needs a
 `## <version>` section for the version in `cmd/dalibre/mygo.json`.
 
+## 0.6.0
+
+- Open, in a book's details, opens it in the editor or in your system's
+  app for its format.
+- Plugins can use programs such as pandoc: Dalibre downloads them for
+  you, or uses the ones Homebrew, winget or Scoop installed.
+- Install from GitHub shows a plugin's README.
+- Plugins go through the proxy set in your system's settings.
+- The editor shows a book's images on Windows.
+
 ## 0.5.1
 
 - Edit book opens AZW3 books, to read in Glance or to edit, and saves

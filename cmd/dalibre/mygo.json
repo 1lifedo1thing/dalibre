@@ -1,7 +1,7 @@
 {
   "name": "Dalibre",
   "identifier": "org.randynamic.dalibre",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "out": "build",
   "i18n": {
     "dir": "locales",
