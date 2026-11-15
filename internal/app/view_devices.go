@@ -52,7 +52,7 @@ func (a *App) deviceSwitcherItems(m *ui.Menu) {
 			if av.USB.Name != "" {
 				sub = av.USB.Name + " · " + state
 			}
-			item := m.Item(availableName(av)).ID("available:" + av.Node).Icon(icons.Menu(icons.Tablet)).Subtitle(sub).Disabled(a.dev.connecting != "")
+			item := m.Item(availableName(av)).ID("available:" + av.Node).Subtitle(sub).Disabled(a.dev.connecting != "")
 			if item.Chosen() {
 				a.connectReader(av)
 			}
@@ -67,7 +67,7 @@ func (a *App) deviceSwitcherItems(m *ui.Menu) {
 		} else {
 			sub += " · " + a.deviceSubtitle(d)
 		}
-		if m.Item(info.Name).ID("device:" + info.ID).Icon(icons.Menu(icons.Tablet)).Subtitle(sub).Checked(cur != nil && cur.dev == d).Chosen() {
+		if m.Item(info.Name).ID("device:" + info.ID).Subtitle(sub).Checked(cur != nil && cur.dev == d).Chosen() {
 			a.openDevice(d)
 		}
 	}
