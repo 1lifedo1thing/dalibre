@@ -8,6 +8,7 @@ package usbms
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -322,16 +323,18 @@ func (d *Device) Send(ctx context.Context, uploads []device.Upload, progress fun
 	}
 	var sent []device.Book
 	var errs []error
+	batch := map[string]string{} // uuid by lpath, of the books sent so far
 	for i, up := range uploads {
 		if err := ctx.Err(); err != nil {
 			errs = append(errs, err)
 			break
 		}
-		b, err := d.sendOne(ctx, up, prefix)
+		b, err := d.sendOne(ctx, up, prefix, batch)
 		if err != nil {
 			errs = append(errs, &SendError{Title: up.Book.Title, Err: err})
 		} else {
 			sent = append(sent, b)
+			batch[b.LPath] = b.UUID
 		}
 		if progress != nil {
 			progress(i + 1)
@@ -357,8 +360,11 @@ func (d *Device) Send(ctx context.Context, uploads []device.Upload, progress fun
 			if id := d.cfg.LibraryUUID(); id != "" {
 				d.mu.Lock()
 				d.di.set("last_library_uuid", id)
-				d.di.write(d.st)
+				err := d.di.write(d.st)
 				d.mu.Unlock()
+				if err != nil {
+					errs = append(errs, err)
+				}
 			}
 		}
 	}
@@ -374,7 +380,32 @@ type SendError struct {
 func (e *SendError) Error() string { return e.Title + ": " + e.Err.Error() }
 func (e *SendError) Unwrap() error { return e.Err }
 
-func (d *Device) sendOne(ctx context.Context, up device.Upload, prefix int) (device.Book, error) {
+// freePath is lp, or, when another book (by uuid) is there or was sent
+// there in this batch, lp numbered as "Title - Author (2).azw3", so that
+// sending a book never replaces a different one.
+func (d *Device) freePath(lp, uuid string, batch map[string]string) string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	taken := func(p string) bool {
+		if u, ok := batch[p]; ok {
+			return u != uuid
+		}
+		at := slices.IndexFunc(d.entries, func(e entry) bool { return e.str("lpath") == p })
+		return at >= 0 && d.entries[at].str("uuid") != uuid
+	}
+	if !taken(lp) {
+		return lp
+	}
+	ext := path.Ext(lp)
+	base := strings.TrimSuffix(lp, ext)
+	for n := 2; ; n++ {
+		if p := fmt.Sprintf("%s (%d)%s", base, n, ext); !taken(p) {
+			return p
+		}
+	}
+}
+
+func (d *Device) sendOne(ctx context.Context, up device.Upload, prefix int, batch map[string]string) (device.Book, error) {
 	ext := strings.ToLower(filepath.Ext(up.File))
 	b := up.Book
 	if !d.takes("x" + ext) {
@@ -393,12 +424,18 @@ func (d *Device) sendOne(ctx context.Context, up device.Upload, prefix int) (dev
 		b.TitleSort = calibre.TitleSort(b.Title)
 	}
 	b.LPath = uploadPath(d.cfg.Template, d.cfg.EbookDir, d.cfg.SubDirs, b, ext, prefix)
+	if up.Book.UUID != "" {
+		b.LPath = d.freePath(b.LPath, b.UUID, batch)
+	}
 	src, err := os.Open(up.File)
 	if err != nil {
 		return b, err
 	}
 	defer src.Close()
-	dst, err := d.st.Create(b.LPath)
+	// Written beside the book and moved over it once whole, so a copy that
+	// fails leaves the book that was there. The dot keeps scans off it.
+	part := path.Join(path.Dir(b.LPath), ".dalibre-"+path.Base(b.LPath)+".part")
+	dst, err := d.st.Create(part)
 	if err != nil {
 		return b, err
 	}
@@ -406,8 +443,11 @@ func (d *Device) sendOne(ctx context.Context, up device.Upload, prefix int) (dev
 	if cerr := dst.Close(); err == nil {
 		err = cerr
 	}
+	if err == nil {
+		err = d.st.Rename(part, b.LPath)
+	}
 	if err != nil {
-		d.st.Remove(b.LPath)
+		d.st.Remove(part)
 		return b, err
 	}
 	b.Size = n

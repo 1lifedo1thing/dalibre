@@ -234,3 +234,42 @@ func TestOpenWithoutCalibre(t *testing.T) {
 		t.Errorf("no metadata.calibre written: %v", err)
 	}
 }
+
+// Sending a book where another one (by uuid) is gives it a numbered name
+// rather than replacing it; sending the same book again replaces it, and
+// leaves no partial file behind.
+func TestSendKeepsOtherBookAtSamePath(t *testing.T) {
+	v, root := newVolume(t)
+	d, err := Open(context.Background(), v, testConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(t.TempDir(), "book.txt")
+	if err := os.WriteFile(src, []byte("one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	up := func(uuid string) device.Upload {
+		return device.Upload{File: src, Book: device.Book{UUID: uuid, Title: "Same", Authors: []string{"A B"}, AuthorSort: "B, A"}}
+	}
+	sent, err := d.Send(context.Background(), []device.Upload{up("u1"), up("u2")}, nil)
+	if err != nil || len(sent) != 2 {
+		t.Fatalf("Send = %v, %v", sent, err)
+	}
+	want := []string{"documents/B, A/Same - A B.txt", "documents/B, A/Same - A B (2).txt"}
+	if sent[0].LPath != want[0] || sent[1].LPath != want[1] {
+		t.Fatalf("lpaths = %q, %q; want %q", sent[0].LPath, sent[1].LPath, want)
+	}
+	again, err := d.Send(context.Background(), []device.Upload{up("u1")}, nil)
+	if err != nil || len(again) != 1 || again[0].LPath != want[0] {
+		t.Fatalf("resend = %v, %v", again, err)
+	}
+	if n := len(d.Books()); n != 2 {
+		t.Errorf("books = %d, want 2", n)
+	}
+	ents, _ := os.ReadDir(filepath.Join(root, "documents", "B, A"))
+	for _, e := range ents {
+		if strings.HasSuffix(e.Name(), ".part") {
+			t.Errorf("partial file left: %s", e.Name())
+		}
+	}
+}

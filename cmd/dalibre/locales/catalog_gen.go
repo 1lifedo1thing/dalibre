@@ -8411,16 +8411,6 @@ func (msgs Messages) DeviceRemoveBooksTitle(count int, device string) string {
 	return Catalog.Format(msgs.locale, "deviceRemoveBooksTitle", map[string]any{"count": count, "device": device})
 }
 
-// DeviceRemoveBody says "The files are deleted from the reader, with the notes and reading position it keeps for them. Books in your library s…"
-// in the language the app shows.
-func DeviceRemoveBody() string { return In(i18n.Locale()).DeviceRemoveBody() }
-
-// DeviceRemoveBody says "The files are deleted from the reader, with the notes and reading position it keeps for them. Books in your library s…"
-// in the language of msgs.
-func (msgs Messages) DeviceRemoveBody() string {
-	return Catalog.Format(msgs.locale, "deviceRemoveBody", nil)
-}
-
 // DeviceEmptyTitle says "No books on {device}"
 // in the language the app shows.
 func DeviceEmptyTitle(device string) string { return In(i18n.Locale()).DeviceEmptyTitle(device) }
@@ -8431,16 +8421,6 @@ func (msgs Messages) DeviceEmptyTitle(device string) string {
 	return Catalog.Format(msgs.locale, "deviceEmptyTitle", map[string]any{"device": device})
 }
 
-// DeviceEmptyHint says "Send books to it from your library’s book menu, or drop files here."
-// in the language the app shows.
-func DeviceEmptyHint() string { return In(i18n.Locale()).DeviceEmptyHint() }
-
-// DeviceEmptyHint says "Send books to it from your library’s book menu, or drop files here."
-// in the language of msgs.
-func (msgs Messages) DeviceEmptyHint() string {
-	return Catalog.Format(msgs.locale, "deviceEmptyHint", nil)
-}
-
 // DeviceDropTitle says "Drop to send to {device}"
 // in the language the app shows.
 func DeviceDropTitle(device string) string { return In(i18n.Locale()).DeviceDropTitle(device) }
@@ -8449,16 +8429,6 @@ func DeviceDropTitle(device string) string { return In(i18n.Locale()).DeviceDrop
 // in the language of msgs.
 func (msgs Messages) DeviceDropTitle(device string) string {
 	return Catalog.Format(msgs.locale, "deviceDropTitle", map[string]any{"device": device})
-}
-
-// DeviceDropHint says "Files of formats the reader doesn’t take are left out."
-// in the language the app shows.
-func DeviceDropHint() string { return In(i18n.Locale()).DeviceDropHint() }
-
-// DeviceDropHint says "Files of formats the reader doesn’t take are left out."
-// in the language of msgs.
-func (msgs Messages) DeviceDropHint() string {
-	return Catalog.Format(msgs.locale, "deviceDropHint", nil)
 }
 
 // DeviceFile says "File"

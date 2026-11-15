@@ -33,6 +33,10 @@ type Watcher struct {
 	failed map[string]error
 	// ejected are storages ejected but maybe not gone yet, by storage ID.
 	ejected map[string]bool
+	// unmatched are storages no driver recognised, by storage ID: not
+	// looked at again until they go and come back, so other drives (and
+	// network shares) aren't read every scan.
+	unmatched map[string]bool
 	// available are the readers plugged in but not connected, by node.
 	available map[string]Available
 }
@@ -89,6 +93,9 @@ func (w *Watcher) Scan(ctx context.Context) {
 	if w.devices == nil {
 		w.devices, w.failed, w.ejected = map[string]Device{}, map[string]error{}, map[string]bool{}
 	}
+	if w.unmatched == nil {
+		w.unmatched = map[string]bool{}
+	}
 	if !sameNodes(w.available, available) {
 		changed = true
 	}
@@ -111,9 +118,14 @@ func (w *Watcher) Scan(ctx context.Context) {
 			delete(w.ejected, id)
 		}
 	}
+	for id := range w.unmatched {
+		if _, ok := present[id]; !ok {
+			delete(w.unmatched, id)
+		}
+	}
 	var todo []Storage
 	for id, st := range present {
-		if w.devices[id] == nil && w.failed[id] == nil && !w.ejected[id] {
+		if w.devices[id] == nil && w.failed[id] == nil && !w.ejected[id] && !w.unmatched[id] {
 			todo = append(todo, st)
 		}
 	}
@@ -122,12 +134,15 @@ func (w *Watcher) Scan(ctx context.Context) {
 	for _, st := range todo {
 		drv := w.match(st)
 		if drv == nil {
+			w.mu.Lock()
+			w.unmatched[st.ID()] = true
+			w.mu.Unlock()
 			continue
 		}
 		d, err := drv.Open(ctx, st)
 		w.mu.Lock()
 		if err != nil {
-			oe := &OpenError{Err: err}
+			oe := &OpenError{Kind: drv.Kind(), Err: err}
 			if n, ok := st.(interface{ Node() string }); ok {
 				oe.Node = n.Node()
 			}
@@ -215,6 +230,8 @@ func (w *Watcher) Connect(ctx context.Context, node string) (Device, error) {
 // OpenError is a reader recognised that couldn't be opened.
 type OpenError struct {
 	Node string
+	// Kind is the driver's that recognised it, as "kindle".
+	Kind string
 	Err  error
 }
 

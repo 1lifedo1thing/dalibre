@@ -170,7 +170,6 @@ func (a *App) deviceContent(c *ui.Context, v *deviceView) {
 			})
 			if len(v.books) == 0 {
 				ui.Text(c, locales.DeviceEmptyTitle(v.info.Name)).FontWeight(600).FontSize(18)
-				ui.Text(c, locales.DeviceEmptyHint()).TextColor(pal().TextSecondary).TextAlign(ui.Center)
 				return
 			}
 			ui.Text(c, locales.MainNoMatchTitle()).FontWeight(600).FontSize(18)
@@ -253,37 +252,34 @@ func (a *App) openReaderBook(v *deviceView, b *calibre.Book) {
 }
 
 func (a *App) askRemoveFromReader(v *deviceView, ids []int64) {
-	if len(ids) == 0 {
-		return
+	var lpaths []string
+	title := ""
+	for _, id := range ids {
+		if b := v.byID[id]; b != nil {
+			lpaths = append(lpaths, b.Path)
+			title = b.Title
+		}
 	}
-	v.deleteIDs, v.deleteOpen = ids, true
+	a.askRemoveFrom(v.dev, lpaths, title)
 }
 
 // deviceDialogs asks before removing books from a reader.
 func (a *App) deviceDialogs(c *ui.Context) {
-	if a.dev == nil || a.dev.view == nil {
+	if a.dev == nil || !a.dev.remove.open {
 		return
 	}
-	v := a.dev.view
-	if !v.deleteOpen {
-		return
+	r := &a.dev.remove
+	name := r.dev.Info().Name
+	title := locales.DeviceRemoveBooksTitle(len(r.lpaths), name)
+	if r.title != "" {
+		title = locales.DeviceRemoveBookTitle(r.title, name)
 	}
-	title := locales.DeviceRemoveBooksTitle(len(v.deleteIDs), v.info.Name)
-	if len(v.deleteIDs) == 1 {
-		if b := v.byID[v.deleteIDs[0]]; b != nil {
-			title = locales.DeviceRemoveBookTitle(b.Title, v.info.Name)
+	if ui.AlertDialog(c, &r.open, title, "", locales.CommonCancel(), locales.CommonRemove()) == 1 {
+		if v := a.dev.view; v != nil && v.dev == r.dev {
+			v.chosen.Clear()
+			v.curID = 0
 		}
-	}
-	if ui.AlertDialog(c, &v.deleteOpen, title, locales.DeviceRemoveBody(), locales.CommonCancel(), locales.CommonRemove()) == 1 {
-		var lpaths []string
-		for _, id := range v.deleteIDs {
-			if b := v.byID[id]; b != nil {
-				lpaths = append(lpaths, b.Path)
-			}
-		}
-		v.chosen.Clear()
-		v.curID = 0
-		a.removeFromReader(v.dev, lpaths)
+		a.removeFromReader(r.dev, r.lpaths)
 	}
 }
 
@@ -440,7 +436,11 @@ func (a *App) readerMenuItems(m *ui.Menu, ids []int64) bool {
 		}
 		if on := a.readerBooksOf(d, ids); len(on) > 0 {
 			if m.Item(locales.WirelessRemoveFrom(name)).Icon(icons.Menu(icons.Trash)).Disabled(busy).Chosen() {
-				a.removeFromReader(d, on)
+				title := ""
+				if b := a.byID[ids[0]]; len(ids) == 1 && b != nil {
+					title = b.Title
+				}
+				a.askRemoveFrom(d, on, title)
 			}
 		}
 	}
@@ -457,7 +457,6 @@ func (a *App) deviceDropOverlay(c *ui.Context, v *deviceView) {
 				ui.Icon(c, icons.Tablet).FontSize(22).TextColor(pal().TextAccent)
 			})
 			ui.Text(c, locales.DeviceDropTitle(v.info.Name)).FontSize(18).FontWeight(600)
-			ui.Text(c, locales.DeviceDropHint()).FontSize(12).TextColor(pal().TextTertiary).TextAlign(ui.Center)
 		})
 	})
 }

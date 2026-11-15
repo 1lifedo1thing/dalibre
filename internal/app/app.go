@@ -430,8 +430,11 @@ func (a *App) setBooks(books []*calibre.Book) {
 	a.counts = catalog.Tally(books, a.booksTime)
 	// Books edited while a reader is connected reach it.
 	a.syncDevice()
-	if a.dev != nil && a.dev.view != nil {
-		a.matchDeviceBooks(a.dev.view)
+	if a.dev != nil {
+		a.dev.lib = nil
+		if a.dev.view != nil {
+			a.matchDeviceBooks(a.dev.view)
+		}
 	}
 	a.version++
 }

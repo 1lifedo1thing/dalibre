@@ -106,6 +106,10 @@ func (v *Volume) Remove(name string) error {
 	return v.with(func(r *os.Root) error { return r.Remove(name) })
 }
 
+func (v *Volume) Rename(oldname, newname string) error {
+	return v.with(func(r *os.Root) error { return r.Rename(oldname, newname) })
+}
+
 func (v *Volume) RemoveAll(name string) error {
 	if !fs.ValidPath(name) || name == "." {
 		return &fs.PathError{Op: "removeall", Path: name, Err: fs.ErrInvalid}

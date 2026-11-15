@@ -44,6 +44,8 @@ type Storage interface {
 	// RemoveAll deletes name and what it holds; a name that doesn't exist
 	// is no error.
 	RemoveAll(name string) error
+	// Rename moves the file oldname to newname, replacing what is there.
+	Rename(oldname, newname string) error
 	// Usage is the storage's free and total space, in bytes.
 	Usage() (free, total int64, err error)
 	// LocalPath is where name is on this computer, for a mounted volume;

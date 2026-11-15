@@ -1130,11 +1130,8 @@
       }
     }
   },
-  "deviceRemoveBody": "The files are deleted from the reader, with the notes and reading position it keeps for them. Books in your library stay there.",
   "deviceEmptyTitle": "No books on {device}",
-  "deviceEmptyHint": "Send books to it from your library’s book menu, or drop files here.",
   "deviceDropTitle": "Drop to send to {device}",
-  "deviceDropHint": "Files of formats the reader doesn’t take are left out.",
   "deviceFile": "File",
   "deviceNotMounted": "Not mounted",
   "deviceMounting": "Mounting…",

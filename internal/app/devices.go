@@ -39,12 +39,36 @@ type devicesState struct {
 	// the switcher; connecting is the one being mounted, by node.
 	available  []device.Available
 	connecting string
-	// failed are the errors already said, so each is said once.
+	// failed are the errors already said, so each is said once while the
+	// watcher still reports it; one said again after a replug is new.
 	failed map[string]bool
 	// view is the reader whose page shows.
 	view *deviceView
 	// busy is the reader being written to, by Info().ID; "" for none.
 	busy string
+	// ejecting is the reader being ejected, which goes without a word.
+	ejecting device.Device
+	// remove is the removal from a reader being asked about.
+	remove readerRemoval
+	// lib indexes the library's books for matching a reader's; nil until
+	// needed, and again whenever the library's books change.
+	lib *libIndex
+}
+
+// readerRemoval is books to remove from a reader, once the user says so.
+type readerRemoval struct {
+	open   bool
+	dev    device.Device
+	lpaths []string
+	// title is the one book's, "" for many.
+	title string
+}
+
+// libIndex finds the library's book of a reader's: by uuid, else by title
+// and first author.
+type libIndex struct {
+	byUUID map[string]int64
+	byKey  map[string]int64
 }
 
 // deviceView is a reader's page: its books, as the shelf shows them, and
@@ -78,9 +102,6 @@ type deviceView struct {
 	loading map[coverKey]bool
 
 	free, total int64
-
-	deleteOpen bool
-	deleteIDs  []int64
 }
 
 // deviceDrivers are the kinds of readers Dalibre knows.
@@ -130,12 +151,20 @@ func (a *App) devicesChanged() {
 			}})
 		}
 	}
+	failed := map[string]bool{}
 	for _, err := range ds.watcher.Errors() {
-		if !ds.failed[err.Error()] {
-			ds.failed[err.Error()] = true
-			a.toastError(errors.New(locales.DeviceOpenFailed("Kindle", err.Error())))
+		name := ""
+		var oe *device.OpenError
+		if errors.As(err, &oe) {
+			name = kindName(oe.Kind)
+		}
+		key := name + "\x00" + err.Error()
+		failed[key] = true
+		if !ds.failed[key] {
+			a.toastError(errors.New(locales.DeviceOpenFailed(name, err.Error())))
 		}
 	}
+	ds.failed = failed
 	if v := ds.view; v != nil && !slices.Contains(ds.list, v.dev) {
 		// The same reader opened again keeps its page; one gone closes it.
 		if d := sameReader(ds.list, v.dev); d != nil {
@@ -147,8 +176,20 @@ func (a *App) devicesChanged() {
 		if a.page == pageDevice {
 			a.page = pageLibrary
 		}
-		a.toastError(errors.New(locales.WirelessLost(v.info.Name)))
+		// One ejected is said by ejectReader.
+		if v.dev != ds.ejecting {
+			a.toastError(errors.New(locales.WirelessLost(v.info.Name)))
+		}
 	}
+}
+
+// kindName is what readers of a driver's kind are called.
+func kindName(kind string) string {
+	switch kind {
+	case "kindle":
+		return "Kindle"
+	}
+	return kind
 }
 
 // sameReader is the reader of list that is d, opened again: on the same
@@ -168,10 +209,10 @@ func availableName(av device.Available) string {
 	if av.Label != "" {
 		return av.Label
 	}
-	if av.Kind == "kindle" {
-		return "Kindle"
+	if av.USB.Name != "" && av.Kind != "kindle" {
+		return av.USB.Name
 	}
-	return av.USB.Name
+	return kindName(av.Kind)
 }
 
 // connectReader mounts a reader plugged in but not mounted, and shows its
@@ -301,20 +342,44 @@ func matchKey(title string, authors []string) string {
 // matchDeviceBooks finds the library's book of each of the reader's: by
 // uuid, else by title and author.
 func (a *App) matchDeviceBooks(v *deviceView) {
-	byUUID := make(map[string]int64, len(a.books))
-	byKey := make(map[string]int64, len(a.books))
-	for _, b := range a.books {
-		byUUID[b.UUID] = b.ID
-		byKey[matchKey(b.Title, b.Authors)] = b.ID
-	}
+	idx := a.libraryIndex()
 	v.inLib = map[int64]int64{}
 	for id, b := range v.byID {
-		if lid, ok := byUUID[b.UUID]; ok && b.UUID != "" {
-			v.inLib[id] = lid
-		} else if lid, ok := byKey[matchKey(b.Title, b.Authors)]; ok {
+		if lid, ok := idx.match(b.UUID, b.Title, b.Authors); ok {
 			v.inLib[id] = lid
 		}
 	}
+}
+
+// libraryIndex is the library's books indexed for matching a reader's.
+func (a *App) libraryIndex() *libIndex {
+	if a.dev != nil && a.dev.lib != nil {
+		return a.dev.lib
+	}
+	idx := &libIndex{byUUID: make(map[string]int64, len(a.books)), byKey: make(map[string]int64, len(a.books))}
+	for _, b := range a.books {
+		if b.UUID != "" {
+			idx.byUUID[b.UUID] = b.ID
+		}
+		idx.byKey[matchKey(b.Title, b.Authors)] = b.ID
+	}
+	if a.dev != nil {
+		a.dev.lib = idx
+	}
+	return idx
+}
+
+// match is the library's book of a reader's book: the one of its uuid,
+// else, when the uuid is none of the library's, the one of its title and
+// author.
+func (idx *libIndex) match(uuid, title string, authors []string) (int64, bool) {
+	if uuid != "" {
+		if lid, ok := idx.byUUID[uuid]; ok {
+			return lid, true
+		}
+	}
+	lid, ok := idx.byKey[matchKey(title, authors)]
+	return lid, ok
 }
 
 // visible are the reader's books the page's query selects.
@@ -551,21 +616,33 @@ func (a *App) deviceWritten(d device.Device) {
 
 // readerBooksOf are the reader's books that are the library's books of
 // ids, by LPath.
+// A reader's book matches as on its page (libIndex.match), so a book whose
+// uuid is another of the library's isn't taken for one of ids by its title.
 func (a *App) readerBooksOf(d device.Device, ids []int64) []string {
-	byUUID, byKey := map[string]bool{}, map[string]bool{}
+	want := make(map[int64]bool, len(ids))
 	for _, id := range ids {
-		if b := a.byID[id]; b != nil {
-			byUUID[b.UUID] = true
-			byKey[matchKey(b.Title, b.Authors)] = true
-		}
+		want[id] = true
 	}
+	idx := a.libraryIndex()
 	var out []string
 	for _, it := range d.Books() {
-		if (it.UUID != "" && byUUID[it.UUID]) || byKey[matchKey(it.Title, it.Authors)] {
+		if lid, ok := idx.match(it.UUID, it.Title, it.Authors); ok && want[lid] {
 			out = append(out, it.LPath)
 		}
 	}
 	return out
+}
+
+// askRemoveFrom asks before removing the reader's books at lpaths; title
+// is the one book's, "" for many.
+func (a *App) askRemoveFrom(d device.Device, lpaths []string, title string) {
+	if a.dev == nil || len(lpaths) == 0 {
+		return
+	}
+	if len(lpaths) > 1 {
+		title = ""
+	}
+	a.dev.remove = readerRemoval{open: true, dev: d, lpaths: lpaths, title: title}
 }
 
 // removeFromReader deletes the reader's books at lpaths.
@@ -686,10 +763,11 @@ func (a *App) ejectReader(d device.Device) {
 	name := d.Info().Name
 	w := a.dev.watcher
 	a.dev.busy = d.Info().ID
+	a.dev.ejecting = d
 	a.run(func() {
 		err := w.Eject(d)
 		a.post(func() {
-			a.dev.busy = ""
+			a.dev.busy, a.dev.ejecting = "", nil
 			if err != nil {
 				a.toastError(err)
 				return
