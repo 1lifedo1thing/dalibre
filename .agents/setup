@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Orb setup for Dalibre: the Go toolchain at go.mod's version, warm Go
+# caches, Node dependencies for site/ and marketplace/, and the seeded
+# sample library. Idempotent — safe to rerun on a stale snapshot.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+step() { printf '\n[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
+
+# Go, at the version go.mod pins. Skipped when the installed one is new enough.
+need="$(awk '$1 == "go" { print $2; exit }' go.mod)" # e.g. 1.27.3
+have="$(go version 2>/dev/null | awk '{ print $3 }' | cut -c3- || true)"
+if [ -z "$have" ] || [ "$(printf '%s\n%s\n' "$need" "$have" | sort -V | head -1)" != "$need" ]; then
+	step "installing Go $need (have: ${have:-none})"
+	arch=amd64
+	[ "$(uname -m)" = aarch64 ] && arch=arm64
+	curl -fsSL -o /tmp/go.tgz "https://go.dev/dl/go${need}.linux-${arch}.tar.gz"
+	sudo rm -rf /usr/local/go
+	sudo tar -C /usr/local -xzf /tmp/go.tgz
+	rm -f /tmp/go.tgz
+	sudo ln -sf /usr/local/go/bin/go /usr/local/bin/go
+	sudo ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+fi
+step "Go $(go version | awk '{ print $3 }')"
+
+# Warm the module and build caches, and build the mygo tool dependency.
+step 'go mod download'
+go mod download
+step 'go build ./...'
+go build ./...
+step 'go build tool (mygo)'
+go build -o /dev/null tool
+step 'compile the tests (runs none of them)'
+go test -count=1 -run '^$' ./...
+
+# Node comes with the orb; install what site/ and marketplace/ lock.
+for p in site marketplace; do
+	[ -f "$p/package-lock.json" ] || continue
+	step "$p: npm ci"
+	(cd "$p" && npm ci --no-audit --no-fund)
+done
+
+# The sample library of the README's develop section.
+if [ ! -f 'testdata/Sample Library/metadata.db' ]; then
+	step 'seeding testdata/Sample Library'
+	go run ./cmd/seed './testdata/Sample Library'
+fi
+
+# Notes for agents working in this orb.
+note="$HOME/.config/amp/AGENTS.md"
+mkdir -p "$(dirname "$note")"
+if ! grep -Fq '<!-- dalibre orb -->' "$note" 2>/dev/null; then
+	cat >> "$note" <<'EOF'
+
+<!-- dalibre orb -->
+# Dalibre (this orb)
+
+- Go (the version go.mod pins) is installed at /usr/local/go, on PATH; caches are warm.
+- `go test ./...` runs unit and view tests with no window; `DALIBRE_SHOTS=<folder> go test ./internal/app` saves view screenshots.
+- `testdata/Sample Library` is a seeded library; recreate it with `go run ./cmd/seed './testdata/Sample Library'`.
+- site/ and marketplace/ have their node_modules installed (`npm run dev` in site/ starts the site).
+EOF
+fi
+
+step 'done'

@@ -1,4 +1,5 @@
 /testdata/
+/.amp/portals/*
 /build/
 /cmd/dalibre/build/
 .mygo/
