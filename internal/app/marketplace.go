@@ -175,7 +175,7 @@ func (a *App) listingState(l *plugin.Listing) listingState {
 		}
 		return listingAvailable
 	}
-	if u := a.updates[l.ID]; u != nil && loadedOK(a, l.ID) {
+	if a.updates[l.ID] != nil {
 		return listingUpdate
 	}
 	return listingInstalled

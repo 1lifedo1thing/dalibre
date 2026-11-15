@@ -118,6 +118,10 @@ func (a *App) pluginStatus(k knownPlugin) (text string, tone ui.Color, loaded bo
 	if slices.ContainsFunc(a.pluginsPending, func(m *plugin.Manifest) bool { return m.ID == id }) {
 		return locales.PluginsStatusNeedsReview(), pal().Warning.FG, false
 	}
+	// An update can be what fixes a plugin that doesn't load.
+	if u := a.updates[id]; u != nil && !a.pluginOff(id) {
+		return locales.PluginsStatusUpdate(k.manifest.Version, u.label), pal().TextAccent, false
+	}
 	if missing := a.tl.missing[id]; len(missing) > 0 {
 		for _, t := range missing {
 			if j := a.toolJobFor(id, t); j != nil && j.running {
@@ -126,16 +130,17 @@ func (a *App) pluginStatus(k knownPlugin) (text string, tone ui.Color, loaded bo
 		}
 		return locales.ToolsStatusNeeds(strings.Join(missing, ", ")), pal().Warning.FG, false
 	}
-	if u := a.updates[id]; u != nil && loadedOK(a, id) {
-		return locales.PluginsStatusUpdate(k.manifest.Version, u.label), pal().TextAccent, true
-	}
-	if st := a.settings.Plugins[id]; st != nil && st.Disabled {
+	if a.pluginOff(id) {
 		return locales.PluginsStatusOff(k.manifest.Version), pal().TextTertiary, false
 	}
 	return locales.PluginsStatusFailed(), pal().Danger.FG, false
 }
 
-func loadedOK(a *App, id string) bool { return a.pluginByID(id) != nil }
+// pluginOff says the user turned plugin id off.
+func (a *App) pluginOff(id string) bool {
+	st := a.settings.Plugins[id]
+	return st != nil && st.Disabled
+}
 
 // pluginsPane is the Plugins window's Installed tab: the plugins Dalibre found, and the
 // one chosen.
@@ -207,17 +212,17 @@ func (a *App) pluginRow(c *ui.Context, k knownPlugin) {
 			if widgets.ButtonSized(c, widgets.Secondary, nil, locales.PluginsReview(), theme.ControlS).Clicked() {
 				a.askConsent(m.ID)
 			}
+		case a.updates[m.ID] != nil && !a.pluginOff(m.ID):
+			if a.updates[m.ID].busy {
+				ui.Spinner(c).Size(16, 16).Label(locales.PluginsUpdatingLabel(m.Name))
+			} else if widgets.ButtonSized(c, widgets.Secondary, nil, locales.CommonUpdate(), theme.ControlS).Clicked() {
+				a.updatePlugin(m.ID, false)
+			}
 		case len(a.tl.missing[m.ID]) > 0:
 			if tone == pal().TextAccent {
 				ui.Spinner(c).Size(16, 16).Label(status)
 			} else {
 				ui.Icon(c, icons.Alert).FontSize(16).TextColor(pal().Warning.FG)
-			}
-		case a.updates[m.ID] != nil && loaded:
-			if a.updates[m.ID].busy {
-				ui.Spinner(c).Size(16, 16).Label(locales.PluginsUpdatingLabel(m.Name))
-			} else if widgets.ButtonSized(c, widgets.Secondary, nil, locales.CommonUpdate(), theme.ControlS).Clicked() {
-				a.updatePlugin(m.ID, false)
 			}
 		case status == locales.PluginsStatusFailed():
 			ui.Icon(c, icons.Alert).FontSize(16).TextColor(pal().Danger.FG)
@@ -328,7 +333,7 @@ func (a *App) pluginPane(c *ui.Context, k knownPlugin) {
 	if m.Description != "" {
 		ui.Text(c, m.Description).FontSize(13).TextColor(pal().TextSecondary)
 	}
-	if u := a.updates[m.ID]; u != nil && loaded {
+	if u := a.updates[m.ID]; u != nil {
 		a.updateBanner(c, m, u)
 	}
 	if st := a.settings.Plugins[m.ID]; st != nil && st.Source != nil && !k.builtin {

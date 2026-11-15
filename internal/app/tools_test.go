@@ -137,6 +137,20 @@ func TestPluginTools(t *testing.T) {
 		t.Errorf("status %q", status)
 	}
 
+	// An update can be what brings the tool back: it shows though the
+	// plugin doesn't load.
+	a.updates = map[string]*pluginUpdate{"com.example.tooly": {ref: "v1.2.0", label: "v1.2.0"}}
+	if status, _, _ := a.pluginStatus(a.pluginsKnown[0]); status != "1.1.0 → v1.2.0" {
+		t.Errorf("status with an update %q", status)
+	}
+	a.openPlugins("com.example.tooly")
+	tt.Frame()
+	if !tt.HasText("v1.2.0 is available") {
+		t.Errorf("no update banner on the plugin page: %q", tt.Texts())
+	}
+	a.pluginsOpen = false
+	a.updates = nil
+
 	// Uninstalling keeps only the builds other plugins declare.
 	a.uninstallPlugin("com.example.tooly")
 	if entries, _ := os.ReadDir(plugin.ToolsDir(a.pluginDir)); len(entries) != 0 {
