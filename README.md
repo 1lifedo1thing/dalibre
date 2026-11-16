@@ -109,6 +109,9 @@ formats with their own tools. See
 
 ## Licenses
 
+Dalibre is free software under the [GNU General Public License v3.0 or
+later](LICENSE).
+
 `internal/calibre/metadata_sqlite.sql` comes from calibre (GPL-3.0). Fonts
 (Inter, Geist Mono) are under the SIL Open Font License; icons
 are Lucide (ISC); colors are Radix Colors (MIT).
