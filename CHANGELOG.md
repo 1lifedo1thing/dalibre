@@ -4,6 +4,21 @@ Each version's section is the release notes that Dalibre's update window
 shows, so write them for readers of the app. `mygo build` needs a
 `## <version>` section for the version in `cmd/dalibre/mygo.json`.
 
+## 0.6.1
+
+- A Kindle plugged in as a USB drive (the ones before 2024) is a library
+  of its own, below the recent libraries: browse, search and sort its
+  books, send books to it, and remove them, in the library calibre keeps
+  on it.
+- Your library's books that are on a reader plugged in wear its name in
+  the shelf and the list, and a book's details send it to the reader or
+  remove it from there.
+- A Kindle whose drive isn't mounted shows as Not mounted: choosing it
+  mounts it and opens its library.
+- A plugin that doesn't load offers the update that may fix it.
+- dalibre-plugin downloads a book once, even when the plugin fetches it
+  with a program such as pandoc.
+
 ## 0.6.0
 
 - Open, in a book's details, opens it in the editor or in your system's
