@@ -894,6 +894,7 @@
   "deviceInLibrary": "在你的書庫中",
   "deviceNotInLibrary": "不在你的書庫中",
   "deviceShowInLibrary": "在書庫中顯示",
+  "deviceOnReader": "在 {device} 上",
   "deviceRemoveBookTitle": "要從 {device} 移除「{title}」嗎?",
   "deviceRemoveBooksTitle": "要從 {device} 移除 {count, plural, other {# 本書}}嗎?",
   "deviceEmptyTitle": "{device} 上沒有書",

@@ -94,7 +94,7 @@ func (a *App) bookDetail(c *ui.Context, b *calibre.Book) {
 	// Cover, title, actions.
 	ui.Column(c).Gap(theme.Space20).AlignItems(ui.Center).Children(func() {
 		ui.Row(c).FillWidth().Justify(ui.Center).Padding(theme.Space24, 0).Radius(theme.RadiusLG).Background(pal().Subtle).Children(func() {
-			a.coverView(c, b, 152, 228, false)
+			coverObi(c, b, a.cover(b, 456), 152, 228, false, a.readerName(b.ID))
 			// The book's actions, in the cover's corner.
 			ui.Box(c).Absolute().Top(theme.Space8).Right(theme.Space8).Children(func() {
 				// Raised off the cover's backdrop so it reads as a button.
@@ -146,6 +146,7 @@ func (a *App) bookDetail(c *ui.Context, b *calibre.Book) {
 			}
 		})
 		a.openButton(c, b, d)
+		a.onReaderRow(c, b)
 	})
 	widgets.Hairline(c)
 	// Details.

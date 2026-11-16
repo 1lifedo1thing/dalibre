@@ -1084,6 +1084,7 @@
   "deviceInLibrary": "라이브러리에 있음",
   "deviceNotInLibrary": "라이브러리에 없음",
   "deviceShowInLibrary": "라이브러리에서 보기",
+  "deviceOnReader": "{device}에 있음",
   "deviceRemoveBookTitle": "{device}에서 “{title}”을(를) 제거할까요?",
   "deviceRemoveBooksTitle": "{device}에서 {count, plural, other {#권}}을 제거할까요?",
   "deviceEmptyTitle": "{device}에 책이 없습니다",

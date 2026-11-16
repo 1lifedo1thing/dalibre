@@ -44,6 +44,9 @@ type shelf struct {
 	menu   func(b *calibre.Book) func(m *ui.Menu)
 	cover  func(b *calibre.Book, height int) *ui.Bitmap
 	open   func(b *calibre.Book)
+	// reader is the reader the book is on, for its obi; nil on a reader's own
+	// page.
+	reader func(b *calibre.Book) string
 }
 
 // libraryShelf is the library's books.
@@ -51,7 +54,8 @@ func (a *App) libraryShelf() shelf {
 	return shelf{
 		grid: &a.grid, table: &a.table, tableSort: &a.tableSort, chosen: &a.chosen, cur: &a.cur, query: &a.query,
 		sorted: a.saveSettings, menu: a.bookMenu, cover: a.cover,
-		open: func(*calibre.Book) { a.openBook(a.current(), "") },
+		reader: func(b *calibre.Book) string { return a.readerName(b.ID) },
+		open:   func(*calibre.Book) { a.openBook(a.current(), "") },
 	}
 }
 
@@ -137,7 +141,7 @@ func (a *App) shelfSlotBody(c *ui.Context, s shelf, b *calibre.Book, chosen bool
 	slot.Children(func() {
 		ui.Column(c).Height(shelfBayH).Justify(ui.End).AlignItems(ui.Center).Padding(0, 0, lift, 0).Children(func() {
 			bmp := s.cover(b, theme.CoverH*2)
-			cov := coverOf(c, b, bmp, theme.CoverW, shelfCoverH(bmp), false)
+			cov := coverObi(c, b, bmp, theme.CoverW, shelfCoverH(bmp), false, s.readerOf(b))
 			if lift > 0 {
 				cov.Shadow(0, 14, 22, -6, ink.Alpha(0.26))
 			}
@@ -205,7 +209,7 @@ func tableColumns() []ui.TableColumn {
 		{ID: "author", Title: locales.CommonAuthor(), Width: 130, Sortable: true},
 		{ID: "series", Title: locales.CommonSeries(), Width: 110, Sortable: true},
 		{ID: "rating", Title: locales.CommonRating(), Width: 84, Sortable: true},
-		{ID: "formats", Title: locales.BooksColFormats(), Width: 92},
+		{ID: "formats", Title: locales.BooksColFormats(), Width: 140},
 		{ID: "size", Title: locales.BooksColSize(), Width: 76, Align: ui.End, Sortable: true},
 		{ID: "added", Title: locales.BooksColAdded(), Width: 96, Align: ui.End, Sortable: true},
 	}
@@ -273,6 +277,9 @@ func (a *App) listView(c *ui.Context, s shelf, shown []*calibre.Book) {
 				ui.Row(c).Gap(theme.Space4).Children(func() {
 					for _, f := range b.Formats {
 						widgets.FormatBadge(c.Key(f), f, false)
+					}
+					if r := s.readerOf(b); r != "" {
+						widgets.ReaderTag(c.Key("reader"), r)
 					}
 				})
 			case 6:
@@ -396,4 +403,12 @@ func isoDate(t time.Time) string {
 		return "—"
 	}
 	return t.Local().Format("2006-01-02")
+}
+
+// readerOf is the reader b is on, for its obi; "" for none.
+func (s shelf) readerOf(b *calibre.Book) string {
+	if s.reader == nil {
+		return ""
+	}
+	return s.reader(b)
 }

@@ -1121,6 +1121,7 @@
   "deviceInLibrary": "In your library",
   "deviceNotInLibrary": "Not in your library",
   "deviceShowInLibrary": "Show in library",
+  "deviceOnReader": "On {device}",
   "deviceRemoveBookTitle": "Remove “{title}” from {device}?",
   "deviceRemoveBooksTitle": "Remove {count, plural, one {# book} other {# books}} from {device}?",
   "@deviceRemoveBooksTitle": {

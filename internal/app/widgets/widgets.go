@@ -127,6 +127,32 @@ func FormatBadge(c *ui.Context, format string, small bool) ui.Element {
 	})
 }
 
+// ReaderObi is ReaderMark Kind=Obi: the band round the bottom of a cover
+// w wide, as a book's obi, naming the reader the book is on. It goes in
+// the cover, at its bottom.
+func ReaderObi(c *ui.Context, reader string, w float32) ui.Element {
+	scale := w / theme.CoverW
+	fg := pal().TextOnInverse
+	return ui.Row(c).Absolute().Left(0).Right(0).Bottom(0).Height(ObiHeight*scale).PassThrough().
+		Background(pal().Inverse).Shadow(0, -1, 2, 0, ui.RGBA(0, 0, 0, 0.18)).
+		Justify(ui.Center).AlignItems(ui.Center).Gap(theme.Space6 * scale).Children(func() {
+		ui.Box(c).Size(10*scale, 1).Background(fg.Alpha(0.5))
+		ui.Text(c, strings.ToUpper(reader)).FontSize(11 * scale).FontWeight(600).LetterSpacing(0.6 * scale).TextColor(fg).SingleLine().Shrink(1)
+		ui.Box(c).Size(10*scale, 1).Background(fg.Alpha(0.5))
+	})
+}
+
+// ObiHeight is a ReaderObi's height on a cover theme.CoverW wide.
+const ObiHeight = 22
+
+// ReaderTag is ReaderMark Kind=Tag: the reader a book is on, as a badge
+// beside its formats.
+func ReaderTag(c *ui.Context, reader string) ui.Element {
+	return ui.Row(c).Radius(theme.RadiusXS).Background(pal().Inverse).Padding(theme.Space2+1, theme.Space6).Children(func() {
+		ui.Text(c, strings.ToUpper(reader)).Font(theme.FontMono).FontWeight(500).FontSize(10).LetterSpacing(0.4).TextColor(pal().TextOnInverse).SingleLine()
+	})
+}
+
 // Tag is the Tag component. It reports a click on the chip, and onRemove
 // adds a remove Button.
 func Tag(c *ui.Context, label string, selected bool, onRemove func()) ui.Element {

@@ -53,6 +53,48 @@ type devicesState struct {
 	// lib indexes the library's books for matching a reader's; nil until
 	// needed, and again whenever the library's books change.
 	lib *libIndex
+	// on is the reader each of the library's books is on, by its id; nil
+	// until needed, and again whenever the readers or their books or the
+	// library's change.
+	on map[int64]device.Device
+}
+
+// readerOf is the reader the library's book id is on, the first of them
+// when it is on several; nil when it is on none, or no reader is plugged
+// in.
+func (a *App) readerOf(id int64) device.Device {
+	ds := a.dev
+	if ds == nil || len(ds.list) == 0 {
+		return nil
+	}
+	if ds.on == nil {
+		idx := a.libraryIndex()
+		ds.on = map[int64]device.Device{}
+		for _, d := range ds.list {
+			for _, it := range d.Books() {
+				if lid, ok := idx.match(it.UUID, it.Title, it.Authors); ok && ds.on[lid] == nil {
+					ds.on[lid] = d
+				}
+			}
+		}
+	}
+	return ds.on[id]
+}
+
+// readerName is the name of the reader the library's book id is on, ""
+// for none.
+func (a *App) readerName(id int64) string {
+	if d := a.readerOf(id); d != nil {
+		return d.Info().Name
+	}
+	return ""
+}
+
+// readerBooksChanged forgets which reader each book is on, to look again.
+func (a *App) readerBooksChanged() {
+	if a.dev != nil {
+		a.dev.on = nil
+	}
 }
 
 // readerRemoval is books to remove from a reader, once the user says so.
@@ -140,7 +182,7 @@ func (a *App) devicesChanged() {
 		return
 	}
 	before := ds.list
-	ds.list = ds.watcher.Devices()
+	ds.list, ds.on = ds.watcher.Devices(), nil
 	ds.available = ds.watcher.Available()
 	for _, d := range ds.list {
 		// One the user asked to mount opens by itself, unannounced.
@@ -228,7 +270,7 @@ func (a *App) connectReader(av device.Available) {
 		d, err := w.Connect(context.Background(), av.Node)
 		a.post(func() {
 			ds.connecting = ""
-			ds.list, ds.available = w.Devices(), w.Available()
+			ds.list, ds.available, ds.on = w.Devices(), w.Available(), nil
 			if err != nil {
 				a.toastError(errors.New(locales.DeviceMountFailed(name, err.Error())))
 				return
@@ -609,6 +651,7 @@ func (a *App) deviceWritten(d device.Device) {
 	if a.dev == nil {
 		return
 	}
+	a.dev.on = nil
 	if v := a.dev.view; v != nil && v.dev == d {
 		a.loadDeviceBooks(v)
 	}
@@ -772,7 +815,7 @@ func (a *App) ejectReader(d device.Device) {
 				a.toastError(err)
 				return
 			}
-			a.dev.list = w.Devices()
+			a.dev.list, a.dev.on = w.Devices(), nil
 			if v := a.dev.view; v != nil && v.dev == d {
 				a.dev.view = nil
 				if a.page == pageDevice {

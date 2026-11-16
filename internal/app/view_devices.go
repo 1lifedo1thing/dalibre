@@ -460,3 +460,21 @@ func (a *App) deviceDropOverlay(c *ui.Context, v *deviceView) {
 		})
 	})
 }
+
+// onReaderRow says, in a library book's detail, which reader it is on,
+// with Remove from it; nothing when it is on none.
+func (a *App) onReaderRow(c *ui.Context, b *calibre.Book) {
+	d := a.readerOf(b.ID)
+	if d == nil {
+		return
+	}
+	name := d.Info().Name
+	busy := a.dev.busy != "" || a.busy != ""
+	ui.Row(c.Key("on-reader")).FillWidth().Padding(theme.Space6, theme.Space6, theme.Space6, theme.Space12).Radius(theme.RadiusMD).
+		Background(pal().Subtle).AlignItems(ui.Center).Gap(theme.Space8).Children(func() {
+		ui.Text(c, locales.DeviceOnReader(name)).FontSize(13).TextColor(pal().TextSecondary).Grow(1).SingleLine()
+		if widgets.ButtonSized(c, widgets.Ghost, nil, locales.CommonRemove(), theme.ControlS).Tooltip(locales.WirelessRemoveFrom(name)).Disabled(busy).Clicked() {
+			a.askRemoveFrom(d, a.readerBooksOf(d, []int64{b.ID}), b.Title)
+		}
+	})
+}

@@ -1084,6 +1084,7 @@
   "deviceInLibrary": "In deiner Bibliothek",
   "deviceNotInLibrary": "Nicht in deiner Bibliothek",
   "deviceShowInLibrary": "In der Bibliothek zeigen",
+  "deviceOnReader": "Auf {device}",
   "deviceRemoveBookTitle": "„{title}“ von {device} entfernen?",
   "deviceRemoveBooksTitle": "{count, plural, one {# Buch} other {# Bücher}} von {device} entfernen?",
   "deviceEmptyTitle": "Keine Bücher auf {device}",

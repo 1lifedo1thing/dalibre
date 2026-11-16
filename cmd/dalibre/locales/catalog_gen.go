@@ -8387,6 +8387,16 @@ func (msgs Messages) DeviceShowInLibrary() string {
 	return Catalog.Format(msgs.locale, "deviceShowInLibrary", nil)
 }
 
+// DeviceOnReader says "On {device}"
+// in the language the app shows.
+func DeviceOnReader(device string) string { return In(i18n.Locale()).DeviceOnReader(device) }
+
+// DeviceOnReader says "On {device}"
+// in the language of msgs.
+func (msgs Messages) DeviceOnReader(device string) string {
+	return Catalog.Format(msgs.locale, "deviceOnReader", map[string]any{"device": device})
+}
+
 // DeviceRemoveBookTitle says "Remove “{title}” from {device}?"
 // in the language the app shows.
 func DeviceRemoveBookTitle(title string, device string) string {

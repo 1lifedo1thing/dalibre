@@ -296,3 +296,44 @@ func TestRealKindle(t *testing.T) {
 	tt.Frame()
 	shot(t, tt, "kindle-list")
 }
+
+// The library's books on a reader wear its obi, in the shelf and the
+// detail, and the detail says which reader with Remove; unplugged, none.
+func TestReaderObiInLibrary(t *testing.T) {
+	a := newTestApp(t)
+	root := fakeKindle(t, true)
+	d := plugIn(t, a, root)
+	var dune, other int64
+	for _, b := range a.books {
+		switch b.Title {
+		case "Dune":
+			dune = b.ID
+		case "Piranesi":
+			other = b.ID
+		}
+	}
+	a.sendToReader(d, []int64{dune})
+	if a.readerOf(dune) != d || a.readerOf(other) != nil {
+		t.Fatalf("readerOf: Dune %v, Piranesi %v", a.readerOf(dune), a.readerOf(other))
+	}
+	tt := ui.NewTester(a.View, 1440, 900)
+	tt.Frame()
+	if !tt.HasText("KINDLE") {
+		t.Errorf("no obi on the shelf: %q", tt.Texts())
+	}
+	if err := tt.Click("Dune"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("On Kindle") {
+		t.Errorf("detail: %q", tt.Texts())
+	}
+	shot(t, tt, "library-obi")
+	if err := tt.Click("Remove"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Remove “Dune” from Kindle?") {
+		t.Errorf("Remove from the detail didn't ask: %q", tt.Texts())
+	}
+}
