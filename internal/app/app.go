@@ -188,7 +188,11 @@ type App struct {
 	busy      string // a long action in progress, as an import
 	busyDone  int
 	busyTotal int
-	toasts    []toastMsg
+	// busyStop stops the long action in progress, when it can be.
+	busyStop func()
+	toasts   []toastMsg
+	// ex is the Export to folder dialog.
+	ex exportState
 	// editors are the book editor windows open, by book; editorToasts
 	// the messages waiting for theirs.
 	editors      map[int64]*bookEditor

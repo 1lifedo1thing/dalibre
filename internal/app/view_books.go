@@ -351,6 +351,10 @@ func (a *App) bookMenu(b *calibre.Book) func(m *ui.Menu) {
 		if a.readerMenuItems(m, ids) {
 			above = true
 		}
+		if m.Item(locales.ExportMenu()).Icon(icons.Menu(icons.Download)).Disabled(a.busy != "").Chosen() {
+			a.openExport(ids)
+		}
+		above = true
 		if !many {
 			a.shareMenu(m, b)
 			if m.Item(locales.CommonShowInFolder()).Icon(icons.Menu(icons.Folder)).Chosen() {

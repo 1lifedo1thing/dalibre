@@ -8482,3 +8482,265 @@ func DeviceMountFailed(device string, error string) string {
 func (msgs Messages) DeviceMountFailed(device string, error string) string {
 	return Catalog.Format(msgs.locale, "deviceMountFailed", map[string]any{"device": device, "error": error})
 }
+
+// ExportMenu says "Export to folder…"
+// in the language the app shows.
+func ExportMenu() string { return In(i18n.Locale()).ExportMenu() }
+
+// ExportMenu says "Export to folder…"
+// in the language of msgs.
+func (msgs Messages) ExportMenu() string {
+	return Catalog.Format(msgs.locale, "exportMenu", nil)
+}
+
+// ExportTitle says "Export {count, plural, one {# book} other {# books}}"
+// in the language the app shows.
+func ExportTitle(count int) string { return In(i18n.Locale()).ExportTitle(count) }
+
+// ExportTitle says "Export {count, plural, one {# book} other {# books}}"
+// in the language of msgs.
+func (msgs Messages) ExportTitle(count int) string {
+	return Catalog.Format(msgs.locale, "exportTitle", map[string]any{"count": count})
+}
+
+// ExportSubtitle says "Copies of their files, named from their details"
+// in the language the app shows.
+func ExportSubtitle() string { return In(i18n.Locale()).ExportSubtitle() }
+
+// ExportSubtitle says "Copies of their files, named from their details"
+// in the language of msgs.
+func (msgs Messages) ExportSubtitle() string {
+	return Catalog.Format(msgs.locale, "exportSubtitle", nil)
+}
+
+// ExportFolder says "Folder"
+// in the language the app shows.
+func ExportFolder() string { return In(i18n.Locale()).ExportFolder() }
+
+// ExportFolder says "Folder"
+// in the language of msgs.
+func (msgs Messages) ExportFolder() string {
+	return Catalog.Format(msgs.locale, "exportFolder", nil)
+}
+
+// ExportChooseFolder says "Choose…"
+// in the language the app shows.
+func ExportChooseFolder() string { return In(i18n.Locale()).ExportChooseFolder() }
+
+// ExportChooseFolder says "Choose…"
+// in the language of msgs.
+func (msgs Messages) ExportChooseFolder() string {
+	return Catalog.Format(msgs.locale, "exportChooseFolder", nil)
+}
+
+// ExportNoFolder says "No folder chosen"
+// in the language the app shows.
+func ExportNoFolder() string { return In(i18n.Locale()).ExportNoFolder() }
+
+// ExportNoFolder says "No folder chosen"
+// in the language of msgs.
+func (msgs Messages) ExportNoFolder() string {
+	return Catalog.Format(msgs.locale, "exportNoFolder", nil)
+}
+
+// ExportFileNames says "File names"
+// in the language the app shows.
+func ExportFileNames() string { return In(i18n.Locale()).ExportFileNames() }
+
+// ExportFileNames says "File names"
+// in the language of msgs.
+func (msgs Messages) ExportFileNames() string {
+	return Catalog.Format(msgs.locale, "exportFileNames", nil)
+}
+
+// ExportTemplateHint says "A / starts a folder. {example} adds the / only to books in a series. Fields: {fields}"
+// in the language the app shows.
+func ExportTemplateHint(example string, fields string) string {
+	return In(i18n.Locale()).ExportTemplateHint(example, fields)
+}
+
+// ExportTemplateHint says "A / starts a folder. {example} adds the / only to books in a series. Fields: {fields}"
+// in the language of msgs.
+func (msgs Messages) ExportTemplateHint(example string, fields string) string {
+	return Catalog.Format(msgs.locale, "exportTemplateHint", map[string]any{"example": example, "fields": fields})
+}
+
+// ExportFormats says "Formats"
+// in the language the app shows.
+func ExportFormats() string { return In(i18n.Locale()).ExportFormats() }
+
+// ExportFormats says "Formats"
+// in the language of msgs.
+func (msgs Messages) ExportFormats() string {
+	return Catalog.Format(msgs.locale, "exportFormats", nil)
+}
+
+// ExportWhenThere says "When a file is already there"
+// in the language the app shows.
+func ExportWhenThere() string { return In(i18n.Locale()).ExportWhenThere() }
+
+// ExportWhenThere says "When a file is already there"
+// in the language of msgs.
+func (msgs Messages) ExportWhenThere() string {
+	return Catalog.Format(msgs.locale, "exportWhenThere", nil)
+}
+
+// ExportKeepBoth says "Keep both, numbered"
+// in the language the app shows.
+func ExportKeepBoth() string { return In(i18n.Locale()).ExportKeepBoth() }
+
+// ExportKeepBoth says "Keep both, numbered"
+// in the language of msgs.
+func (msgs Messages) ExportKeepBoth() string {
+	return Catalog.Format(msgs.locale, "exportKeepBoth", nil)
+}
+
+// ExportReplace says "Replace it"
+// in the language the app shows.
+func ExportReplace() string { return In(i18n.Locale()).ExportReplace() }
+
+// ExportReplace says "Replace it"
+// in the language of msgs.
+func (msgs Messages) ExportReplace() string {
+	return Catalog.Format(msgs.locale, "exportReplace", nil)
+}
+
+// ExportSkip says "Skip it"
+// in the language the app shows.
+func ExportSkip() string { return In(i18n.Locale()).ExportSkip() }
+
+// ExportSkip says "Skip it"
+// in the language of msgs.
+func (msgs Messages) ExportSkip() string {
+	return Catalog.Format(msgs.locale, "exportSkip", nil)
+}
+
+// ExportExtras says "Save each book’s cover and metadata (.jpg, .opf) beside it"
+// in the language the app shows.
+func ExportExtras() string { return In(i18n.Locale()).ExportExtras() }
+
+// ExportExtras says "Save each book’s cover and metadata (.jpg, .opf) beside it"
+// in the language of msgs.
+func (msgs Messages) ExportExtras() string {
+	return Catalog.Format(msgs.locale, "exportExtras", nil)
+}
+
+// ExportASCII says "ASCII names only (三体 → San Ti)"
+// in the language the app shows.
+func ExportASCII() string { return In(i18n.Locale()).ExportASCII() }
+
+// ExportASCII says "ASCII names only (三体 → San Ti)"
+// in the language of msgs.
+func (msgs Messages) ExportASCII() string {
+	return Catalog.Format(msgs.locale, "exportASCII", nil)
+}
+
+// ExportPreview says "Preview · {count, plural, one {# file} other {# files}}"
+// in the language the app shows.
+func ExportPreview(count int) string { return In(i18n.Locale()).ExportPreview(count) }
+
+// ExportPreview says "Preview · {count, plural, one {# file} other {# files}}"
+// in the language of msgs.
+func (msgs Messages) ExportPreview(count int) string {
+	return Catalog.Format(msgs.locale, "exportPreview", map[string]any{"count": count})
+}
+
+// ExportMore says "and {count} more"
+// in the language the app shows.
+func ExportMore(count int) string { return In(i18n.Locale()).ExportMore(count) }
+
+// ExportMore says "and {count} more"
+// in the language of msgs.
+func (msgs Messages) ExportMore(count int) string {
+	return Catalog.Format(msgs.locale, "exportMore", map[string]any{"count": count})
+}
+
+// ExportNumbered says "Already there"
+// in the language the app shows.
+func ExportNumbered() string { return In(i18n.Locale()).ExportNumbered() }
+
+// ExportNumbered says "Already there"
+// in the language of msgs.
+func (msgs Messages) ExportNumbered() string {
+	return Catalog.Format(msgs.locale, "exportNumbered", nil)
+}
+
+// ExportReplaces says "Replaces"
+// in the language the app shows.
+func ExportReplaces() string { return In(i18n.Locale()).ExportReplaces() }
+
+// ExportReplaces says "Replaces"
+// in the language of msgs.
+func (msgs Messages) ExportReplaces() string {
+	return Catalog.Format(msgs.locale, "exportReplaces", nil)
+}
+
+// ExportSkipped says "Skipped"
+// in the language the app shows.
+func ExportSkipped() string { return In(i18n.Locale()).ExportSkipped() }
+
+// ExportSkipped says "Skipped"
+// in the language of msgs.
+func (msgs Messages) ExportSkipped() string {
+	return Catalog.Format(msgs.locale, "exportSkipped", nil)
+}
+
+// ExportMissing says "Not exported, without these formats: {titles}"
+// in the language the app shows.
+func ExportMissing(titles string) string { return In(i18n.Locale()).ExportMissing(titles) }
+
+// ExportMissing says "Not exported, without these formats: {titles}"
+// in the language of msgs.
+func (msgs Messages) ExportMissing(titles string) string {
+	return Catalog.Format(msgs.locale, "exportMissing", map[string]any{"titles": titles})
+}
+
+// ExportAlreadyThere says "{count, plural, one {# file is already there} other {# files are already there}}"
+// in the language the app shows.
+func ExportAlreadyThere(count int) string { return In(i18n.Locale()).ExportAlreadyThere(count) }
+
+// ExportAlreadyThere says "{count, plural, one {# file is already there} other {# files are already there}}"
+// in the language of msgs.
+func (msgs Messages) ExportAlreadyThere(count int) string {
+	return Catalog.Format(msgs.locale, "exportAlreadyThere", map[string]any{"count": count})
+}
+
+// ExportSubmit says "Export {count, plural, one {# file} other {# files}}"
+// in the language the app shows.
+func ExportSubmit(count int) string { return In(i18n.Locale()).ExportSubmit(count) }
+
+// ExportSubmit says "Export {count, plural, one {# file} other {# files}}"
+// in the language of msgs.
+func (msgs Messages) ExportSubmit(count int) string {
+	return Catalog.Format(msgs.locale, "exportSubmit", map[string]any{"count": count})
+}
+
+// ExportLoading says "Reading the books…"
+// in the language the app shows.
+func ExportLoading() string { return In(i18n.Locale()).ExportLoading() }
+
+// ExportLoading says "Reading the books…"
+// in the language of msgs.
+func (msgs Messages) ExportLoading() string {
+	return Catalog.Format(msgs.locale, "exportLoading", nil)
+}
+
+// ExportBusy says "Exporting"
+// in the language the app shows.
+func ExportBusy() string { return In(i18n.Locale()).ExportBusy() }
+
+// ExportBusy says "Exporting"
+// in the language of msgs.
+func (msgs Messages) ExportBusy() string {
+	return Catalog.Format(msgs.locale, "exportBusy", nil)
+}
+
+// ExportDone says "Exported {count, plural, one {# file} other {# files}} to {folder}"
+// in the language the app shows.
+func ExportDone(count int, folder string) string { return In(i18n.Locale()).ExportDone(count, folder) }
+
+// ExportDone says "Exported {count, plural, one {# file} other {# files}} to {folder}"
+// in the language of msgs.
+func (msgs Messages) ExportDone(count int, folder string) string {
+	return Catalog.Format(msgs.locale, "exportDone", map[string]any{"count": count, "folder": folder})
+}

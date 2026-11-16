@@ -45,7 +45,7 @@ func uploadPath(template, dir string, subDirs bool, b device.Book, ext string, p
 	}
 	var comps []string
 	for _, part := range strings.Split(template, "/") {
-		s := expand(part, fields)
+		s := calibre.ExpandTemplate(part, fields)
 		s = calibre.ASCIIFilename(s)
 		if s == "" {
 			s = "Unknown"
@@ -69,28 +69,6 @@ func seriesIndex(b device.Book) string {
 		return ""
 	}
 	return strconv.FormatFloat(b.SeriesIndex, 'f', -1, 64)
-}
-
-// expand fills a template component's {field}s. A field the book doesn't
-// have leaves nothing, as calibre's templates do.
-func expand(s string, fields map[string]string) string {
-	var b strings.Builder
-	for {
-		i := strings.IndexByte(s, '{')
-		if i < 0 {
-			b.WriteString(s)
-			break
-		}
-		j := strings.IndexByte(s[i:], '}')
-		if j < 0 {
-			b.WriteString(s)
-			break
-		}
-		b.WriteString(s[:i])
-		b.WriteString(fields[strings.TrimSpace(s[i+1:i+j])])
-		s = s[i+j+1:]
-	}
-	return strings.TrimSpace(b.String())
 }
 
 // shortenComponents is calibre's shorten_components_to: when the

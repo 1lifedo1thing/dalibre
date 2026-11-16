@@ -1136,5 +1136,73 @@
   "deviceFile": "File",
   "deviceNotMounted": "Not mounted",
   "deviceMounting": "Mounting…",
-  "deviceMountFailed": "Couldn’t mount {device}: {error}"
+  "deviceMountFailed": "Couldn’t mount {device}: {error}",
+  "exportMenu": "Export to folder…",
+  "exportTitle": "Export {count, plural, one {# book} other {# books}}",
+  "@exportTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exportSubtitle": "Copies of their files, named from their details",
+  "exportFolder": "Folder",
+  "exportChooseFolder": "Choose…",
+  "exportNoFolder": "No folder chosen",
+  "exportFileNames": "File names",
+  "exportTemplateHint": "A / starts a folder. {example} adds the / only to books in a series. Fields: {fields}",
+  "exportFormats": "Formats",
+  "exportWhenThere": "When a file is already there",
+  "exportKeepBoth": "Keep both, numbered",
+  "exportReplace": "Replace it",
+  "exportSkip": "Skip it",
+  "exportExtras": "Save each book’s cover and metadata (.jpg, .opf) beside it",
+  "exportASCII": "ASCII names only (三体 → San Ti)",
+  "exportPreview": "Preview · {count, plural, one {# file} other {# files}}",
+  "@exportPreview": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exportMore": "and {count} more",
+  "@exportMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exportNumbered": "Already there",
+  "exportReplaces": "Replaces",
+  "exportSkipped": "Skipped",
+  "exportMissing": "Not exported, without these formats: {titles}",
+  "exportAlreadyThere": "{count, plural, one {# file is already there} other {# files are already there}}",
+  "@exportAlreadyThere": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exportSubmit": "Export {count, plural, one {# file} other {# files}}",
+  "@exportSubmit": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exportLoading": "Reading the books…",
+  "exportBusy": "Exporting",
+  "exportDone": "Exported {count, plural, one {# file} other {# files}} to {folder}",
+  "@exportDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

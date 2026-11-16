@@ -387,7 +387,11 @@ func (a *App) sidebarFooter(c *ui.Context) {
 		widgets.Hairline(c)
 		if a.busy != "" {
 			ui.Row(c).Padding(theme.Space4, theme.Space4, theme.Space4, theme.Space8).Gap(theme.Space10).AlignItems(ui.Center).Children(func() {
-				if stop := a.act.cancel; stop != nil {
+				stop := a.act.cancel
+				if stop == nil {
+					stop = a.busyStop
+				}
+				if stop != nil {
 					// An action can be stopped: what it does is the plugin's.
 					defer func() {
 						if widgets.IconButton(c, icons.X, locales.ActionStop(a.busy), false).Clicked() {

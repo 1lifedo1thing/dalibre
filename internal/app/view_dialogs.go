@@ -35,6 +35,7 @@ func (a *App) dialogs(c *ui.Context) {
 	a.appUpdateDialog(c)
 	a.formDialog(c)
 	a.reviewDialog(c)
+	a.exportDialog(c)
 }
 
 // ---- Edit metadata

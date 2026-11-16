@@ -47,8 +47,23 @@ type Settings struct {
 	// Wireless is letting readers connect as they connect to calibre,
 	// to be sent books.
 	Wireless Wireless `json:"wireless,omitzero"`
+	// Export is what the user chose last when exporting books to a
+	// folder.
+	Export Export `json:"export,omitzero"`
 
 	path string
+}
+
+// Export is the Export to folder dialog's last answers.
+type Export struct {
+	Folder   string `json:"folder,omitempty"`
+	Template string `json:"template,omitempty"`
+	// Unchecked are the formats the user unchecked, upper case.
+	Unchecked []string `json:"unchecked,omitempty"`
+	// Policy is export.Policy: keep both, replace, skip.
+	Policy int  `json:"policy,omitempty"`
+	ASCII  bool `json:"ascii,omitempty"`
+	Extras bool `json:"extras,omitempty"`
 }
 
 // AppUpdates is what the user chose about new versions of Dalibre.

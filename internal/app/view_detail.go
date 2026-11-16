@@ -82,6 +82,9 @@ func (a *App) multiDetail(c *ui.Context, ids []int64) {
 		ui.Text(c, locales.DetailBooksSelected(len(ids))).FontWeight(600).FontSize(18)
 		ui.Column(c).Gap(theme.Space8).Width(220).AlignItems(ui.Stretch).Children(func() {
 			a.selectionActions(c, ids)
+			if widgets.Button(c, widgets.Secondary, icons.Download, locales.ExportMenu()).Disabled(a.busy != "").Clicked() {
+				a.openExport(ids)
+			}
 			if widgets.Button(c, widgets.Secondary, icons.Trash, locales.CommonRemoveFromLibrary()).Clicked() {
 				a.askDelete(ids)
 			}
@@ -113,6 +116,9 @@ func (a *App) bookDetail(c *ui.Context, b *calibre.Book) {
 					a.pluginActions(m, []int64{b.ID})
 					if m.Item(locales.DetailMenuAddFormat()).Icon(icons.Menu(icons.Plus)).Chosen() {
 						a.addFormat(b.ID)
+					}
+					if m.Item(locales.ExportMenu()).Icon(icons.Menu(icons.Download)).Disabled(a.busy != "").Chosen() {
+						a.openExport([]int64{b.ID})
 					}
 					a.shareMenu(m, b)
 					if m.Item(locales.CommonShowInFolder()).Icon(icons.Menu(icons.Folder)).Chosen() {
