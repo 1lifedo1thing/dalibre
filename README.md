@@ -18,7 +18,7 @@ go run ./cmd/seed "testdata/Sample Library"   # a sample library to play with
 
 Point the app at a library with `DALIBRE_LIBRARY` (PowerShell:
 `$env:DALIBRE_LIBRARY="C:\path\to\Library"`); otherwise it opens the last one
-used, then the one calibre itself uses.
+used. With neither, the welcome screen offers the one calibre itself uses.
 
 View tests can save screenshots: `DALIBRE_SHOTS=<folder> go test ./internal/app`.
 

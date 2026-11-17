@@ -248,6 +248,32 @@ func TestWelcomeWithoutLibrary(t *testing.T) {
 	shot(t, tt, "welcome")
 }
 
+// calibre's library is offered without opening its database, which may be
+// on a network volume SQLite can't lock (issue #20).
+func TestWelcomeOffersCalibreLibrary(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	root := filepath.Join(home, "Calibre Library")
+	lib, err := calibre.Create(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lib.Close()
+	prefs := filepath.Join(home, "Library", "Preferences", "calibre")
+	os.MkdirAll(prefs, 0o755)
+	os.WriteFile(filepath.Join(prefs, "global.py.json"), []byte(`{"library_path": "`+root+`"}`), 0o644)
+
+	a := New("")
+	a.run = func(func()) { t.Error("calibre's library was opened before the user asked") }
+	a.findCalibreLibrary()
+	tt := ui.NewTester(a.View, 1440, 900)
+	tt.Frame()
+	if !tt.HasText("Calibre Library") {
+		t.Fatalf("calibre's library not offered: %q", tt.Texts())
+	}
+	shot(t, tt, "welcome-calibre")
+}
+
 func TestWelcomeCreateLibrary(t *testing.T) {
 	a := New("")
 	a.run = func(fn func()) { fn() }
