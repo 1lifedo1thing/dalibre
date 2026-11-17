@@ -4,6 +4,18 @@ Each version's section is the release notes that Dalibre's update window
 shows, so write them for readers of the app. `mygo build` needs a
 `## <version>` section for the version in `cmd/dalibre/mygo.json`.
 
+## 0.6.2
+
+- Dalibre no longer quits before its window shows when calibre's last
+  library is on a network drive (SMB or AFP): the welcome screen offers
+  it without opening it, so it shows no book count until you open it.
+- Export to folder, in a book's menu and for a selection, copies books'
+  files to a folder you choose, named from their details with a calibre
+  save template, with their covers and OPF if you like.
+- Email books to a Kindle's Send to Kindle address: add your Kindles and
+  the account to send from in Settings › Email, then choose Email to
+  from a book's menu or a selection.
+
 ## 0.6.1
 
 - A Kindle plugged in as a USB drive (the ones before 2024) is a library
