@@ -490,8 +490,8 @@
     {
       "id": "org.randynamic.dalibre.search-internet",
       "name": "Search the Internet",
-      "version": "1.0.0",
-      "description": "Opens a search for a book on Amazon, Goodreads, Wikipedia and other sites",
+      "version": "1.1.0",
+      "description": "Opens a search for a book on Amazon, Goodreads, Wikipedia, Wook, Almedina and other sites, with favorites that open together and custom sites of your own",
       "author": "Randy",
       "license": "GPL-3.0-or-later",
       "icon": "globe",
@@ -501,7 +501,7 @@
       "calibre": "Search The Internet",
       "downloads": 3540,
       "repo": "djyde/dalibre",
-      "package": "https://raw.githubusercontent.com/djyde/dalibre/refs/heads/marketplace/packages/org.randynamic.dalibre.search-internet-1.0.0.dalibre-plugin",
+      "package": "https://raw.githubusercontent.com/djyde/dalibre/refs/heads/marketplace/packages/org.randynamic.dalibre.search-internet-1.1.0.dalibre-plugin",
       "capabilities": {
         "actions": [
           {
@@ -513,6 +513,12 @@
               "min": 1,
               "max": 1
             }
+          },
+          {
+            "id": "customize",
+            "title": "Customize search sites…",
+            "icon": "pencil",
+            "scope": "library"
           }
         ]
       },
@@ -532,6 +538,7 @@
           "recherche.fnac.com",
           "search.douban.com",
           "search.worldcat.org",
+          "www.almedina.net",
           "www.amazon.ca",
           "www.amazon.cn",
           "www.amazon.co.jp",
@@ -560,8 +567,10 @@
           "www.literature-map.com",
           "www.lovereading.co.uk",
           "www.waterstones.com",
-          "www.whatshouldireadnext.com"
+          "www.whatshouldireadnext.com",
+          "www.wook.pt"
         ],
+        "open": "any",
         "library": "read"
       }
     },
