@@ -4,6 +4,13 @@ Each version's section is the release notes that Dalibre's update window
 shows, so write them for readers of the app. `mygo build` needs a
 `## <version>` section for the version in `cmd/dalibre/mygo.json`.
 
+## 0.6.3
+
+- On macOS, a library on a network drive mounted in Finder (SMB or AFP)
+  opens, where Dalibre used to quit.
+- A book sent to a reader over Wireless shows its cover on the reader
+  while it arrives.
+
 ## 0.6.2
 
 - Dalibre no longer quits before its window shows when calibre's last
