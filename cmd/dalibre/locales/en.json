@@ -1204,5 +1204,36 @@
         "type": "int"
       }
     }
-  }
+  },
+  "settingsSectionEmail": "Email",
+  "emailKindlesTitle": "Kindles",
+  "emailKindlesBody": "Books are emailed to these addresses as attachments. Amazon converts them and puts them on the Kindle, where they sync with Whispersync. A Kindle’s address is at amazon.com › Manage Your Content and Devices › Devices.",
+  "emailAddKindle": "Add Kindle",
+  "emailKindleAddress": "Send to Kindle address",
+  "emailSenderTitle": "Sender",
+  "emailSenderBody": "The mail account Dalibre sends from, as set up in a mail app: its SMTP server, address and password. Gmail, iCloud and Outlook want an app password, not the one you sign in with.",
+  "emailServer": "SMTP server",
+  "emailSecurity": "Security",
+  "emailSecurityNone": "None",
+  "emailFrom": "Email",
+  "emailPassword": "App password",
+  "emailTest": "Send a test email",
+  "emailTestSending": "Sending…",
+  "emailTestSent": "Sent to {address} · {time}",
+  "emailTestSubject": "Dalibre test email",
+  "emailTestBody": "Dalibre can send mail from this address. Books emailed to your Kindles come from it the same way.",
+  "emailNote": "Amazon delivers only mail from addresses on your Approved Personal Document E-mail List: add the address above there (Manage Your Content and Devices › Preferences › Personal Document Settings), or Amazon drops the book without a word. Books go as EPUB, else PDF or DOCX, at most 50 MB each.",
+  "emailTo": "Email to {device}",
+  "emailSending": "Emailing to {device}",
+  "emailSent": "Emailed {count, plural, one {# book} other {# books}} to {device}",
+  "@emailSent": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "emailNoFormat": "Not emailed: {titles}. Send to Kindle takes EPUB, PDF, DOCX, RTF, TXT and HTML.",
+  "emailTooBig": "Not emailed: {titles}. Send to Kindle takes files up to 50 MB.",
+  "emailFailed": "Couldn’t email {device}: {reason}"
 }

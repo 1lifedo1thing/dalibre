@@ -351,6 +351,9 @@ func (a *App) bookMenu(b *calibre.Book) func(m *ui.Menu) {
 		if a.readerMenuItems(m, ids) {
 			above = true
 		}
+		if a.emailMenuItems(m, ids) {
+			above = true
+		}
 		if m.Item(locales.ExportMenu()).Icon(icons.Menu(icons.Download)).Disabled(a.busy != "").Chosen() {
 			a.openExport(ids)
 		}

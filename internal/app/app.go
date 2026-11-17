@@ -150,8 +150,12 @@ type App struct {
 	shareEdit    shareEdit    // Settings › OPDS's sharing fields
 	mcpEdit      mcpEdit      // Settings › MCP's port field
 	wirelessEdit wirelessEdit // Settings › Wireless devices' fields
+	emailEdit    emailEdit    // Settings › Email's port and password
 	mcpTab       int          // the agent Connect an agent shows
 	mcpTicking   bool         // a rebuild is due to keep MCP's status current
+
+	// emailTestState is Settings › Email's last test email.
+	emailTestState emailTest
 
 	// OPDS: the catalogs' sources, what checking each found (by catalog
 	// id), the catalog page, and the server sharing the library.

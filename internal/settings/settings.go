@@ -50,8 +50,40 @@ type Settings struct {
 	// Export is what the user chose last when exporting books to a
 	// folder.
 	Export Export `json:"export,omitzero"`
+	// Email is emailing books to Kindles.
+	Email Email `json:"email,omitzero"`
 
 	path string
+}
+
+// Email is the Kindles books are emailed to and the account they are
+// sent from. The password isn't here: it is kept in the system's
+// credential store.
+type Email struct {
+	Kindles []*Kindle `json:"kindles,omitempty"`
+	Host    string    `json:"host,omitempty"`
+	Port    int       `json:"port,omitempty"` // 587 when 0
+	// Security is email.Security; "" picks by the port.
+	Security string `json:"security,omitempty"`
+	From     string `json:"from,omitempty"`
+}
+
+// Kindle is a Kindle's Send to Kindle address.
+type Kindle struct {
+	Name    string `json:"name,omitempty"`
+	Address string `json:"address,omitempty"`
+}
+
+// DefaultEmailPort is the port mail is sent on unless the user picks
+// another.
+const DefaultEmailPort = 587
+
+// ServerPort is the port mail is sent on.
+func (e Email) ServerPort() int {
+	if e.Port <= 0 || e.Port > 65535 {
+		return DefaultEmailPort
+	}
+	return e.Port
 }
 
 // Export is the Export to folder dialog's last answers.

@@ -8744,3 +8744,247 @@ func ExportDone(count int, folder string) string { return In(i18n.Locale()).Expo
 func (msgs Messages) ExportDone(count int, folder string) string {
 	return Catalog.Format(msgs.locale, "exportDone", map[string]any{"count": count, "folder": folder})
 }
+
+// SettingsSectionEmail says "Email"
+// in the language the app shows.
+func SettingsSectionEmail() string { return In(i18n.Locale()).SettingsSectionEmail() }
+
+// SettingsSectionEmail says "Email"
+// in the language of msgs.
+func (msgs Messages) SettingsSectionEmail() string {
+	return Catalog.Format(msgs.locale, "settingsSectionEmail", nil)
+}
+
+// EmailKindlesTitle says "Kindles"
+// in the language the app shows.
+func EmailKindlesTitle() string { return In(i18n.Locale()).EmailKindlesTitle() }
+
+// EmailKindlesTitle says "Kindles"
+// in the language of msgs.
+func (msgs Messages) EmailKindlesTitle() string {
+	return Catalog.Format(msgs.locale, "emailKindlesTitle", nil)
+}
+
+// EmailKindlesBody says "Books are emailed to these addresses as attachments. Amazon converts them and puts them on the Kindle, where they syn…"
+// in the language the app shows.
+func EmailKindlesBody() string { return In(i18n.Locale()).EmailKindlesBody() }
+
+// EmailKindlesBody says "Books are emailed to these addresses as attachments. Amazon converts them and puts them on the Kindle, where they syn…"
+// in the language of msgs.
+func (msgs Messages) EmailKindlesBody() string {
+	return Catalog.Format(msgs.locale, "emailKindlesBody", nil)
+}
+
+// EmailAddKindle says "Add Kindle"
+// in the language the app shows.
+func EmailAddKindle() string { return In(i18n.Locale()).EmailAddKindle() }
+
+// EmailAddKindle says "Add Kindle"
+// in the language of msgs.
+func (msgs Messages) EmailAddKindle() string {
+	return Catalog.Format(msgs.locale, "emailAddKindle", nil)
+}
+
+// EmailKindleAddress says "Send to Kindle address"
+// in the language the app shows.
+func EmailKindleAddress() string { return In(i18n.Locale()).EmailKindleAddress() }
+
+// EmailKindleAddress says "Send to Kindle address"
+// in the language of msgs.
+func (msgs Messages) EmailKindleAddress() string {
+	return Catalog.Format(msgs.locale, "emailKindleAddress", nil)
+}
+
+// EmailSenderTitle says "Sender"
+// in the language the app shows.
+func EmailSenderTitle() string { return In(i18n.Locale()).EmailSenderTitle() }
+
+// EmailSenderTitle says "Sender"
+// in the language of msgs.
+func (msgs Messages) EmailSenderTitle() string {
+	return Catalog.Format(msgs.locale, "emailSenderTitle", nil)
+}
+
+// EmailSenderBody says "The mail account Dalibre sends from, as set up in a mail app: its SMTP server, address and password. Gmail, iCloud an…"
+// in the language the app shows.
+func EmailSenderBody() string { return In(i18n.Locale()).EmailSenderBody() }
+
+// EmailSenderBody says "The mail account Dalibre sends from, as set up in a mail app: its SMTP server, address and password. Gmail, iCloud an…"
+// in the language of msgs.
+func (msgs Messages) EmailSenderBody() string {
+	return Catalog.Format(msgs.locale, "emailSenderBody", nil)
+}
+
+// EmailServer says "SMTP server"
+// in the language the app shows.
+func EmailServer() string { return In(i18n.Locale()).EmailServer() }
+
+// EmailServer says "SMTP server"
+// in the language of msgs.
+func (msgs Messages) EmailServer() string {
+	return Catalog.Format(msgs.locale, "emailServer", nil)
+}
+
+// EmailSecurity says "Security"
+// in the language the app shows.
+func EmailSecurity() string { return In(i18n.Locale()).EmailSecurity() }
+
+// EmailSecurity says "Security"
+// in the language of msgs.
+func (msgs Messages) EmailSecurity() string {
+	return Catalog.Format(msgs.locale, "emailSecurity", nil)
+}
+
+// EmailSecurityNone says "None"
+// in the language the app shows.
+func EmailSecurityNone() string { return In(i18n.Locale()).EmailSecurityNone() }
+
+// EmailSecurityNone says "None"
+// in the language of msgs.
+func (msgs Messages) EmailSecurityNone() string {
+	return Catalog.Format(msgs.locale, "emailSecurityNone", nil)
+}
+
+// EmailFrom says "Email"
+// in the language the app shows.
+func EmailFrom() string { return In(i18n.Locale()).EmailFrom() }
+
+// EmailFrom says "Email"
+// in the language of msgs.
+func (msgs Messages) EmailFrom() string {
+	return Catalog.Format(msgs.locale, "emailFrom", nil)
+}
+
+// EmailPassword says "App password"
+// in the language the app shows.
+func EmailPassword() string { return In(i18n.Locale()).EmailPassword() }
+
+// EmailPassword says "App password"
+// in the language of msgs.
+func (msgs Messages) EmailPassword() string {
+	return Catalog.Format(msgs.locale, "emailPassword", nil)
+}
+
+// EmailTest says "Send a test email"
+// in the language the app shows.
+func EmailTest() string { return In(i18n.Locale()).EmailTest() }
+
+// EmailTest says "Send a test email"
+// in the language of msgs.
+func (msgs Messages) EmailTest() string {
+	return Catalog.Format(msgs.locale, "emailTest", nil)
+}
+
+// EmailTestSending says "Sending…"
+// in the language the app shows.
+func EmailTestSending() string { return In(i18n.Locale()).EmailTestSending() }
+
+// EmailTestSending says "Sending…"
+// in the language of msgs.
+func (msgs Messages) EmailTestSending() string {
+	return Catalog.Format(msgs.locale, "emailTestSending", nil)
+}
+
+// EmailTestSent says "Sent to {address} · {time}"
+// in the language the app shows.
+func EmailTestSent(address string, time_ string) string {
+	return In(i18n.Locale()).EmailTestSent(address, time_)
+}
+
+// EmailTestSent says "Sent to {address} · {time}"
+// in the language of msgs.
+func (msgs Messages) EmailTestSent(address string, time_ string) string {
+	return Catalog.Format(msgs.locale, "emailTestSent", map[string]any{"address": address, "time": time_})
+}
+
+// EmailTestSubject says "Dalibre test email"
+// in the language the app shows.
+func EmailTestSubject() string { return In(i18n.Locale()).EmailTestSubject() }
+
+// EmailTestSubject says "Dalibre test email"
+// in the language of msgs.
+func (msgs Messages) EmailTestSubject() string {
+	return Catalog.Format(msgs.locale, "emailTestSubject", nil)
+}
+
+// EmailTestBody says "Dalibre can send mail from this address. Books emailed to your Kindles come from it the same way."
+// in the language the app shows.
+func EmailTestBody() string { return In(i18n.Locale()).EmailTestBody() }
+
+// EmailTestBody says "Dalibre can send mail from this address. Books emailed to your Kindles come from it the same way."
+// in the language of msgs.
+func (msgs Messages) EmailTestBody() string {
+	return Catalog.Format(msgs.locale, "emailTestBody", nil)
+}
+
+// EmailNote says "Amazon delivers only mail from addresses on your Approved Personal Document E-mail List: add the address above there …"
+// in the language the app shows.
+func EmailNote() string { return In(i18n.Locale()).EmailNote() }
+
+// EmailNote says "Amazon delivers only mail from addresses on your Approved Personal Document E-mail List: add the address above there …"
+// in the language of msgs.
+func (msgs Messages) EmailNote() string {
+	return Catalog.Format(msgs.locale, "emailNote", nil)
+}
+
+// EmailTo says "Email to {device}"
+// in the language the app shows.
+func EmailTo(device string) string { return In(i18n.Locale()).EmailTo(device) }
+
+// EmailTo says "Email to {device}"
+// in the language of msgs.
+func (msgs Messages) EmailTo(device string) string {
+	return Catalog.Format(msgs.locale, "emailTo", map[string]any{"device": device})
+}
+
+// EmailSending says "Emailing to {device}"
+// in the language the app shows.
+func EmailSending(device string) string { return In(i18n.Locale()).EmailSending(device) }
+
+// EmailSending says "Emailing to {device}"
+// in the language of msgs.
+func (msgs Messages) EmailSending(device string) string {
+	return Catalog.Format(msgs.locale, "emailSending", map[string]any{"device": device})
+}
+
+// EmailSent says "Emailed {count, plural, one {# book} other {# books}} to {device}"
+// in the language the app shows.
+func EmailSent(count int, device string) string { return In(i18n.Locale()).EmailSent(count, device) }
+
+// EmailSent says "Emailed {count, plural, one {# book} other {# books}} to {device}"
+// in the language of msgs.
+func (msgs Messages) EmailSent(count int, device string) string {
+	return Catalog.Format(msgs.locale, "emailSent", map[string]any{"count": count, "device": device})
+}
+
+// EmailNoFormat says "Not emailed: {titles}. Send to Kindle takes EPUB, PDF, DOCX, RTF, TXT and HTML."
+// in the language the app shows.
+func EmailNoFormat(titles string) string { return In(i18n.Locale()).EmailNoFormat(titles) }
+
+// EmailNoFormat says "Not emailed: {titles}. Send to Kindle takes EPUB, PDF, DOCX, RTF, TXT and HTML."
+// in the language of msgs.
+func (msgs Messages) EmailNoFormat(titles string) string {
+	return Catalog.Format(msgs.locale, "emailNoFormat", map[string]any{"titles": titles})
+}
+
+// EmailTooBig says "Not emailed: {titles}. Send to Kindle takes files up to 50 MB."
+// in the language the app shows.
+func EmailTooBig(titles string) string { return In(i18n.Locale()).EmailTooBig(titles) }
+
+// EmailTooBig says "Not emailed: {titles}. Send to Kindle takes files up to 50 MB."
+// in the language of msgs.
+func (msgs Messages) EmailTooBig(titles string) string {
+	return Catalog.Format(msgs.locale, "emailTooBig", map[string]any{"titles": titles})
+}
+
+// EmailFailed says "Couldn’t email {device}: {reason}"
+// in the language the app shows.
+func EmailFailed(device string, reason string) string {
+	return In(i18n.Locale()).EmailFailed(device, reason)
+}
+
+// EmailFailed says "Couldn’t email {device}: {reason}"
+// in the language of msgs.
+func (msgs Messages) EmailFailed(device string, reason string) string {
+	return Catalog.Format(msgs.locale, "emailFailed", map[string]any{"device": device, "reason": reason})
+}
