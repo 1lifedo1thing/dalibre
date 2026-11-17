@@ -145,10 +145,18 @@ type Permissions struct {
 	// are on mirrors and CDNs that can't be listed. Dalibre fetches them
 	// itself, without the plugin's credentials, and takes only images.
 	CoverHosts string `json:"covers,omitempty"`
+	// Open, when OpenAny, lets the pages the plugin asks to open in the
+	// browser be on any http or https host, not only Hosts: for a plugin
+	// that opens searches on sites the user names, which can't be listed.
+	// Only the browser opens them: the plugin itself reaches nothing new.
+	OpenHosts string `json:"open,omitempty"`
 }
 
 // CoversAny is permissions.covers for covers from any https host.
 const CoversAny = "any"
+
+// OpenAny is permissions.open for pages on any host.
+const OpenAny = "any"
 
 // Library access a plugin may ask for.
 const (
@@ -382,11 +390,16 @@ type Filter struct {
 	Default string `json:"default,omitempty"`
 }
 
-// Option is one value of a Filter. A language option's title may be left
-// out: Dalibre names the language.
+// Option is one value of a Filter or of a form field. A language option's
+// title may be left out: Dalibre names the language. A list field's option
+// may add a Group it sorts under, a Badge at its end and Starred, to mark
+// a favorite.
 type Option struct {
-	Value string `json:"value"`
-	Title string `json:"title,omitempty"`
+	Value   string `json:"value"`
+	Title   string `json:"title,omitempty"`
+	Group   string `json:"group,omitempty"`
+	Badge   string `json:"badge,omitempty"`
+	Starred bool   `json:"starred,omitempty"`
 }
 
 // Names lists the capabilities, as plugin.json names them.
@@ -592,6 +605,9 @@ func (m *Manifest) check() error {
 	if c := m.Permissions.CoverHosts; c != "" && c != CoversAny {
 		return fmt.Errorf(`permissions.covers %q must be "any" (or left out)`, c)
 	}
+	if o := m.Permissions.OpenHosts; o != "" && o != OpenAny {
+		return fmt.Errorf(`permissions.open %q must be "any" (or left out)`, o)
+	}
 	if l := m.Permissions.Library; l != "" && l != LibraryRead && l != LibraryWrite {
 		return fmt.Errorf(`permissions.library %q must be "read" or "write" (or left out)`, l)
 	}
@@ -760,6 +776,9 @@ func (p Permissions) Covers(want Permissions) bool {
 	if want.CoverHosts == CoversAny && p.CoverHosts != CoversAny {
 		return false
 	}
+	if want.OpenHosts == OpenAny && p.OpenHosts != OpenAny {
+		return false
+	}
 	switch want.Library {
 	case LibraryRead:
 		if !p.CanRead() {
@@ -793,6 +812,9 @@ func (p Permissions) Describe() []string {
 	}
 	if p.CoverHosts == CoversAny {
 		out = append(out, "Load book covers from any website")
+	}
+	if p.OpenHosts == OpenAny {
+		out = append(out, "Open pages of any website in your browser")
 	}
 	switch p.Library {
 	case LibraryRead:

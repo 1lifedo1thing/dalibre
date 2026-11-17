@@ -132,6 +132,7 @@ runs it as it is. See [TypeScript and npm packages](#typescript-and-npm-packages
 | `permissions.hosts` | **Required for a source.** Every host your plugin reaches, through `fetch`, file downloads, covers **and redirects**. `*.example.com` matches any subdomain, not `example.com` itself. |
 | `permissions.library` | `"read"`: your plugin sees the details of the books it is asked about. **Required for a metadata source** and for [hooks](#hooks). `"write"`: your hooks may also change those details; the install dialog warns about it. |
 | `permissions.covers` | `"any"`: the `cover` URLs you return may be on any https host, not only your `hosts`, for covers on mirrors and CDNs you can't list. Dalibre fetches them itself, without your headers or cookies, and takes only images. Users see it when they install. |
+| `permissions.open` | `"any"`: the pages your action returns with `open` may be on any http or https host, not only your `hosts` — for a plugin that opens searches on sites the user names. Only the browser opens them: the plugin itself reaches nothing new. Users see it when they install. |
 | `permissions.localNetwork` | Reach this computer and the local network: a home OPDS or Calibre server. Users are warned. Default `false`. |
 | `tools` | Programs your plugin runs outside its sandbox, such as pandoc or a site's CLI: see [Tools](#tools). |
 | `settings` | Values the user enters: up to 32. `type` is `text` (default), `secret` (masked, hidden in logs, and kept in the system's keychain rather than Dalibre's settings file), `file` (a file the user chooses, such as a key, copied into `/data`; its value is the path you read it at: `await readFile(dalibre.settings.keyFile)`), `toggle` (a switch: `"true"` or `"false"`), `select` (one of its `options`, `[{ value, title? }]`, 1 to 64) or `number`. Values are strings, the `default` where unset. `required` settings must be filled before your plugin is called. |
@@ -473,7 +474,7 @@ While it runs, an action has three things only Dalibre can give:
 
 | | |
 |---|---|
-| `await dalibre.form({ submit?, fields, remember? })` | Asks the user, in a dialog Dalibre draws under your action's title, and resolves to the answers by `key`. A field is `{ key, title, type, value?, options? }` with `type` `"text"`, `"toggle"`, `"select"` or `"multiselect"`; `value` is what it starts with. With `remember: true` the form starts with the user's last answers to it instead, as calibre plugins keep their options. Cancel rejects with kind `"cancelled"`: leave it uncaught and the run ends quietly. Call it when you know what to ask (after reading the book, say), as often as you need. The run's time doesn't count while it is open. |
+| `await dalibre.form({ submit?, fields, note?, remember? })` | Asks the user, in a dialog Dalibre draws under your action's title, and resolves to the answers by `key`. A field is `{ key, title, type, value?, options? }` with `type` `"text"`, `"toggle"`, `"select"`, `"multiselect"` or `"list"`; `value` is what it starts with. A `list` field draws its options as a searchable list the user filters with the field's `title` as the placeholder: an option may add `group` (a heading it sorts under), `badge` (a short label at its end, as a search's "ISBN") and `starred` (a favorite's star), and choosing a row answers the form at once, as a menu item does. `note` is a line under the fields, of what answering does. With `remember: true` the form starts with the user's last answers to it instead, as calibre plugins keep their options. Cancel rejects with kind `"cancelled"`: leave it uncaught and the run ends quietly. Call it when you know what to ask (after reading the book, say), as often as you need. The run's time doesn't count while it is open. |
 | `dalibre.library.books(options?)` | An async iterator over every book in the library; `comments` only with `{ comments: true }`, which reads more. |
 | `dalibre.progress(done, total)` | The job's bar; `total` 0 when you don't know. |
 
@@ -486,7 +487,7 @@ Return `null`, or what you found and want changed:
 | `changes: [{ book, metadata }]` | changes books' details, as a hook's `metadata`: at once with `"library": "write"` (and Undo), else shown to the user first, who applies them. A field left out stays as it is; `""` (or `[]`) clears it: `{ series: "" }` takes a book out of its series |
 | `add: [{ path, metadata? }]` | adds each file as a new book |
 | `formats: [{ book, path }]` | adds the file to the book; a file of the same format is kept as `ORIGINAL_<format>` |
-| `open` | opens the page in the browser; it must be on one of your hosts |
+| `open` | opens the page in the browser, or several at once when it is a list; they must be on your hosts, unless `permissions.open` is `"any"` |
 
 An action never deletes: the books it ran on stay as they were.
 

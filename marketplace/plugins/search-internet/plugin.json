@@ -2,14 +2,14 @@
   "$schema": "../../../sdk/plugin.schema.json",
   "id": "org.randynamic.dalibre.search-internet",
   "name": "Search the Internet",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "api": 1,
   "dalibre": ">=0.4.0",
   "author": "Randy",
   "homepage": "https://github.com/djyde/dalibre/tree/main/marketplace/plugins/search-internet",
   "license": "GPL-3.0-or-later",
   "main": "main.js",
-  "description": "Opens a search for a book on Amazon, Goodreads, Wikipedia and other sites",
+  "description": "Opens a search for a book on Amazon, Goodreads, Wikipedia, Wook, Almedina and other sites, with favorites that open together and custom sites of your own",
   "icon": "globe",
   "capabilities": {
     "actions": [
@@ -22,6 +22,12 @@
           "min": 1,
           "max": 1
         }
+      },
+      {
+        "id": "customize",
+        "title": "Customize search sites…",
+        "icon": "pencil",
+        "scope": "library"
       }
     ]
   },
@@ -41,6 +47,7 @@
       "recherche.fnac.com",
       "search.douban.com",
       "search.worldcat.org",
+      "www.almedina.net",
       "www.amazon.ca",
       "www.amazon.cn",
       "www.amazon.co.jp",
@@ -69,8 +76,10 @@
       "www.literature-map.com",
       "www.lovereading.co.uk",
       "www.waterstones.com",
-      "www.whatshouldireadnext.com"
+      "www.whatshouldireadnext.com",
+      "www.wook.pt"
     ],
+    "open": "any",
     "library": "read"
   }
 }

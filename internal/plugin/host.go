@@ -201,6 +201,22 @@ func (p *Plugin) checkURL(u *url.URL) error {
 	return nil
 }
 
+// checkOpenURL refuses a page the plugin may not ask the browser to open:
+// as checkURL, but permissions.open "any" lets the host be any, for
+// plugins that open searches on sites the user names.
+func (p *Plugin) checkOpenURL(u *url.URL) error {
+	if p.Manifest.Permissions.OpenHosts == OpenAny {
+		if u.Scheme != "https" && u.Scheme != "http" {
+			return fmt.Errorf("%w: %s isn’t an http or https URL", ErrHostNotAllowed, u.Redacted())
+		}
+		if u.User != nil {
+			return fmt.Errorf("%w: put credentials in headers, not in the URL", ErrHostNotAllowed)
+		}
+		return nil
+	}
+	return p.checkURL(u)
+}
+
 // request builds a request the plugin may make.
 func (p *Plugin) request(ctx context.Context, method, rawURL string, headers map[string]string, body io.Reader) (*http.Request, error) {
 	u, err := url.Parse(rawURL)

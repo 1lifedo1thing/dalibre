@@ -16,6 +16,7 @@ const actionsManifest = `{"id":"test.actions","name":"Actions","version":"1.0.0"
 		{"id":"tag","title":"Tag","scope":"books","books":{"min":2}},
 		{"id":"merge","title":"Merge","scope":"books","formats":["TXT"],"files":true},
 		{"id":"covers","title":"Covers","scope":"books","covers":true},
+		{"id":"search","title":"Search","scope":"books"},
 		{"id":"bad","title":"Bad","scope":"books"}
 	]},
 	"permissions":{"hosts":["example.com"],"library":"read"}}`
@@ -48,6 +49,17 @@ const actionsScript = `
 			await writeFile("/work/merged.txt", text);
 			await writeFile("/work/extra.txt", "extra");
 			return { add: [{ path: "/work/merged.txt", metadata: { title: "Merged" } }], formats: [{ book: input.books[0].id, path: "/work/extra.txt" }] };
+		}
+		if (action === "search") {
+			const a = await dalibre.form({ submit: "Search", note: "Opens the search in your browser", fields: [
+				{ key: "site", title: "Filter sites…", type: "list", options: [
+					{ value: "wook", title: "Wook", group: "Portuguese stores", badge: "Book", starred: true },
+					{ value: "goodreads", title: "Goodreads", badge: "ISBN" },
+				] },
+			]});
+			if (!a.site) return { message: "No site chosen" };
+			if (a.site === "wook") return { open: ["https://example.com/s?q=1", "https://example.com/s?q=2"] };
+			return { open: "https://example.com/g" };
 		}
 		if (action === "covers") {
 			const sizes = [];
@@ -159,6 +171,49 @@ func TestFormStopsTheClock(t *testing.T) {
 	}
 }
 
+// TestListAction covers the list field: its groups, badges and stars come
+// through, and open takes one URL or a list of them.
+func TestListAction(t *testing.T) {
+	p := actionsPlugin(t)
+	ctx := context.Background()
+	books := []BookInfo{{ID: 4, Title: "A", Authors: []string{"X"}, Formats: []string{"TXT"}}}
+	var asked Form
+	host := &ActionHost{Form: func(ctx context.Context, f Form) (map[string]any, error) {
+		asked = f
+		return map[string]any{"site": "wook"}, nil
+	}}
+	res, err := p.RunAction(ctx, "search", books, nil, host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fd := asked.Fields[0]
+	if asked.Note != "Opens the search in your browser" || asked.Submit != "Search" || fd.Type != FieldList ||
+		fd.Options[0].Group != "Portuguese stores" || fd.Options[0].Badge != "Book" || !fd.Options[0].Starred || fd.Value != "" {
+		t.Errorf("form: %+v note %q", fd, asked.Note)
+	}
+	if len(res.Open) != 2 || res.Open[0] != "https://example.com/s?q=1" || res.Open[1] != "https://example.com/s?q=2" {
+		t.Errorf("open: %+v", res.Open)
+	}
+	// A list field also answers "" before a row is chosen.
+	host.Form = func(ctx context.Context, f Form) (map[string]any, error) { return map[string]any{"site": ""}, nil }
+	if res, err = p.RunAction(ctx, "search", books, nil, host); err != nil || res.Message != "No site chosen" {
+		t.Errorf("empty: %+v %v", res, err)
+	}
+	// One URL still works, and a value outside the options doesn't.
+	host.Form = func(ctx context.Context, f Form) (map[string]any, error) { return map[string]any{"site": "goodreads"}, nil }
+	if res, err = p.RunAction(ctx, "search", books, nil, host); err != nil || len(res.Open) != 1 || res.Open[0] != "https://example.com/g" {
+		t.Errorf("one url: %+v %v", res, err)
+	}
+	host.Form = func(ctx context.Context, f Form) (map[string]any, error) { return map[string]any{"site": "nope"}, nil }
+	if _, err = p.RunAction(ctx, "search", books, nil, host); kind(err) != KindInvalid {
+		t.Errorf("bad answer: %v", err)
+	}
+	// Ahead-of-time answers describe the list as its options.
+	if _, err = p.RunAction(ctx, "search", books, nil, &ActionHost{}); kind(err) != KindInvalid || !strings.Contains(err.Error(), "site (list: wook | goodreads)") {
+		t.Errorf("missing answers: %v", err)
+	}
+}
+
 func TestBooksAction(t *testing.T) {
 	p := actionsPlugin(t)
 	ctx := context.Background()
@@ -169,7 +224,7 @@ func TestBooksAction(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(res.Changes) != 2 || res.Changes[0].Book != 4 || strings.Join(*res.Changes[0].Metadata.Tags, ",") != "t,x" ||
-		strings.Join(*res.Changes[1].Metadata.Tags, ",") != "x" || res.Open != "https://example.com/a" {
+		strings.Join(*res.Changes[1].Metadata.Tags, ",") != "x" || len(res.Open) != 1 || res.Open[0] != "https://example.com/a" {
 		t.Errorf("changes: %+v", res)
 	}
 

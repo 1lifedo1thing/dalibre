@@ -802,8 +802,8 @@ func cmdRun(ctx context.Context, args []string) error {
 	for _, s := range formats {
 		fmt.Printf("new format of book %d: %s\n", s.Book, s.Path)
 	}
-	if res.Open != "" {
-		fmt.Printf("open: %s\n", res.Open)
+	for _, u := range res.Open {
+		fmt.Printf("open: %s\n", u)
 	}
 	if res.Empty() {
 		fmt.Println("returned nothing")

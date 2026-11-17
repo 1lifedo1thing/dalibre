@@ -68,7 +68,7 @@ type ActionOutcome struct {
 	Groups  []ActionGroup `json:"groups,omitempty" jsonschema:"the books it found"`
 	Changes []BookChanges `json:"changes,omitempty" jsonschema:"the changes to books' details it asks for"`
 	Files   []NewFile     `json:"files,omitempty" jsonschema:"the files it made: new books, and new formats of books"`
-	Open    string        `json:"open,omitempty" jsonschema:"a page it asks to open"`
+	Open    []string      `json:"open,omitempty" jsonschema:"the pages it asks to open in the browser, each in its tab"`
 	Applied bool          `json:"applied" jsonschema:"whether the changes and files were written into the library"`
 	Changed []BookRef     `json:"changed,omitempty" jsonschema:"applied: the books changed"`
 	Added   []BookRef     `json:"added,omitempty" jsonschema:"applied: the books added"`

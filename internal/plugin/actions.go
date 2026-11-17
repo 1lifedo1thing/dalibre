@@ -50,8 +50,10 @@ var ErrCancelled = errors.New("cancelled")
 // Form is what dalibre.form asks the user.
 type Form struct {
 	// Submit names the form's button; the action's title when empty.
-	Submit string      `json:"submit,omitempty"`
+	Submit string `json:"submit,omitempty"`
 	Fields []FormField `json:"fields"`
+	// Note is a line under the form's fields, of what answering does.
+	Note string `json:"note,omitempty"`
 	// Remember starts the form with the user's last answers to it, as
 	// calibre plugins keep their options.
 	Remember bool `json:"remember,omitempty"`
@@ -74,7 +76,7 @@ func (f *Form) Prefill(saved map[string]any) {
 			if s, ok := v.(string); ok {
 				fd.Value = s
 			}
-		case FieldSelect:
+		case FieldSelect, FieldList:
 			if s, ok := v.(string); ok && has(s) {
 				fd.Value = s
 			}
@@ -100,10 +102,11 @@ func (f *Form) Prefill(saved map[string]any) {
 type FormField struct {
 	Key   string `json:"key"`
 	Title string `json:"title"`
-	// Type is FieldText, FieldSelect, FieldToggle or FieldMultiselect.
+	// Type is FieldText, FieldSelect, FieldToggle, FieldMultiselect or
+	// FieldList.
 	Type string `json:"type"`
-	// Value is what the field starts with: a string (text, select), a
-	// boolean (toggle) or a list of strings (multiselect).
+	// Value is what the field starts with: a string (text, select, list),
+	// a boolean (toggle) or a list of strings (multiselect).
 	Value   any      `json:"value,omitempty"`
 	Options []Option `json:"options,omitempty"`
 }
@@ -114,6 +117,7 @@ const (
 	FieldSelect      = "select"
 	FieldToggle      = "toggle"
 	FieldMultiselect = "multiselect"
+	FieldList        = "list"
 )
 
 // Limits on a form.
@@ -131,6 +135,9 @@ func (f *Form) check() error {
 	if len([]rune(f.Submit)) > 40 {
 		return errors.New("submit is over 40 characters")
 	}
+	if len([]rune(f.Note)) > 120 {
+		return errors.New("note is over 120 characters")
+	}
 	keys := map[string]bool{}
 	for i := range f.Fields {
 		fd := &f.Fields[i]
@@ -144,14 +151,14 @@ func (f *Form) check() error {
 			return fmt.Errorf("%s has no title", at)
 		}
 		keys[fd.Key] = true
-		choice := fd.Type == FieldSelect || fd.Type == FieldMultiselect
+		choice := fd.Type == FieldSelect || fd.Type == FieldMultiselect || fd.Type == FieldList
 		switch {
-		case !slices.Contains([]string{FieldText, FieldSelect, FieldToggle, FieldMultiselect}, fd.Type):
-			return fmt.Errorf("%s.type must be %q, %q, %q or %q", at, FieldText, FieldSelect, FieldToggle, FieldMultiselect)
+		case !slices.Contains([]string{FieldText, FieldSelect, FieldToggle, FieldMultiselect, FieldList}, fd.Type):
+			return fmt.Errorf("%s.type must be %q, %q, %q, %q or %q", at, FieldText, FieldSelect, FieldToggle, FieldMultiselect, FieldList)
 		case choice && (len(fd.Options) == 0 || len(fd.Options) > MaxFormOptions):
 			return fmt.Errorf("%s needs 1 to %d options", at, MaxFormOptions)
 		case !choice && len(fd.Options) > 0:
-			return fmt.Errorf("%s: options are for %q and %q", at, FieldSelect, FieldMultiselect)
+			return fmt.Errorf("%s: options are for %q, %q and %q", at, FieldSelect, FieldMultiselect, FieldList)
 		}
 		vals := map[string]bool{}
 		for j := range fd.Options {
@@ -162,6 +169,12 @@ func (f *Form) check() error {
 			vals[o.Value] = true
 			if strings.TrimSpace(o.Title) == "" {
 				o.Title = o.Value
+			}
+			if len([]rune(o.Group)) > 40 {
+				return fmt.Errorf("%s.options[%d].group is over 40 characters", at, j)
+			}
+			if len([]rune(o.Badge)) > 24 {
+				return fmt.Errorf("%s.options[%d].badge is over 24 characters", at, j)
 			}
 		}
 		if fd.Value == nil {
@@ -174,6 +187,8 @@ func (f *Form) check() error {
 				fd.Value = false
 			case FieldMultiselect:
 				fd.Value = []string{}
+			case FieldList:
+				fd.Value = ""
 			}
 		}
 		v, err := fd.typed(fd.Value)
@@ -196,11 +211,14 @@ func (fd *FormField) typed(v any) (any, error) {
 			return s, nil
 		}
 		return nil, errors.New("want a string")
-	case FieldSelect:
-		if s, ok := v.(string); ok && has(s) {
+	case FieldSelect, FieldList:
+		if s, ok := v.(string); ok && (has(s) || (fd.Type == FieldList && s == "")) {
 			return s, nil
 		}
-		return nil, errors.New("want one of the options’ values")
+		if fd.Type == FieldSelect {
+			return nil, errors.New("want one of the options’ values")
+		}
+		return nil, errors.New("want one of the options’ values, or \"\" before one is chosen")
 	case FieldToggle:
 		if b, ok := v.(bool); ok {
 			return b, nil
@@ -319,8 +337,9 @@ type ActionResult struct {
 	Changes []BookChange
 	Add     []NewBook
 	Formats []NewFormat
-	// Open is a page on one of the plugin's hosts to open in the browser.
-	Open string
+	// Open is pages on one of the plugin's hosts to open in the browser,
+	// each in its tab: one, or several to open a group at once.
+	Open []string
 	dir  string
 }
 
@@ -333,7 +352,7 @@ func (r *ActionResult) Done() {
 
 // Empty reports whether the action returned nothing.
 func (r *ActionResult) Empty() bool {
-	return r == nil || r.Message == "" && len(r.Groups) == 0 && len(r.Changes) == 0 && len(r.Add) == 0 && len(r.Formats) == 0 && r.Open == ""
+	return r == nil || r.Message == "" && len(r.Groups) == 0 && len(r.Changes) == 0 && len(r.Add) == 0 && len(r.Formats) == 0 && len(r.Open) == 0
 }
 
 // Limits on what an action may return.
@@ -341,7 +360,26 @@ const (
 	MaxGroups     = 2000
 	MaxGroupBooks = 100000
 	MaxNewFiles   = 200
+	MaxOpen       = 8
 )
+
+// openList is what open was: one page, or several to open at once.
+type openList []string
+
+// UnmarshalJSON takes "https://…" or ["https://…", …].
+func (o *openList) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err == nil {
+		*o = openList{s}
+		return nil
+	}
+	var l []string
+	if err := json.Unmarshal(b, &l); err != nil {
+		return errors.New("want a URL or a list of URLs")
+	}
+	*o = l
+	return nil
+}
 
 // actionInput is what run(action, input) is given.
 type actionInput struct {
@@ -462,7 +500,7 @@ func (p *Plugin) actionResult(raw json.RawMessage) (res *ActionResult, err error
 			Book int64  `json:"book"`
 			Path string `json:"path"`
 		} `json:"formats"`
-		Open string `json:"open"`
+		Open openList `json:"open"`
 	}
 	dec := json.NewDecoder(strings.NewReader(string(raw)))
 	dec.DisallowUnknownFields()
@@ -497,15 +535,20 @@ func (p *Plugin) actionResult(raw json.RawMessage) (res *ActionResult, err error
 		}
 		res.Changes = append(res.Changes, c)
 	}
-	if o.Open != "" {
-		u, err := url.Parse(o.Open)
-		if err != nil || !u.IsAbs() {
-			return nil, fmt.Errorf("open: %q isn’t an absolute URL", o.Open)
+	if len(o.Open) > 0 {
+		if len(o.Open) > MaxOpen {
+			return nil, fmt.Errorf("open: over %d pages", MaxOpen)
 		}
-		if err := p.checkURL(u); err != nil {
-			return nil, fmt.Errorf("open: %w", err)
+		for _, raw := range o.Open {
+			u, err := url.Parse(raw)
+			if err != nil || !u.IsAbs() {
+				return nil, fmt.Errorf("open: %q isn’t an absolute URL", raw)
+			}
+			if err := p.checkOpenURL(u); err != nil {
+				return nil, fmt.Errorf("open: %w", err)
+			}
+			res.Open = append(res.Open, u.String())
 		}
-		res.Open = u.String()
 	}
 	if len(o.Add)+len(o.Formats) == 0 {
 		return res, nil

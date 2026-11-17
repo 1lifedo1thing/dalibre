@@ -426,6 +426,12 @@ func TestPermissions(t *testing.T) {
 	if granted.Covers(Permissions{Hosts: []string{"a.com", "c.com"}}) || granted.Covers(Permissions{LocalNetwork: true}) {
 		t.Error("more needs a new grant")
 	}
+	if granted.Covers(Permissions{OpenHosts: OpenAny}) || !granted.Covers(Permissions{OpenHosts: ""}) {
+		t.Error("open any needs its own grant")
+	}
+	if !(Permissions{Hosts: []string{"a.com"}, OpenHosts: OpenAny}).Covers(Permissions{Hosts: []string{"a.com"}, OpenHosts: OpenAny}) {
+		t.Error("the grant covers itself")
+	}
 	for host, want := range map[string]bool{"a.com": true, "A.COM.": true, "x.a.com": false, "x.b.com": true, "b.com": false, "xb.com": false} {
 		if granted.allows(host) != want {
 			t.Errorf("allows(%s) = %v", host, !want)

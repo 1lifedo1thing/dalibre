@@ -337,6 +337,12 @@
             "any"
           ],
           "description": "\"any\": the cover URLs you return may be on any https host, for covers on mirrors and CDNs you can't list. Dalibre fetches them without your credentials, as images only."
+        },
+        "open": {
+          "enum": [
+            "any"
+          ],
+          "description": "\"any\": the pages your action returns with open may be on any http or https host, not only hosts — for a plugin that opens searches on sites the user names. Only the browser opens them: the plugin itself reaches nothing new."
         }
       }
     },

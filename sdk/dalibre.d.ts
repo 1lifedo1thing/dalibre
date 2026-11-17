@@ -288,8 +288,9 @@ declare namespace Dalibre {
     add?: { path: string; metadata?: Changes }[];
     /** Files to add to books; a file of the same format is kept as ORIGINAL_<format>. */
     formats?: { book: number; path: string }[];
-    /** A page on one of the plugin's hosts, to open in the browser. */
-    open?: string;
+    /** Pages on the plugin's hosts to open in the browser, each in its
+     *  tab: one, or several to open a group at once. */
+    open?: string | string[];
   }
 
   /** What a plugin with actions exports. */
@@ -303,13 +304,16 @@ declare namespace Dalibre {
     | { key: string; title: string; type: "text"; value?: string }
     | { key: string; title: string; type: "toggle"; value?: boolean }
     | { key: string; title: string; type: "select"; value?: string; options: { value: string; title?: string }[] }
-    | { key: string; title: string; type: "multiselect"; value?: string[]; options: { value: string; title?: string }[] };
+    | { key: string; title: string; type: "multiselect"; value?: string[]; options: { value: string; title?: string }[] }
+    | { key: string; title: string; type: "list"; value?: string; options: { value: string; title?: string; group?: string; badge?: string; starred?: boolean }[] };
 
   /** What dalibre.form asks: Dalibre draws it, under the action's title. */
   interface Form {
     /** The form's button; the action's title when left out. */
     submit?: string;
     fields: FormField[];
+    /** A line under the fields, of what answering does. Up to 120 characters. */
+    note?: string;
     /** Start with the user's last answers to this action's form, as calibre plugins keep their options. */
     remember?: boolean;
   }

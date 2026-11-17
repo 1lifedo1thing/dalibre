@@ -98,12 +98,19 @@ func (a *App) formDialog(c *ui.Context) {
 		})
 	}, func() {
 		ui.Column(c).Padding(theme.Space24).Gap(theme.Space16).AlignItems(ui.Stretch).Children(func() {
+			if fa.book != nil {
+				a.formBookStrip(c, fa.book)
+			}
 			for i, fd := range fa.form.Fields {
 				a.formField(c.Key(fd.Key), fa, i, fd)
 			}
 		})
 	}, func() {
-		ui.Spacer(c)
+		if fa.form.Note != "" {
+			ui.Text(c, fa.form.Note).FontSize(12).TextColor(pal().TextSecondary).Grow(1).SingleLine()
+		} else {
+			ui.Spacer(c)
+		}
 		if widgets.Button(c, widgets.Secondary, nil, locales.CommonCancel()).Clicked() {
 			open = false
 		}
@@ -124,6 +131,27 @@ func (a *App) formField(c *ui.Context, fa *formAsk, i int, fd plugin.FormField) 
 	}
 	// A Field shares its row's width; here each has a row to itself.
 	ui.Row(c).AlignItems(ui.Start).Children(func() { a.formControl(c, fa, i, fd) })
+}
+
+// formBookStrip is the book the action runs on, above its form: what its
+// answers will be about.
+func (a *App) formBookStrip(c *ui.Context, b *formBook) {
+	ui.Row(c).Gap(theme.Space12).AlignItems(ui.Center).Children(func() {
+		a.coverView(c, a.byID[b.id], 28, 40, true)
+		ui.Column(c).Gap(theme.Space2).MinWidth(0).Children(func() {
+			ui.Text(c, b.title).FontSize(13).FontWeight(500).SingleLine().Shrink(1).MinWidth(0)
+			line := b.author
+			if b.isbn != "" {
+				if line != "" {
+					line += " · "
+				}
+				line += "ISBN " + b.isbn
+			}
+			if line != "" {
+				ui.Text(c, line).FontSize(12).TextColor(pal().TextSecondary).SingleLine().Shrink(1).MinWidth(0)
+			}
+		})
+	})
 }
 
 func (a *App) formControl(c *ui.Context, fa *formAsk, i int, fd plugin.FormField) {
@@ -152,7 +180,66 @@ func (a *App) formControl(c *ui.Context, fa *formAsk, i int, fd plugin.FormField
 				}
 			})
 		})
+	case plugin.FieldList:
+		// A searchable list of the options, grouped as their groups run:
+		// choosing a row answers the form, as a menu item does.
+		widgets.Field(c, fd.Title, "", func() {
+			q := &fa.queries[i]
+			needle := strings.ToLower(strings.TrimSpace(*q))
+			ui.Column(c).Gap(theme.Space8).Children(func() {
+				ui.SearchField(c, q).Placeholder(fd.Title)
+				ui.Scroll(c).MaxHeight(320).Children(func() {
+					last, shown := "", 0
+					for _, o := range fd.Options {
+						if needle != "" && !strings.Contains(strings.ToLower(o.Title+" "+o.Group+" "+o.Badge), needle) {
+							continue
+						}
+						shown++
+						if o.Group != last {
+							last = o.Group
+							if o.Group != "" {
+								ui.Row(c).Padding(theme.Space8, theme.Space10, theme.Space2, theme.Space10).Children(func() {
+									widgets.Overline(c, o.Group)
+								})
+							}
+						}
+						a.listRow(c, fa, i, o)
+					}
+					if shown == 0 {
+						ui.Row(c).Padding(theme.Space8, theme.Space10).Children(func() {
+							ui.Text(c, locales.FiltersNoMatches()).FontSize(13).TextColor(pal().TextSecondary)
+						})
+					}
+				})
+			})
+		})
 	}
+}
+
+// listRow is one option of a list field: its title, a badge at its end,
+// and a star when the plugin marked it a favorite. Choosing it answers
+// the form.
+func (a *App) listRow(c *ui.Context, fa *formAsk, i int, o plugin.Option) {
+	row := ui.ButtonBase(c).Height(36).Grow(1).MinWidth(0).Padding(0, theme.Space10).Radius(theme.RadiusSM).
+		AlignItems(ui.Center).Label(o.Title)
+	if fa.texts[i] == o.Value {
+		row.Background(pal().Selected)
+	} else if row.Hovered() {
+		row.Background(pal().Hover)
+	}
+	row.OnClick(func() {
+		fa.texts[i] = o.Value
+		a.answerForm(true)
+	}).Children(func() {
+		if o.Starred {
+			ui.Icon(c, icons.Star).FontSize(14).TextColor(pal().TextTertiary)
+		}
+		ui.Text(c, o.Title).FontSize(13).FontWeight(500).SingleLine().Shrink(1).MinWidth(0)
+		ui.Spacer(c)
+		if o.Badge != "" {
+			widgets.Tag(c, o.Badge, fa.texts[i] == o.Value, nil)
+		}
+	})
 }
 
 // ---- The changes an action asks for

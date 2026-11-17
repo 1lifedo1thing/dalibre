@@ -184,7 +184,7 @@ func (a *App) runAction(p *plugin.Plugin, act *plugin.Action, ids []int64) {
 	a.act.cancel = cancel
 	host := &plugin.ActionHost{
 		Covers: actionCovers(lib, act, books),
-		Form:   a.formAsker(p, act),
+		Form:   a.formAsker(p, act, books),
 		Books:  libraryPager(lib, a.books, a.idIndex),
 		Progress: func(done, total int) {
 			a.post(func() {
@@ -260,7 +260,7 @@ type metaUndo struct {
 type actionOutcome struct {
 	message string
 	groups  []plugin.Group
-	open    string
+	open    []string
 	changed int     // books whose details or files changed
 	touched []int64 // those books
 	added   []int64 // books added
@@ -486,8 +486,10 @@ func (a *App) actionDone(p *plugin.Plugin, act *plugin.Action, ids []int64, out 
 	} else if r := a.act.results; r != nil && r.plugin == p.Manifest.ID && r.action == act.ID {
 		a.act.results = nil // run again, and nothing is left to show
 	}
-	if out.open != "" {
-		openURL(out.open)
+	for _, u := range out.open {
+		openURL(u)
+	}
+	if len(out.open) > 0 {
 		said = true
 	}
 	if len(out.review) > 0 {
@@ -553,13 +555,23 @@ func (a *App) undoAction(lib *calibre.Library, undo []metaUndo, files runOutcome
 
 // formAsk is a form an action asks the user, in a dialog.
 type formAsk struct {
-	p     *plugin.Plugin
-	act   *plugin.Action
-	form  plugin.Form
-	texts []string // a text field's text, a select's chosen title
-	bools []bool   // a toggle
-	sets  [][]bool // a multiselect's options
-	reply chan formReply
+	p       *plugin.Plugin
+	act     *plugin.Action
+	form    plugin.Form
+	book    *formBook  // the one book the action runs on, shown above
+	texts   []string   // a text field's text, a select's chosen title, a list's chosen value
+	queries []string   // a list field's filter
+	bools   []bool     // a toggle
+	sets    [][]bool   // a multiselect's options
+	reply   chan formReply
+}
+
+// formBook is the book an action runs on, as its form's header shows it.
+type formBook struct {
+	id     int64
+	title  string
+	author string
+	isbn   string
 }
 
 type formReply struct {
@@ -567,9 +579,9 @@ type formReply struct {
 	err     error
 }
 
-func newFormAsk(p *plugin.Plugin, act *plugin.Action, f plugin.Form, reply chan formReply) *formAsk {
-	fa := &formAsk{p: p, act: act, form: f, reply: reply,
-		texts: make([]string, len(f.Fields)), bools: make([]bool, len(f.Fields)), sets: make([][]bool, len(f.Fields))}
+func newFormAsk(p *plugin.Plugin, act *plugin.Action, f plugin.Form, reply chan formReply, book *formBook) *formAsk {
+	fa := &formAsk{p: p, act: act, form: f, reply: reply, book: book,
+		texts: make([]string, len(f.Fields)), bools: make([]bool, len(f.Fields)), sets: make([][]bool, len(f.Fields)), queries: make([]string, len(f.Fields))}
 	for i, fd := range f.Fields {
 		switch v := fd.Value.(type) {
 		case string:
@@ -608,6 +620,8 @@ func (fa *formAsk) answers() map[string]any {
 					break
 				}
 			}
+		case plugin.FieldList:
+			out[fd.Key] = fa.texts[i]
 		case plugin.FieldToggle:
 			out[fd.Key] = fa.bools[i]
 		case plugin.FieldMultiselect:
@@ -624,8 +638,19 @@ func (fa *formAsk) answers() map[string]any {
 }
 
 // formAsker is how the action running asks the user a form: in a dialog,
-// waited for on the action's goroutine.
-func (a *App) formAsker(p *plugin.Plugin, act *plugin.Action) func(context.Context, plugin.Form) (map[string]any, error) {
+// waited for on the action's goroutine. books is what the action runs on;
+// its one book is shown above the form.
+func (a *App) formAsker(p *plugin.Plugin, act *plugin.Action, books []*calibre.Book) func(context.Context, plugin.Form) (map[string]any, error) {
+	var book *formBook
+	if len(books) == 1 && a.lib != nil {
+		if d, err := a.lib.Details(books[0]); err == nil {
+			fb := formBook{id: books[0].ID, title: books[0].Title, isbn: d.Identifiers["isbn"]}
+			if len(books[0].Authors) > 0 {
+				fb.author = books[0].Authors[0]
+			}
+			book = &fb
+		}
+	}
 	return func(ctx context.Context, f plugin.Form) (map[string]any, error) {
 		if a.act.answer != nil {
 			return a.act.answer(f)
@@ -637,7 +662,7 @@ func (a *App) formAsker(p *plugin.Plugin, act *plugin.Action) func(context.Conte
 					f.Prefill(st.Answers[act.ID])
 				}
 			}
-			a.act.form = newFormAsk(p, act, f, reply)
+			a.act.form = newFormAsk(p, act, f, reply, book)
 		})
 		select {
 		case r := <-reply:
