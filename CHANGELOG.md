@@ -6,6 +6,20 @@ shows, so write them for readers of the app. `mygo build` needs a
 
 ## 0.7.0
 
+- Right-click the list's header to show, hide and rearrange its columns:
+  Publisher, Tags, Language, Published and Modified are new, and Reset
+  columns brings back the defaults. Dalibre keeps your columns, their
+  order and widths across launches.
+- Scrolling through a large library uses far less memory: covers that
+  are no longer on screen are let go and load again when they show.
+- Dalibre speaks Brazilian Portuguese.
+- Plugin forms can offer a searchable list to choose from, and plugin
+  actions can open several pages at once, as the Search the Internet
+  plugin's site picker does.
+- Plugins sourced from the Marketplace update from it again, where some
+  failed with "the package has no plugin.json at its root".
+- A plugin no longer asks again for permissions you already gave it to
+  open pages or fetch covers.
 - Plugin actions can write Word Wise files to a Kindle plugged in as a
   USB drive: the plugin says what it wants to read or write, and Dalibre
   reaches only the `.sdr` folder beside a book on it and its Word Wise
