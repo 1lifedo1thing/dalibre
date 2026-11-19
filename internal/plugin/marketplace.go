@@ -18,6 +18,10 @@ import (
 // marketplace branch: each plugin's manifest details and the package to
 // download for its listed version.
 
+// MarketplaceRepo is Dalibre's repository, where the Marketplace's own
+// plugins are developed. Its releases are Dalibre's, not a plugin's.
+const MarketplaceRepo = "djyde/dalibre"
+
 // MarketplaceURL is where Dalibre reads the Marketplace's index.
 const MarketplaceURL = "https://raw.githubusercontent.com/djyde/dalibre/refs/heads/marketplace/marketplace.json"
 

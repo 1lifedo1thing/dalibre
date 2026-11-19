@@ -238,6 +238,19 @@ func ago(t time.Time) string {
 // checkUpdates looks for newer versions of the plugins installed from
 // GitHub: when force, now; else when the last check is a day old.
 func (a *App) checkUpdates(force bool) {
+	// A plugin from Dalibre's own repository can only be the Marketplace's,
+	// whatever its source says: Dalibre's releases there aren't updates of
+	// it.
+	for id, st := range a.settings.Plugins {
+		if s := st.Source; s != nil && !s.Marketplace && s.Repo == plugin.MarketplaceRepo {
+			s.Marketplace, s.Branch = true, ""
+			if m := a.knownManifest(id); m != nil {
+				s.Ref = m.Version
+			}
+			delete(a.updates, id)
+			a.saveSettings()
+		}
+	}
 	if a.updatesChecking || !force && time.Since(a.settings.UpdatesChecked) < updateEvery {
 		return
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"dalibre/internal/plugin"
+	"dalibre/internal/settings"
 )
 
 // fakeMarketplace serves a marketplace.json and its plugins' packages.
@@ -153,6 +154,16 @@ func TestMarketplaceInstallAndUpdate(t *testing.T) {
 	tt.Frame()
 	if st.Source.Ref != "2.0.0" || a.pluginByID("org.example.dupes").Manifest.Version != "2.0.0" {
 		t.Fatalf("after consent: %s", st.Source.Ref)
+	}
+
+	// One whose source says Dalibre's own releases updates from the
+	// Marketplace: those releases are Dalibre's, not the plugin's.
+	st.Source = &settings.PluginSource{Repo: plugin.MarketplaceRepo, Ref: "v0.6.3", Auto: true}
+	mk.publish("org.example.dupes", "Find Duplicates", "2.1.0", "library", 11688, `"api.example.com"`)
+	a.checkUpdates(true)
+	tt.Frame()
+	if !st.Source.Marketplace || st.Source.Ref != "2.1.0" || a.pluginByID("org.example.dupes").Manifest.Version != "2.1.0" {
+		t.Fatalf("from Dalibre's repository: %+v", st.Source)
 	}
 
 	// A plugin needing a newer Dalibre is shown, not offered.
