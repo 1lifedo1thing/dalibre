@@ -407,6 +407,9 @@ func (a *App) pluginPane(c *ui.Context, k knownPlugin) {
 		if m.Permissions.LocalNetwork {
 			permissionItem(c, icons.Network, locales.PluginsLocalNetwork(), locales.PluginsLocalNetworkDetail(), true)
 		}
+		if m.Permissions.Device {
+			permissionItem(c, icons.BookOpen, locales.PluginsDeviceAccess(), locales.PluginsDeviceAccessDetail(), true)
+		}
 		if m.IsFileType() {
 			permissionItem(c, icons.File, locales.PluginsBookFilesAccess(), locales.PluginsBookFilesAccessDetail(), false)
 		}
@@ -691,7 +694,7 @@ func (a *App) consentDialog(c *ui.Context) {
 	// For an update, only what is new is asked.
 	var had *plugin.Permissions
 	if st := a.settings.Plugins[m.ID]; st != nil && st.Granted != nil {
-		had = &plugin.Permissions{Hosts: st.Granted.Hosts, LocalNetwork: st.Granted.LocalNetwork, Library: st.Granted.Library, CoverHosts: st.Granted.Covers, OpenHosts: st.Granted.Open}
+		had = &plugin.Permissions{Hosts: st.Granted.Hosts, LocalNetwork: st.Granted.LocalNetwork, Library: st.Granted.Library, Device: st.Granted.Device, CoverHosts: st.Granted.Covers, OpenHosts: st.Granted.Open}
 	}
 	title := locales.PluginsConsentInstallTitle(m.Name)
 	if had != nil {
@@ -738,6 +741,9 @@ func (a *App) consentDialog(c *ui.Context) {
 			if m.Permissions.LocalNetwork && (had == nil || !had.LocalNetwork) {
 				permissionItem(c, icons.Network, locales.PluginsConsentLocal(),
 					locales.PluginsConsentLocalDetail(), true)
+			}
+			if m.Permissions.Device && (had == nil || !had.Device) {
+				permissionItem(c, icons.BookOpen, locales.PluginsDeviceAccess(), locales.PluginsDeviceAccessDetail(), true)
 			}
 			if m.IsFileType() && had == nil {
 				permissionItem(c, icons.File, locales.PluginsBookFilesAccess(), locales.PluginsBookFilesAccessDetail(), false)

@@ -7071,6 +7071,26 @@ func (msgs Messages) PluginsBookFilesAccessDetail() string {
 	return Catalog.Format(msgs.locale, "pluginsBookFilesAccessDetail", nil)
 }
 
+// PluginsDeviceAccess says "Files beside the books on your Kindle"
+// in the language the app shows.
+func PluginsDeviceAccess() string { return In(i18n.Locale()).PluginsDeviceAccess() }
+
+// PluginsDeviceAccess says "Files beside the books on your Kindle"
+// in the language of msgs.
+func (msgs Messages) PluginsDeviceAccess() string {
+	return Catalog.Format(msgs.locale, "pluginsDeviceAccess", nil)
+}
+
+// PluginsDeviceAccessDetail says "Everything in a book’s .sdr folder, including your highlights, notes and reading position, and the Word Wise dictio…"
+// in the language the app shows.
+func PluginsDeviceAccessDetail() string { return In(i18n.Locale()).PluginsDeviceAccessDetail() }
+
+// PluginsDeviceAccessDetail says "Everything in a book’s .sdr folder, including your highlights, notes and reading position, and the Word Wise dictio…"
+// in the language of msgs.
+func (msgs Messages) PluginsDeviceAccessDetail() string {
+	return Catalog.Format(msgs.locale, "pluginsDeviceAccessDetail", nil)
+}
+
 // PluginsFileNone says "No file chosen"
 // in the language the app shows.
 func PluginsFileNone() string { return In(i18n.Locale()).PluginsFileNone() }

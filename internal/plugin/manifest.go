@@ -61,11 +61,15 @@ func NeedsDalibre(min string) string {
 }
 
 // FeaturesSince is the oldest Dalibre with what the manifest uses of plugin
-// API 1: "0.6.4" for permissions.open, "0.4.0" for actions and the newer
-// kinds of settings, "" for what every Dalibre has. A plugin using them
+// API 1: "0.7.0" for permissions.device, "0.6.4" for permissions.open,
+// "0.4.0" for actions and the newer kinds of settings, "" for what every
+// Dalibre has. A plugin using them
 // should say so in its dalibre field: an older Dalibre can't load its
 // manifest.
 func (m *Manifest) FeaturesSince() string {
+	if m.Permissions.Device {
+		return "0.7.0"
+	}
 	if m.Permissions.OpenHosts != "" {
 		return "0.6.4"
 	}
@@ -154,6 +158,11 @@ type Permissions struct {
 	// that opens searches on sites the user names, which can't be listed.
 	// Only the browser opens them: the plugin itself reaches nothing new.
 	OpenHosts string `json:"open,omitempty"`
+	// Device lets an action read and write the files of a Kindle the
+	// user connects that Word Wise and X-Ray use: anything in the sidecar
+	// folder beside a book on it, the reader's highlights, notes and
+	// reading position among them, and the dictionaries in system/kll. Dalibre checks every path.
+	Device bool `json:"device,omitempty"`
 }
 
 // CoversAny is permissions.covers for covers from any https host.
@@ -783,6 +792,9 @@ func (p Permissions) Covers(want Permissions) bool {
 	if want.OpenHosts == OpenAny && p.OpenHosts != OpenAny {
 		return false
 	}
+	if want.Device && !p.Device {
+		return false
+	}
 	switch want.Library {
 	case LibraryRead:
 		if !p.CanRead() {
@@ -819,6 +831,9 @@ func (p Permissions) Describe() []string {
 	}
 	if p.OpenHosts == OpenAny {
 		out = append(out, "Open pages of any website in your browser")
+	}
+	if p.Device {
+		out = append(out, "Read and write the files beside the books on a Kindle you connect, including your highlights, notes and reading position, and its Word Wise dictionaries")
 	}
 	switch p.Library {
 	case LibraryRead:
