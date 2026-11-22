@@ -4,6 +4,15 @@ Each version's section is the release notes that Dalibre's update window
 shows, so write them for readers of the app. `mygo build` needs a
 `## <version>` section for the version in `cmd/dalibre/mygo.json`.
 
+## 0.8.0
+
+- Settings › Library can keep the original characters of titles and
+  authors in the names of books' folders and files: turn on Keep
+  original characters in file names, and books you add or rename are
+  stored as “刘慈欣/三体” rather than “Liu Ci Xin/San Ti”, so your
+  system's search finds them by name. calibre still renames a book back
+  to ASCII when you edit it there.
+
 ## 0.7.0
 
 - Right-click the list's header to show, hide and rearrange its columns:
